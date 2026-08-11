@@ -1,0 +1,103 @@
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const { v4: uuidv4 } = require('uuid');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// Simple in-memory meeting store (for demo). Replace with DB in production.
+const meetings = new Map();
+
+app.post('/meetings', (req, res) => {
+  // create a new meeting and return id and optional metadata
+  const id = uuidv4();
+  const { title } = req.body || {};
+  meetings.set(id, { id, title: title || 'Untitled Meeting', participants: [] });
+  res.json({ id, title: title || 'Untitled Meeting' });
+});
+
+app.get('/meetings/:id', (req, res) => {
+  const id = req.params.id;
+  const meeting = meetings.get(id);
+  if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+  res.json(meeting);
+});
+
+const server = http.createServer(app);
+
+// Socket.IO server for WebRTC signalling
+const io = new Server(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST']
+  }
+});
+
+// Room -> Set of socket ids
+const rooms = new Map();
+
+io.on('connection', (socket) => {
+  console.log('Socket connected:', socket.id);
+
+  socket.on('join-room', ({ meetingId, user }) => {
+    console.log(`Socket ${socket.id} joining meeting ${meetingId}`);
+    socket.join(meetingId);
+
+    // track participants
+    if (!rooms.has(meetingId)) rooms.set(meetingId, new Set());
+    const set = rooms.get(meetingId);
+    set.add(socket.id);
+
+    // notify others
+    socket.to(meetingId).emit('user-joined', { socketId: socket.id, user });
+
+    // send current participants to joining socket
+    const participants = Array.from(set).filter((id) => id !== socket.id);
+    socket.emit('current-participants', { participants });
+  });
+
+  socket.on('offer', ({ to, from, description }) => {
+    console.log(`Offer from ${from} to ${to}`);
+    io.to(to).emit('offer', { from, description });
+  });
+
+  socket.on('answer', ({ to, from, description }) => {
+    console.log(`Answer from ${from} to ${to}`);
+    io.to(to).emit('answer', { from, description });
+  });
+
+  socket.on('ice-candidate', ({ to, from, candidate }) => {
+    // relay ICE candidate
+    io.to(to).emit('ice-candidate', { from, candidate });
+  });
+
+  socket.on('leave-room', ({ meetingId }) => {
+    socket.leave(meetingId);
+    if (rooms.has(meetingId)) {
+      const set = rooms.get(meetingId);
+      set.delete(socket.id);
+      socket.to(meetingId).emit('user-left', { socketId: socket.id });
+      if (set.size === 0) rooms.delete(meetingId);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected', socket.id);
+    // remove from any rooms
+    for (const [meetingId, set] of rooms.entries()) {
+      if (set.has(socket.id)) {
+        set.delete(socket.id);
+        socket.to(meetingId).emit('user-left', { socketId: socket.id });
+        if (set.size === 0) rooms.delete(meetingId);
+      }
+    }
+  });
+});
+
+const PORT = process.env.SIGNALING_PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Signalling server running on port ${PORT}`);
+});
