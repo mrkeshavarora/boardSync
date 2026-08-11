@@ -87,6 +87,7 @@ export default function MeetingRoomPage() {
   useEffect(() => {
     if (!meeting || !session?.user) return;
 
+    console.log("Initializing WebRTC Socket. URL:", SIGNALING_URL);
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
 
