@@ -678,120 +678,118 @@ export default function ChatPage() {
 
       {/* Direct Call Dialog Modal overlay */}
       {isInCall && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-2 md:p-4">
-          <div className="bg-[#0b1021] border border-white/[0.08] rounded-2xl md:rounded-3xl w-full max-w-4xl h-[90vh] md:h-[75vh] flex flex-col relative overflow-hidden shadow-2xl">
-            {/* Call Header */}
-            <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-600 text-white">
-                  {selectedContact?.avatar ? (
-                    <img src={selectedContact.avatar} alt={selectedContact.name} className="w-full h-full rounded-full object-cover" />
-                  ) : (
-                    getInitials(selectedContact?.name || "U")
-                  )}
-                </div>
-                <div>
-                  <h4 className="text-sm font-600 text-white">{selectedContact?.name}</h4>
-                  <p className="text-[10px] text-white/40 uppercase capitalize">
-                    {isCalling ? `Calling (${callType})...` : `${callType} Call`}
-                  </p>
-                </div>
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          {/* Call Header - fixed at top */}
+          <div className="shrink-0 px-6 py-3 flex items-center justify-between bg-black/60 backdrop-blur-sm z-20 border-b border-white/[0.06]">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-600 text-white">
+                {selectedContact?.avatar ? (
+                  <img src={selectedContact.avatar} alt={selectedContact.name} className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  getInitials(selectedContact?.name || "U")
+                )}
+              </div>
+              <div>
+                <h4 className="text-sm font-600 text-white">{selectedContact?.name}</h4>
+                <p className="text-[10px] text-white/50 uppercase">
+                  {isCalling ? `Calling (${callType})...` : `${callType} Call • Connected`}
+                </p>
               </div>
             </div>
+          </div>
 
-            {/* Video Streams Container */}
-            <div className="flex-1 bg-black/40 relative flex items-center justify-center">
-              {isCalling ? (
-                /* Ringing/Calling dialer screen */
-                <div className="flex flex-col items-center justify-center text-center animate-pulse">
-                  <div className="w-24 h-24 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4">
-                    <PhoneForwarded size={36} className="animate-bounce" />
-                  </div>
-                  <h3 className="text-lg font-600 text-white">Calling {selectedContact?.name}...</h3>
-                  <p className="text-sm text-white/40 mt-1">Waiting for reply...</p>
+          {/* Video area — fills remaining space */}
+          <div className="flex-1 relative bg-black overflow-hidden">
+            {isCalling ? (
+              /* Ringing/Calling screen */
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <div className="w-24 h-24 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
+                  <PhoneForwarded size={36} className="animate-bounce" />
                 </div>
-              ) : callType === "video" ? (
-                <>
-                  {/* Remote Stream Video */}
-                  {remoteStream ? (
-                    <video
-                      ref={remoteVideoRef}
-                      autoPlay
-                      playsInline
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex flex-col items-center justify-center text-center text-white/40">
-                      <Loader2 size={32} className="animate-spin text-indigo-400 mb-2" />
-                      <p className="text-sm">Connecting peer streams...</p>
-                    </div>
-                  )}
-
-                  {/* Local Stream Video Preview (PIP) */}
-                  <div className="absolute bottom-4 right-4 w-40 h-28 rounded-xl border border-white/20 overflow-hidden bg-black/50 shadow-lg">
-                    <video
-                      ref={localVideoRef}
-                      autoPlay
-                      playsInline
-                      muted
-                      className="w-full h-full object-cover"
-                    />
+                <h3 className="text-lg font-600 text-white">Calling {selectedContact?.name}...</h3>
+                <p className="text-sm text-white/40 mt-1">Waiting for reply...</p>
+              </div>
+            ) : callType === "video" ? (
+              <>
+                {/* Remote video — full background */}
+                {remoteStream ? (
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white/40">
+                    <Loader2 size={32} className="animate-spin text-indigo-400 mb-2" />
+                    <p className="text-sm">Connecting video streams...</p>
                   </div>
-                </>
-              ) : (
-                /* Voice call layout */
-                <div className="flex flex-col items-center justify-center text-center">
-                  <div className="w-24 h-24 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-4 animate-pulse">
-                    <Mic size={36} />
-                  </div>
-                  <h3 className="text-lg font-600 text-white">{selectedContact?.name}</h3>
-                  <p className="text-sm text-white/40 mt-1 font-500 text-emerald-400">Connected</p>
-                  
-                  {/* Invisible streams to keep audio track working */}
-                  <video ref={localVideoRef} autoPlay playsInline muted className="hidden" />
-                  <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
-                </div>
-              )}
-            </div>
-
-            {/* Calling control bars */}
-            <div className="p-6 border-t border-white/[0.06] bg-black/20 flex items-center justify-center gap-4 z-10">
-              <button
-                onClick={toggleMute}
-                className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center border transition-all",
-                  isMuted
-                    ? "bg-red-500/20 border-red-500/30 text-red-400"
-                    : "bg-white/[0.04] border-white/[0.08] text-white/70 hover:text-white"
                 )}
-                title={isMuted ? "Unmute Mic" : "Mute Mic"}
-              >
-                {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-              </button>
 
-              {callType === "video" && (
-                <button
-                  onClick={toggleCamera}
-                  className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center border transition-all",
-                    isCameraOff
-                      ? "bg-red-500/20 border-red-500/30 text-red-400"
-                      : "bg-white/[0.04] border-white/[0.08] text-white/70 hover:text-white"
-                  )}
-                  title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
-                >
-                  <VideoOff size={18} />
-                </button>
+                {/* Local PIP — floating corner overlay */}
+                <div className="absolute bottom-4 right-4 w-36 h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10">
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute bottom-1 left-2 text-[9px] text-white/60 font-500">You</div>
+                </div>
+              </>
+            ) : (
+              /* Voice call layout */
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <div className="w-28 h-28 rounded-full bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-5 animate-pulse">
+                  <Mic size={40} />
+                </div>
+                <h3 className="text-xl font-600 text-white">{selectedContact?.name}</h3>
+                <p className="text-sm text-emerald-400 mt-2 font-500">● Connected</p>
+                {/* Hidden streams to keep audio working */}
+                <video ref={localVideoRef} autoPlay playsInline muted className="hidden" />
+                <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
+              </div>
+            )}
+          </div>
+
+          {/* Controls bar — shrink-0 so it's ALWAYS visible at bottom */}
+          <div className="shrink-0 py-5 px-6 bg-black/70 backdrop-blur-md flex items-center justify-center gap-5 z-20 border-t border-white/[0.06]">
+            <button
+              onClick={toggleMute}
+              className={cn(
+                "w-13 h-13 w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all",
+                isMuted
+                  ? "bg-red-500/20 border-red-500/40 text-red-400"
+                  : "bg-white/[0.08] border-white/[0.12] text-white/80 hover:text-white hover:bg-white/[0.15]"
               )}
+              title={isMuted ? "Unmute Mic" : "Mute Mic"}
+            >
+              {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
 
+            {callType === "video" && (
               <button
-                onClick={endCall}
-                className="w-14 h-14 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-lg shadow-red-600/30 transition-all"
-                title="End Call"
+                onClick={toggleCamera}
+                className={cn(
+                  "w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all",
+                  isCameraOff
+                    ? "bg-red-500/20 border-red-500/40 text-red-400"
+                    : "bg-white/[0.08] border-white/[0.12] text-white/80 hover:text-white hover:bg-white/[0.15]"
+                )}
+                title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
               >
-                <PhoneOff size={22} />
+                {isCameraOff ? <VideoOff size={20} /> : <VideoIcon size={20} />}
               </button>
-            </div>
+            )}
+
+            <button
+              onClick={endCall}
+              className="w-16 h-16 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 transition-all"
+              title="End Call"
+            >
+              <PhoneOff size={24} />
+            </button>
           </div>
         </div>
       )}
