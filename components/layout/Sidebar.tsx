@@ -18,6 +18,7 @@ import {
   ChevronRight,
   Shield,
   X,
+  MessageSquare,
 } from "lucide-react";
 
 const navItems = [
@@ -26,6 +27,7 @@ const navItems = [
   { label: "My Actions", href: "/actions", icon: CheckSquare },
   { label: "Documents", href: "/documents", icon: FileText },
   { label: "Minutes", href: "/minutes", icon: BookOpen },
+  { label: "Chat", href: "/chat", icon: MessageSquare },
   { label: "Users", href: "/users", icon: Users },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Notifications", href: "/notifications", icon: Bell },

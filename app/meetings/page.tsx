@@ -3,7 +3,6 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { CalendarDays, Plus, Link as LinkIcon } from "lucide-react";
-import StartMeetingButton from "@/components/meetings/StartMeetingButton";
 import DeleteMeetingButton from "@/components/meetings/DeleteMeetingButton";
 import connectDB from "@/lib/mongodb";
 import Meeting from "@/models/Meeting";
@@ -35,7 +34,6 @@ export default async function MeetingsPage() {
             <Link href="/meetings/new" className="btn-gradient flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-600">
               <Plus size={15} /> New Meeting
             </Link>
-            <StartMeetingButton />
           </div>
         </div>
 
@@ -57,19 +55,25 @@ export default async function MeetingsPage() {
                     <h3 className="text-xl font-700 text-white truncate">{meeting.title}</h3>
                     <p className="text-sm text-white/40 mt-2 line-clamp-2">{meeting.description ?? "No description provided."}</p>
                   </div>
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-2">
                     <span className="badge bg-indigo-500/10 text-indigo-300 border-indigo-500/20">{meeting.status}</span>
-                    <div className="flex items-center gap-2 mt-0 sm:mt-2">
+                    <div className="flex items-center gap-3 mt-1">
                       {meeting.onlineMeeting && (
-                        <div className="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200">
+                        <a
+                          href={meeting.onlineMeeting}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200"
+                        >
                           <LinkIcon size={12} />
                           <span className="underline underline-offset-2">Join Link</span>
-                        </div>
+                        </a>
                       )}
                       <DeleteMeetingButton
                         meetingId={meeting._id.toString()}
                         meetingTitle={meeting.title}
-                        canDelete={canDelete}
+                        canDelete={canDelete || meeting.organizerId?._id?.toString() === session.user.id || meeting.organizerId?.toString() === session.user.id}
                       />
                     </div>
                   </div>

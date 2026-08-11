@@ -13,6 +13,7 @@ import { UserRole } from "@/models/User";
 import Link from "next/link";
 import { getInitials } from "@/lib/utils";
 import StartMeetingBtn from "@/components/meetings/StartMeetingBtn";
+import DeleteMeetingBtn from "@/components/meetings/DeleteMeetingBtn";
 
 export const metadata: Metadata = { title: "Meeting Details" };
 
@@ -98,6 +99,10 @@ export default async function MeetingDetailsPage(
               {/* Start Meeting button — only for organizer */}
               {organizer?._id?.toString() === session.user.id && (
                 <StartMeetingBtn meetingId={params.id} currentStatus={meeting.status} />
+              )}
+              {/* Delete Meeting button — for organizer or admin */}
+              {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:delete")) && (
+                <DeleteMeetingBtn meetingId={params.id} />
               )}
               {/* Join Room button — for all participants when In Progress */}
               {meeting.status === "In Progress" && organizer?._id?.toString() !== session.user.id && (

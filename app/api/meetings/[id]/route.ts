@@ -56,13 +56,19 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role as UserRole, "meetings:delete")) {
+
+  await connectDB();
+  const meetingId = (await params).id;
+  const meeting = await Meeting.findById(meetingId);
+  if (!meeting) return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+
+  const isOrganizer = meeting.organizerId?.toString() === session.user.id;
+  const hasGlobalDelete = hasPermission(session.user.role as UserRole, "meetings:delete");
+
+  if (!isOrganizer && !hasGlobalDelete) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await connectDB();
-  const meeting = await Meeting.findByIdAndDelete((await params).id);
-  if (!meeting) return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
-
+  await Meeting.findByIdAndDelete(meetingId);
   return NextResponse.json({ success: true });
 }
