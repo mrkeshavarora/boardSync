@@ -2,12 +2,29 @@
  * Seed script — run with: npx tsx scripts/seed.ts
  * Creates a default super_admin user if none exists.
  */
-import "dotenv/config";
+import fs from "fs";
+import path from "path";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const MONGODB_URI = process.env.MONGODB_URI;
-if (!MONGODB_URI) throw new Error("Set MONGODB_URI in .env.local");
+let MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  try {
+    const envPath = path.join(process.cwd(), ".env.local");
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, "utf-8");
+      const match = envContent.match(/MONGODB_URI\s*=\s*(.+)/);
+      if (match) {
+        MONGODB_URI = match[1].trim().replace(/['"]/g, "");
+      }
+    }
+  } catch (err) {
+    console.error("Could not parse .env.local automatically:", err);
+  }
+}
+
+if (!MONGODB_URI) throw new Error("Set MONGODB_URI in environment or .env.local");
 
 const UserSchema = new mongoose.Schema({
   name: String,

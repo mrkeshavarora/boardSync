@@ -176,25 +176,18 @@ export default function UsersContent() {
     }
   };
 
+  console.log("UsersContent rendering. Total:", total, "Loading:", loading, "Users:", users.length);
+
   return (
-    <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <p className="text-sm text-white/40 mt-0.5">{total} total members</p>
-        </div>
-        <button
-          onClick={() => setShowInviteModal(true)}
-          className="btn-gradient flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-600 self-start sm:self-auto"
-        >
-          <Plus size={15} />
-          Add New User
-        </button>
+    <div className="space-y-4 max-w-7xl mx-auto">
+      {/* Header Info */}
+      <div className="flex justify-between items-center px-1">
+        <span className="text-xs font-600 text-white/30 uppercase tracking-widest">{total} total members</span>
       </div>
 
-      {/* Filters */}
+      {/* Filters & Add Button */}
       <div
-        className="rounded-2xl p-4 border border-white/[0.06] flex flex-col sm:flex-row gap-3"
+        className="rounded-2xl p-4 border border-white/[0.06] flex flex-col md:flex-row gap-3 items-stretch md:items-center"
         style={{ background: "var(--bg-card)" }}
       >
         <div className="relative flex-1">
@@ -210,7 +203,7 @@ export default function UsersContent() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all"
+          className="px-3 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
         >
           <option value="all">All Roles</option>
           <option value="super_admin">Super Admin</option>
@@ -222,13 +215,20 @@ export default function UsersContent() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all"
+          className="px-3 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
           <option value="pending">Pending</option>
         </select>
+        <button
+          onClick={() => setShowInviteModal(true)}
+          className="btn-gradient flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-600 shrink-0"
+        >
+          <Plus size={15} />
+          Add New User
+        </button>
       </div>
 
       {/* Users table */}

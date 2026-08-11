@@ -517,7 +517,7 @@ export default function MeetingRoomPage() {
         {/* Sidebar */}
         {showSidebar && (
           <div
-            className="w-72 border-l border-white/[0.06] flex flex-col shrink-0 animate-fade-in"
+            className="w-72 border-l border-white/[0.06] flex flex-col shrink-0 animate-fade-in absolute right-0 top-0 bottom-0 z-20 lg:relative lg:z-0 h-full shadow-2xl"
             style={{ background: "#080d1a" }}
           >
             <div className="px-5 py-4 border-b border-white/[0.06]">
@@ -567,7 +567,7 @@ export default function MeetingRoomPage() {
 
       {/* Bottom Controls Bar */}
       <div
-        className="h-24 flex items-center justify-center gap-4 border-t border-white/[0.06] shrink-0 px-6"
+        className="h-20 sm:h-24 flex items-center justify-center gap-2 sm:gap-4 border-t border-white/[0.06] shrink-0 px-3 sm:px-6"
         style={{ background: "rgba(6,11,22,0.97)" }}
       >
         {/* Mic Toggle */}
@@ -575,14 +575,14 @@ export default function MeetingRoomPage() {
           id="toggle-mic-btn"
           onClick={toggleMic}
           className={cn(
-            "flex flex-col items-center gap-1.5 px-5 py-2.5 rounded-2xl transition-all font-500 text-xs",
+            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
             isMuted
               ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
               : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
         >
-          {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
-          {isMuted ? "Unmute" : "Mute"}
+          {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+          <span className="hidden sm:inline">{isMuted ? "Unmute" : "Mute"}</span>
         </button>
 
         {/* Camera Toggle */}
@@ -590,14 +590,14 @@ export default function MeetingRoomPage() {
           id="toggle-camera-btn"
           onClick={toggleCamera}
           className={cn(
-            "flex flex-col items-center gap-1.5 px-5 py-2.5 rounded-2xl transition-all font-500 text-xs",
+            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
             isCameraOff
               ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
               : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
         >
-          {isCameraOff ? <VideoOff size={20} /> : <Video size={20} />}
-          {isCameraOff ? "Start Video" : "Stop Video"}
+          {isCameraOff ? <VideoOff size={18} /> : <Video size={18} />}
+          <span className="hidden sm:inline">{isCameraOff ? "Start Video" : "Stop Video"}</span>
         </button>
 
         {/* Screen Share */}
@@ -605,18 +605,18 @@ export default function MeetingRoomPage() {
           id="toggle-screenshare-btn"
           onClick={toggleScreenShare}
           className={cn(
-            "flex flex-col items-center gap-1.5 px-5 py-2.5 rounded-2xl transition-all font-500 text-xs",
+            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
             isScreenSharing
               ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
               : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
         >
-          {isScreenSharing ? <MonitorOff size={20} /> : <Monitor size={20} />}
-          {isScreenSharing ? "Stop Share" : "Share Screen"}
+          {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+          <span className="hidden sm:inline">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
         </button>
 
         {/* Divider */}
-        <div className="w-px h-10 bg-white/[0.08]" />
+        <div className="w-px h-8 sm:h-10 bg-white/[0.08] mx-1 shrink-0" />
 
         {/* Leave / End */}
         {isOrganizer ? (
@@ -624,19 +624,20 @@ export default function MeetingRoomPage() {
             id="end-meeting-btn"
             onClick={handleEndMeeting}
             disabled={ending}
-            className="flex flex-col items-center gap-1.5 px-6 py-2.5 rounded-2xl bg-red-500 hover:bg-red-400 text-white font-600 text-xs transition-all shadow-lg shadow-red-500/30 disabled:opacity-60"
+            className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-xs transition-all shadow-lg shadow-red-500/30 disabled:opacity-60 shrink-0"
           >
-            <PhoneOff size={20} />
-            {ending ? "Ending…" : "End Meeting"}
+            <PhoneOff size={18} />
+            <span className="hidden sm:inline">{ending ? "Ending…" : "End Meeting"}</span>
+            <span className="sm:hidden">{ending ? "End…" : "End"}</span>
           </button>
         ) : (
           <button
             id="leave-meeting-btn"
             onClick={handleLeave}
-            className="flex flex-col items-center gap-1.5 px-6 py-2.5 rounded-2xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-600 text-xs transition-all"
+            className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-600 text-[10px] sm:text-xs transition-all shrink-0"
           >
-            <PhoneOff size={20} />
-            Leave
+            <PhoneOff size={18} />
+            <span>Leave</span>
           </button>
         )}
       </div>

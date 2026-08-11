@@ -15,6 +15,7 @@ const createUserSchema = z.object({
   department: z.string().optional(),
   title: z.string().optional(),
   phone: z.string().optional(),
+  status: z.enum(["active", "inactive", "pending"]).optional(),
 });
 
 export async function GET(request: Request) {
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
   const user = await User.create({
     ...parsed.data,
     password: hashedPassword,
-    status: "pending",
+    status: parsed.data.status || "active",
   });
 
   return NextResponse.json({ user: { ...user.toObject(), password: undefined } }, { status: 201 });
