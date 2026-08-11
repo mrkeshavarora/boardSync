@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { CalendarDays, Plus, Link as LinkIcon } from "lucide-react";
 import StartMeetingButton from "@/components/meetings/StartMeetingButton";
+import DeleteMeetingButton from "@/components/meetings/DeleteMeetingButton";
 import connectDB from "@/lib/mongodb";
 import Meeting from "@/models/Meeting";
 import { hasPermission } from "@/lib/permissions";
@@ -18,6 +19,7 @@ export default async function MeetingsPage() {
 
   await connectDB();
   const canReadAll = hasPermission(session.user.role as UserRole, "meetings:read");
+  const canDelete = hasPermission(session.user.role as UserRole, "meetings:delete");
   const meetings = canReadAll
     ? await Meeting.find({}).sort({ createdAt: -1 }).limit(50).populate("organizerId", "name email")
     : [];
@@ -50,21 +52,26 @@ export default async function MeetingsPage() {
             {meetings.map((meeting) => (
               <Link href={`/meetings/${meeting._id.toString()}`} key={meeting._id.toString()} className="block rounded-3xl border border-white/[0.06] p-6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-indigo-500/30 transition-all cursor-pointer">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm text-white/50">{new Date(meeting.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
-                    <h3 className="text-xl font-700 text-white">{meeting.title}</h3>
-                    <p className="text-sm text-white/40 mt-2">{meeting.description ?? "No description provided."}</p>
+                    <h3 className="text-xl font-700 text-white truncate">{meeting.title}</h3>
+                    <p className="text-sm text-white/40 mt-2 line-clamp-2">{meeting.description ?? "No description provided."}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-3">
                     <span className="badge bg-indigo-500/10 text-indigo-300 border-indigo-500/20">{meeting.status}</span>
-                    {meeting.onlineMeeting && (
-                      <div className="mt-3 inline-flex items-center gap-2 text-sm text-indigo-300">
-                        <LinkIcon size={14} />
-                        <span className="underline underline-offset-4">
-                          Join link
-                        </span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-2 mt-0 sm:mt-2">
+                      {meeting.onlineMeeting && (
+                        <div className="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200">
+                          <LinkIcon size={12} />
+                          <span className="underline underline-offset-2">Join Link</span>
+                        </div>
+                      )}
+                      <DeleteMeetingButton
+                        meetingId={meeting._id.toString()}
+                        meetingTitle={meeting.title}
+                        canDelete={canDelete}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/60">
