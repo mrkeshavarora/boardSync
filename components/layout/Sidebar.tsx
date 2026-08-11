@@ -68,7 +68,7 @@ export default function Sidebar({
         // Mobile drawer transition states
         mobileOpen ? "translate-x-0 w-[260px]" : "-translate-x-full lg:translate-x-0",
         // Desktop width when drawer is inactive
-        collapsed ? "lg:ml-[72px]" : "lg:ml-[260px]"
+        !mobileOpen && (collapsed ? "w-[72px]" : "w-[260px]")
       )}
       style={{ background: "var(--bg-sidebar)" }}
     >
