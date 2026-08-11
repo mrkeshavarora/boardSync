@@ -6,7 +6,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   MessageSquare, Phone, Video, Send, Mic, MicOff, VideoOff,
   Video as VideoIcon, X, Search, Loader2, UserCheck, Shield, PhoneOff,
-  PhoneCall, Check, PhoneForwarded
+  PhoneCall, Check, PhoneForwarded, ArrowLeft
 } from "lucide-react";
 import io from "socket.io-client";
 import { cn, getInitials } from "@/lib/utils";
@@ -292,19 +292,39 @@ export default function ChatPage() {
     const pc = new RTCPeerConnection(pcConfig);
     pcRef.current = pc;
 
+    let peerSocketId: string | null = null;
+    const pendingCandidates: RTCIceCandidate[] = [];
+
     stream.getTracks().forEach((track) => {
       pc.addTrack(track, stream);
     });
 
     pc.onicecandidate = (event) => {
-      if (event.candidate && selectedContact) {
-        socket.emit("ice-candidate", {
-          to: selectedContact.id,
-          from: socket.id,
-          candidate: event.candidate,
-        });
+      if (event.candidate) {
+        if (peerSocketId) {
+          socket.emit("ice-candidate", {
+            to: peerSocketId,
+            from: socket.id,
+            candidate: event.candidate,
+          });
+        } else {
+          pendingCandidates.push(event.candidate);
+        }
       }
     };
+
+    function flushPendingCandidates(targetId: string) {
+      while (pendingCandidates.length > 0) {
+        const cand = pendingCandidates.shift();
+        if (cand) {
+          socket.emit("ice-candidate", {
+            to: targetId,
+            from: socket.id,
+            candidate: cand,
+          });
+        }
+      }
+    }
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
@@ -325,10 +345,14 @@ export default function ChatPage() {
 
     socket.on("current-participants", async ({ participants }: { participants: string[] }) => {
       if (participants.length > 0) {
+        const targetId = participants[0];
+        peerSocketId = targetId;
+        flushPendingCandidates(targetId);
+
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         socket.emit("offer", {
-          to: room,
+          to: targetId,
           from: socket.id,
           description: pc.localDescription,
         });
@@ -336,6 +360,9 @@ export default function ChatPage() {
     });
 
     socket.on("offer", async ({ from, description }: any) => {
+      peerSocketId = from;
+      flushPendingCandidates(from);
+
       await pc.setRemoteDescription(description);
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -346,7 +373,11 @@ export default function ChatPage() {
       });
     });
 
-    socket.on("answer", async ({ description }: any) => {
+    socket.on("answer", async ({ from, description }: any) => {
+      if (from) {
+        peerSocketId = from;
+        flushPendingCandidates(from);
+      }
       await pc.setRemoteDescription(description);
     });
 
@@ -427,10 +458,13 @@ export default function ChatPage() {
 
   return (
     <AppShell title="Direct Messaging">
-      <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] flex rounded-2xl border border-white/[0.06] overflow-hidden" style={{ background: "var(--bg-card)" }}>
+      <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] flex rounded-2xl border border-white/[0.06] overflow-hidden relative" style={{ background: "var(--bg-card)" }}>
         
         {/* Left Panel: Contacts */}
-        <aside className="w-80 border-r border-white/[0.06] flex flex-col shrink-0 bg-white/[0.01]">
+        <aside className={cn(
+          "w-full md:w-80 border-r border-white/[0.06] flex flex-col shrink-0 bg-white/[0.01]",
+          selectedContact ? "hidden md:flex" : "flex"
+        )}>
           <div className="p-4 border-b border-white/[0.06]">
             <div className="relative flex items-center">
               <Search className="absolute left-3 w-4 h-4 text-white/30" />
@@ -484,13 +518,23 @@ export default function ChatPage() {
         </aside>
 
         {/* Right Panel: Chat Area */}
-        <main className="flex-1 flex flex-col min-w-0 bg-black/[0.01]">
+        <main className={cn(
+          "flex-1 flex flex-col min-w-0 bg-black/[0.01]",
+          selectedContact ? "flex" : "hidden md:flex"
+        )}>
           {selectedContact ? (
             <>
               {/* Active Header */}
-              <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0">
+              <div className="px-4 md:px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <button
+                    onClick={() => setSelectedContact(null)}
+                    className="p-2 rounded-lg md:hidden hover:bg-white/[0.08] text-white/60 hover:text-white transition-all shrink-0"
+                    title="Back to contacts"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                  <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/10 flex items-center justify-center text-xs md:text-sm font-600 text-white shrink-0">
                     {selectedContact.avatar ? (
                       <img src={selectedContact.avatar} alt={selectedContact.name} className="w-full h-full rounded-full object-cover" />
                     ) : (
@@ -498,8 +542,8 @@ export default function ChatPage() {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-sm font-600 text-white leading-tight">{selectedContact.name}</h3>
-                    <p className="text-[10px] text-emerald-400 font-500 mt-0.5">Online</p>
+                    <h3 className="text-xs md:text-sm font-600 text-white leading-tight">{selectedContact.name}</h3>
+                    <p className="text-[9px] md:text-[10px] text-emerald-400 font-500 mt-0.5">Online</p>
                   </div>
                 </div>
 
@@ -628,8 +672,8 @@ export default function ChatPage() {
 
       {/* Direct Call Dialog Modal overlay */}
       {isInCall && (
-        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0b1021] border border-white/[0.08] rounded-3xl w-full max-w-4xl h-[75vh] flex flex-col relative overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-2 md:p-4">
+          <div className="bg-[#0b1021] border border-white/[0.08] rounded-2xl md:rounded-3xl w-full max-w-4xl h-[90vh] md:h-[75vh] flex flex-col relative overflow-hidden shadow-2xl">
             {/* Call Header */}
             <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
@@ -748,7 +792,7 @@ export default function ChatPage() {
 
       {/* Ringing/Incoming Call Dialog Pop Up */}
       {incomingCall && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#0f172a]/95 border border-white/10 rounded-2xl p-5 w-80 shadow-2xl animate-fade-in backdrop-blur-md">
+        <div className="fixed bottom-6 right-6 left-6 md:left-auto md:w-80 z-50 bg-[#0f172a]/95 border border-white/10 rounded-2xl p-5 shadow-2xl animate-fade-in backdrop-blur-md">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 animate-bounce">
               <PhoneCall size={20} />
