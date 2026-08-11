@@ -162,6 +162,20 @@ export default function ChatPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Sync remote stream to video element after React renders the <video> tag
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream]);
+
+  // Sync local stream to local video preview after React renders the <video> tag
+  useEffect(() => {
+    if (localStream && localVideoRef.current) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
   // Handle Send Text Message
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -225,10 +239,7 @@ export default function ChatPage() {
         video: type === "video",
         audio: true,
       });
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      setLocalStream(stream); // useEffect will bind srcObject after render
 
       connectToSignalingRoom(callRoomName, stream);
     } catch (e) {
@@ -253,10 +264,7 @@ export default function ChatPage() {
         video: call.type === "video",
         audio: true,
       });
-      setLocalStream(stream);
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
+      setLocalStream(stream); // useEffect will bind srcObject after render
 
       connectToSignalingRoom(call.roomName, stream);
     } catch (e) {
@@ -328,11 +336,9 @@ export default function ChatPage() {
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
+        // Only update state — the useEffect above will bind srcObject after React renders the <video>
         setRemoteStream(event.streams[0]);
-        setIsCalling(false); // Remote user has joined
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
-        }
+        setIsCalling(false);
       }
     };
 
