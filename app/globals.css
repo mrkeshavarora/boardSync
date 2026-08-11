@@ -178,3 +178,185 @@ body {
   animation: shimmer 1.5s infinite;
   border-radius: 6px;
 }
+
+/* ─── Light Theme Variable System ────────────────────────────────────────────── */
+html[data-theme="light"] {
+  /* Main Backgrounds */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-card-hover: #f1f5f9;
+  --bg-sidebar: #e2e8f0;
+
+  /* Borders */
+  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-default: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.20);
+
+  /* Text Elements */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  /* Indicators */
+  --glow-indigo: 0 0 40px rgba(79, 70, 229, 0.08);
+  --glow-purple: 0 0 40px rgba(124, 58, 237, 0.08);
+}
+
+/* Contrast Text Overrides in Light Mode */
+html[data-theme="light"] .text-white,
+html[data-theme="light"] .text-white\/90,
+html[data-theme="light"] .text-white\/80,
+html[data-theme="light"] .text-white\/70,
+html[data-theme="light"] h1:not(.btn-gradient *),
+html[data-theme="light"] h2:not(.btn-gradient *),
+html[data-theme="light"] h3:not(.btn-gradient *) {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .text-white\/60,
+html[data-theme="light"] .text-white\/50,
+html[data-theme="light"] .text-white\/45,
+html[data-theme="light"] .text-white\/40,
+html[data-theme="light"] .text-white\/35,
+html[data-theme="light"] .text-white\/30,
+html[data-theme="light"] .text-white\/25,
+html[data-theme="light"] .text-white\/20,
+html[data-theme="light"] p:not(.btn-gradient *):not(.badge *) {
+  color: #475569 !important;
+}
+
+/* Ensure Solid Button and Badge Text Remains White */
+html[data-theme="light"] .btn-gradient,
+html[data-theme="light"] .btn-gradient *,
+html[data-theme="light"] .badge,
+html[data-theme="light"] .badge *,
+html[data-theme="light"] .bg-indigo-600,
+html[data-theme="light"] .bg-indigo-600 *,
+html[data-theme="light"] .bg-indigo-500,
+html[data-theme="light"] .bg-indigo-500 *,
+html[data-theme="light"] .bg-emerald-600,
+html[data-theme="light"] .bg-emerald-600 *,
+html[data-theme="light"] .bg-emerald-500,
+html[data-theme="light"] .bg-emerald-500 *,
+html[data-theme="light"] .bg-red-600,
+html[data-theme="light"] .bg-red-500 {
+  color: #ffffff !important;
+}
+
+/* Force readable contrast for light/subtle indigo text links */
+html[data-theme="light"] .text-indigo-400,
+html[data-theme="light"] .text-indigo-300 {
+  color: #4f46e5 !important;
+}
+
+/* Sidebar Link Contrast */
+html[data-theme="light"] aside a {
+  color: #475569 !important;
+}
+html[data-theme="light"] aside a:hover {
+  color: #0f172a !important;
+  background-color: rgba(15, 23, 42, 0.05) !important;
+}
+html[data-theme="light"] aside a.text-white {
+  color: #4f46e5 !important;
+  background-color: rgba(79, 70, 229, 0.08) !important;
+}
+html[data-theme="light"] aside span.bg-indigo-500 {
+  background-color: #4f46e5 !important;
+}
+
+/* Map Hardcoded Dark Background Cards to White */
+html[data-theme="light"] .bg-\[\#0A0A0A\],
+html[data-theme="light"] .bg-\[\#0a0a0a\],
+html[data-theme="light"] .bg-\[\#0b1021\],
+html[data-theme="light"] .bg-\[\#0d1222\],
+html[data-theme="light"] .bg-white\/\[0\.02\] {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+/* Header Dropdown Compatibility */
+html[data-theme="light"] header div.absolute {
+  background-color: #ffffff !important;
+  border-color: rgba(15, 23, 42, 0.12) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+}
+html[data-theme="light"] header div.absolute p,
+html[data-theme="light"] header div.absolute a {
+  color: #0f172a !important;
+}
+html[data-theme="light"] header div.absolute a:hover {
+  background-color: #f1f5f9 !important;
+}
+html[data-theme="light"] header div.absolute button {
+  color: #ef4444 !important;
+}
+
+/* Input Form Elements Contrast */
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: rgba(15, 23, 42, 0.16) !important;
+}
+html[data-theme="light"] input::placeholder,
+html[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Specific component overrides for light theme */
+html[data-theme="light"] body {
+  background-image: 
+    radial-gradient(circle at top center, rgba(148, 163, 184, 0.15) 0%, transparent 75%),
+    radial-gradient(circle at bottom right, rgba(99, 102, 241, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at bottom left, rgba(79, 70, 229, 0.02) 0%, transparent 50%);
+}
+
+/* Header Navbar Light Mode overrides */
+html[data-theme="light"] header {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border-bottom-color: rgba(15, 23, 42, 0.08) !important;
+}
+
+html[data-theme="light"] header button,
+html[data-theme="light"] header a[href="/notifications"],
+html[data-theme="light"] header button[class*="rounded-lg"] {
+  background-color: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.08) !important;
+  color: #475569 !important;
+}
+
+html[data-theme="light"] header button:hover,
+html[data-theme="light"] header a[href="/notifications"]:hover,
+html[data-theme="light"] header button[class*="rounded-lg"]:hover {
+  background-color: rgba(15, 23, 42, 0.08) !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] header span[class*="ring-[#0a0f1e]"] {
+  box-shadow: 0 0 0 2px #ffffff !important;
+}
+
+html[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 4px 20px -2px rgba(15, 23, 42, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+html[data-theme="light"] .glass-hover:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 23, 42, 0.12);
+  box-shadow: 
+    0 8px 30px -4px rgba(15, 23, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+

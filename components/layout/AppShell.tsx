@@ -45,7 +45,7 @@ export default function AppShell({ children, title }: AppShellProps) {
           setMobileOpen={setMobileOpen}
           collapsed={collapsed}
         />
-        <main className="flex-1 pt-24 p-4 sm:p-6 min-w-0 animate-fade-in">
+        <main className="flex-1 pt-24 pb-6 px-4 sm:px-6 min-w-0 animate-fade-in">
           {children}
         </main>
       </div>

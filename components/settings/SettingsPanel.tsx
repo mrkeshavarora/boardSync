@@ -60,6 +60,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
   const [section, setSection] = useState<SettingsSection>("profile");
   const [showPassword, setShowPassword] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
 
   // Profile state
   const [profileName, setProfileName] = useState(user?.name ?? "");
@@ -67,6 +68,23 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
   const [title, setTitle] = useState(user?.title ?? "");
   const [department, setDepartment] = useState(user?.department ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
+
+  useEffect(() => {
+    const syncTheme = () => {
+      const currentTheme = (document.documentElement.getAttribute("data-theme") || "dark") as "dark" | "light";
+      setTheme(currentTheme);
+    };
+    syncTheme();
+    window.addEventListener("themechange", syncTheme);
+    return () => window.removeEventListener("themechange", syncTheme);
+  }, []);
+
+  const handleThemeChange = (t: "dark" | "light") => {
+    setTheme(t);
+    document.documentElement.setAttribute("data-theme", t);
+    localStorage.setItem("theme", t);
+    window.dispatchEvent(new Event("themechange"));
+  };
 
   // Notification prefs
   const [notifPrefs, setNotifPrefs] = useState({
@@ -395,6 +413,29 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                 <p className="text-sm text-white/50 mt-1">Customize your interface preferences</p>
               </div>
               <div className="space-y-6">
+                <div>
+                  <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">Interface Theme</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    {(["dark", "light"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => handleThemeChange(t)}
+                        className={cn(
+                          "p-4 rounded-xl border text-left transition-all",
+                          theme === t
+                            ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-400"
+                            : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-white"
+                        )}
+                      >
+                        <div className="text-sm font-600 capitalize mb-1">{t} Mode</div>
+                        <div className="text-xs text-white/40">
+                          {t === "dark" ? "High contrast premium dark layout" : "Sleek clean bright light layout"}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">Display Density</h3>
                   <div className="grid grid-cols-2 gap-3">

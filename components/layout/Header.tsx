@@ -1,6 +1,4 @@
-"use client";
-
-import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu } from "lucide-react";
+import { Bell, Search, ChevronDown, LogOut, User, Settings, Menu, Sun, Moon } from "lucide-react";
 import { signOut } from "next-auth/react";
 import { getInitials } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
@@ -29,6 +27,22 @@ export default function Header({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const pathname = usePathname();
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    // Read theme from html attributes on mount
+    const currentTheme = (document.documentElement.getAttribute("data-theme") || "dark") as "dark" | "light";
+    setTheme(currentTheme);
+  }, []);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === "dark" ? "light" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.setAttribute("data-theme", nextTheme);
+    localStorage.setItem("theme", nextTheme);
+    // Emit global event for components to react to theme change
+    window.dispatchEvent(new Event("themechange"));
+  };
 
   // Fetch unread notifications count
   useEffect(() => {
@@ -88,6 +102,15 @@ export default function Header({
             className="pl-9 pr-4 py-2 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 placeholder-white/25 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all w-56"
           />
         </div>
+
+        {/* Theme Switcher Button */}
+        <button
+          onClick={toggleTheme}
+          className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all"
+          title={theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+        >
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
 
         {/* Notifications Icon Badge */}
         <Link href="/notifications" className="relative w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all">

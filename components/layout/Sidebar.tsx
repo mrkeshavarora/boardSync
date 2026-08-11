@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -48,6 +49,15 @@ export default function Sidebar({
   setMobileOpen,
 }: SidebarProps) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = session?.user?.role;
+
+  const visibleNavItems = navItems.filter((item) => {
+    if (item.href === "/users") {
+      return role === "admin" || role === "super_admin";
+    }
+    return true;
+  });
 
   return (
     <aside
@@ -58,34 +68,21 @@ export default function Sidebar({
         // Mobile drawer transition states
         mobileOpen ? "translate-x-0 w-[260px]" : "-translate-x-full lg:translate-x-0",
         // Desktop width when drawer is inactive
-        !mobileOpen && (collapsed ? "w-[72px]" : "w-[260px]")
+        collapsed ? "lg:ml-[72px]" : "lg:ml-[260px]"
       )}
       style={{ background: "var(--bg-sidebar)" }}
     >
-      {/* Logo & Toggle Header */}
-      <div
-        className={cn(
-          "flex items-center h-16 px-4 border-b border-white/[0.06]",
-          collapsed ? "lg:justify-center justify-between" : "justify-between"
-        )}
-      >
-        <Link 
-          href="/" 
-          onClick={() => setMobileOpen(false)} 
-          className="flex items-center flex-1 min-w-0" 
-          aria-label="Go to landing page"
-        >
+      {/* Header section Logo */}
+      <div className="h-16 flex items-center justify-between px-4 border-b border-white/[0.06] shrink-0">
+        <Link href="/dashboard" className="flex items-center gap-3 min-w-0" onClick={() => setMobileOpen(false)}>
           {/* Logo when expanded */}
-          <div className={cn("flex items-center gap-2.5 min-w-0", collapsed ? "lg:hidden flex" : "flex")}>
-            <div
-              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--gradient-brand)" }}
-            >
+          <div className={cn("items-center gap-2", collapsed ? "lg:hidden flex" : "flex")}>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-brand)" }}>
               <Shield className="w-4 h-4 text-white" />
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-700 text-white leading-tight">BoardSync</p>
-              <p className="text-[10px] text-white/40 leading-tight">Management Portal</p>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-700 text-white truncate leading-tight">BoardSync</span>
+              <span className="text-[10px] text-white/30 truncate">Management Portal</span>
             </div>
           </div>
 
@@ -117,7 +114,7 @@ export default function Sidebar({
         <p className={cn("text-[10px] font-600 text-white/25 uppercase tracking-widest px-3 mb-3", collapsed ? "lg:hidden block" : "block")}>
           Main Menu
         </p>
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
