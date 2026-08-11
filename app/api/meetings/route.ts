@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   if (status) query.status = status;
 
   if (hasPermission(role, "meetings:read")) {
-    const meetings = await Meeting.find(query).sort({ date: 1 }).limit(limit).populate("organizerId", "name email");
+    const meetings = await Meeting.find(query).sort({ createdAt: -1 }).limit(limit).populate("organizerId", "name email");
     return NextResponse.json({ meetings });
   } else {
     // Requires joining with MeetingParticipant - for now return empty or implement basic logic

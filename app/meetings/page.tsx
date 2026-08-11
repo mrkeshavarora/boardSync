@@ -19,7 +19,7 @@ export default async function MeetingsPage() {
   await connectDB();
   const canReadAll = hasPermission(session.user.role as UserRole, "meetings:read");
   const meetings = canReadAll
-    ? await Meeting.find({}).sort({ date: 1 }).limit(50).populate("organizerId", "name email")
+    ? await Meeting.find({}).sort({ createdAt: -1 }).limit(50).populate("organizerId", "name email")
     : [];
 
   return (
