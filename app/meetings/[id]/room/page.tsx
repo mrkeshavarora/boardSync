@@ -149,7 +149,7 @@ export default function MeetingRoomPage() {
         // Join room with username info
         socket.emit("join-room", { 
           meetingId, 
-          user: { name: session.user.name || "Guest" } 
+          user: { name: session?.user?.name || "Guest" } 
         });
 
       } catch (err) {
@@ -207,7 +207,7 @@ export default function MeetingRoomPage() {
           to: peerId, 
           from: socketRef.current.id, 
           description: pc.localDescription,
-          userName: session.user.name || "Guest"
+          userName: session?.user?.name || "Guest"
         });
       }
     }
