@@ -91,71 +91,104 @@ export default function MeetingRoomPage() {
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
 
+    // Set up socket listeners first so we don't miss any messages
+    socket.on("connect", () => {
+      console.log("Connected to signaling server:", socket.id);
+      setSocketConnected(true);
+    });
+
+    socket.on("current-participants", ({ participants }: { participants: string[] }) => {
+      participants.forEach((otherId) => createOfferFor(otherId));
+    });
+
+    socket.on("user-joined", ({ socketId, user }) => {
+      console.log("User joined:", socketId, user);
+      if (user?.name) {
+        setParticipantNames((prev) => ({ ...prev, [socketId]: user.name }));
+      }
+    });
+
+    socket.on("offer", async ({ from, description, userName }: any) => {
+      console.log("Received offer from:", from);
+      if (userName) {
+        setParticipantNames((prev) => ({ ...prev, [from]: userName }));
+      }
+      const pc = createPeerConnection(from);
+      await pc.setRemoteDescription(new RTCSessionDescription(description));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit("answer", { to: from, from: socket.id, description: pc.localDescription });
+    });
+
+    socket.on("answer", async ({ from, description }: any) => {
+      console.log("Received answer from:", from);
+      const pc = pcs.current[from];
+      if (pc) {
+        await pc.setRemoteDescription(new RTCSessionDescription(description));
+      }
+    });
+
+    socket.on("ice-candidate", ({ from, candidate }: any) => {
+      const pc = pcs.current[from];
+      if (pc) {
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((e) => console.warn("Failed to add ICE candidate:", e));
+      }
+    });
+
+    socket.on("user-left", ({ socketId }: any) => {
+      console.log("User left:", socketId);
+      cleanupPeer(socketId);
+    });
+
     async function startMedia() {
+      let localStream: MediaStream | null = null;
+      
       try {
-        const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        // Try getting both Video and Audio with Echo Cancellation
+        localStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: "user"
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          }
+        });
+      } catch (err) {
+        console.warn("Camera and Mic failed, trying microphone-only:", err);
+        try {
+          // Fallback to Microphone only (useful for desktops without webcams)
+          localStream = await navigator.mediaDevices.getUserMedia({
+            video: false,
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true
+            }
+          });
+          setIsCameraOff(true);
+        } catch (audioErr) {
+          console.error("Microphone failed too. Joining with no media devices:", audioErr);
+          setIsCameraOff(true);
+          setIsMuted(true);
+        }
+      }
+
+      if (localStream) {
         cameraStreamRef.current = localStream;
-        if (localVideoRef.current) {
+        if (localVideoRef.current && localStream.getVideoTracks().length > 0) {
           localVideoRef.current.srcObject = localStream;
         }
-
-        socket.on("connect", () => {
-          console.log("Connected to signaling server:", socket.id);
-          setSocketConnected(true);
-        });
-
-        socket.on("current-participants", ({ participants }: { participants: string[] }) => {
-          participants.forEach((otherId) => createOfferFor(otherId));
-        });
-
-        socket.on("user-joined", ({ socketId, user }) => {
-          console.log("User joined:", socketId, user);
-          if (user?.name) {
-            setParticipantNames((prev) => ({ ...prev, [socketId]: user.name }));
-          }
-        });
-
-        socket.on("offer", async ({ from, description, userName }: any) => {
-          console.log("Received offer from:", from);
-          if (userName) {
-            setParticipantNames((prev) => ({ ...prev, [from]: userName }));
-          }
-          const pc = createPeerConnection(from);
-          await pc.setRemoteDescription(description);
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          socket.emit("answer", { to: from, from: socket.id, description: pc.localDescription });
-        });
-
-        socket.on("answer", async ({ from, description }: any) => {
-          console.log("Received answer from:", from);
-          const pc = pcs.current[from];
-          if (pc) {
-            await pc.setRemoteDescription(description);
-          }
-        });
-
-        socket.on("ice-candidate", ({ from, candidate }: any) => {
-          const pc = pcs.current[from];
-          if (pc) {
-            pc.addIceCandidate(candidate).catch((e) => console.warn("Failed to add ICE candidate:", e));
-          }
-        });
-
-        socket.on("user-left", ({ socketId }: any) => {
-          console.log("User left:", socketId);
-          cleanupPeer(socketId);
-        });
-
-        // Join room with username info
-        socket.emit("join-room", { 
-          meetingId, 
-          user: { name: session?.user?.name || "Guest" } 
-        });
-
-      } catch (err) {
-        console.error("Error accessing camera/microphone:", err);
       }
+
+      // Join room once media setup is resolved
+      socket.emit("join-room", { 
+        meetingId, 
+        user: { name: session?.user?.name || "Guest" } 
+      });
     }
 
     startMedia();
@@ -174,7 +207,6 @@ export default function MeetingRoomPage() {
         console.log("OnTrack: Remote stream added from peer:", peerId);
         const remoteStream = event.streams[0];
         setRemoteStreams((prev) => {
-          // Prevent duplicates
           if (prev.some((p) => p.peerId === peerId)) {
             return prev.map((p) => p.peerId === peerId ? { ...p, stream: remoteStream } : p);
           }
@@ -182,18 +214,11 @@ export default function MeetingRoomPage() {
         });
       };
 
-      // Add local audio tracks
+      // Add local audio/video tracks to peer connection
       if (cameraStreamRef.current) {
-        cameraStreamRef.current.getAudioTracks().forEach((track) => {
+        cameraStreamRef.current.getTracks().forEach((track) => {
           pc.addTrack(track, cameraStreamRef.current!);
         });
-      }
-
-      // Add local video tracks (either camera or screen share)
-      const activeVideoTrack = screenStreamRef.current?.getVideoTracks()[0] || cameraStreamRef.current?.getVideoTracks()[0];
-      if (activeVideoTrack) {
-        const streamContainer = new MediaStream([activeVideoTrack]);
-        pc.addTrack(activeVideoTrack, streamContainer);
       }
 
       return pc;
@@ -231,15 +256,12 @@ export default function MeetingRoomPage() {
         socket.emit("leave-room", { meetingId });
         socket.disconnect();
       }
-      // Stop camera media tracks
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((t) => t.stop());
       }
-      // Stop screen media tracks
       if (screenStreamRef.current) {
         screenStreamRef.current.getTracks().forEach((t) => t.stop());
       }
-      // Close peer connections
       Object.keys(pcs.current).forEach(cleanupPeer);
     };
   }, [meeting, session, meetingId]);
