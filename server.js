@@ -101,3 +101,15 @@ const PORT = process.env.SIGNALING_PORT || 4000;
 server.listen(PORT, () => {
   console.log(`Signalling server running on port ${PORT}`);
 });
+
+// Keep-alive: prevent Render free tier from sleeping (pings itself every 14 min)
+const RENDER_URL = process.env.RENDER_EXTERNAL_URL;
+if (RENDER_URL) {
+  setInterval(() => {
+    require('https').get(RENDER_URL, (res) => {
+      console.log(`Keep-alive ping: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.warn('Keep-alive ping failed:', err.message);
+    });
+  }, 14 * 60 * 1000);
+}
