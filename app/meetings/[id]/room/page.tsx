@@ -701,16 +701,26 @@ export default function MeetingRoomPage() {
 
         {/* Leave / End */}
         {isOrganizer ? (
-          <button
-            id="end-meeting-btn"
-            onClick={handleEndMeeting}
-            disabled={ending}
-            className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-xs transition-all shadow-lg shadow-red-500/30 disabled:opacity-60 shrink-0"
-          >
-            <PhoneOff size={18} />
-            <span className="hidden sm:inline">{ending ? "Ending…" : "End Meeting"}</span>
-            <span className="sm:hidden">{ending ? "End…" : "End"}</span>
-          </button>
+          <div className="flex gap-2 shrink-0">
+            <button
+              id="leave-meeting-btn"
+              onClick={handleLeave}
+              className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/20 text-white font-600 text-[10px] sm:text-xs transition-all border border-white/10"
+            >
+              <PhoneOff size={18} />
+              <span className="hidden sm:inline">Leave</span>
+            </button>
+            <button
+              id="end-meeting-btn"
+              onClick={handleEndMeeting}
+              disabled={ending}
+              className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-xs transition-all shadow-lg shadow-red-500/30 disabled:opacity-60"
+            >
+              <PhoneOff size={18} />
+              <span className="hidden sm:inline">{ending ? "Ending…" : "End Meeting"}</span>
+              <span className="sm:hidden">{ending ? "End…" : "End"}</span>
+            </button>
+          </div>
         ) : (
           <button
             id="leave-meeting-btn"

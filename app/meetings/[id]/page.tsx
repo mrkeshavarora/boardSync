@@ -131,8 +131,8 @@ export default async function MeetingDetailsPage(
               {organizer?._id?.toString() === session.user.id && (
                 <StartMeetingBtn meetingId={params.id} currentStatus={meeting.status} />
               )}
-              {/* Re-join Meeting button — for organizer when meeting is In Progress (i.e. they left and returned) */}
-              {meeting.status === "In Progress" && organizer?._id?.toString() === session.user.id && (
+              {/* Re-join Meeting button — for organizer when meeting is In Progress or Completed */}
+              {["In Progress", "Completed"].includes(meeting.status) && organizer?._id?.toString() === session.user.id && (
                 <RejoinMeetingBtn meetingId={params.id} />
               )}
               {/* Delete Meeting button — for organizer or admin */}
@@ -161,8 +161,8 @@ export default async function MeetingDetailsPage(
                 </>
               )}
               
-              {/* Re-join Room button — for participants when meeting is In Progress */}
-              {meeting.status === "In Progress" && organizer?._id?.toString() !== session.user.id && (
+              {/* Re-join Room button — for participants when meeting is In Progress or Completed */}
+              {["In Progress", "Completed"].includes(meeting.status) && organizer?._id?.toString() !== session.user.id && (
                 <RejoinMeetingBtn meetingId={params.id} />
               )}
               {meeting.onlineMeeting && (

@@ -1263,20 +1263,31 @@ export default function ChatPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => startGroupCall("voice")}
-                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
-                    title="Voice Call"
-                  >
-                    <Phone size={15} />
-                  </button>
-                  <button
-                    onClick={() => startGroupCall("video")}
-                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
-                    title="Video Call"
-                  >
-                    <Video size={15} />
-                  </button>
+                  {groupMessages.some(m => m.message.startsWith("[GROUP_CALL_INVITE]:") && Date.now() - new Date(m.createdAt).getTime() < 30 * 60 * 1000) ? (
+                    <button
+                      onClick={() => setGroupCall({ type: "video" })}
+                      className="px-3 py-1.5 rounded-lg text-xs font-700 text-white bg-indigo-500 hover:bg-indigo-600 shadow-lg flex items-center gap-1.5 transition-all"
+                    >
+                      <Video size={14} /> Rejoin Call
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => startGroupCall("voice")}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
+                        title="Voice Call"
+                      >
+                        <Phone size={15} />
+                      </button>
+                      <button
+                        onClick={() => startGroupCall("video")}
+                        className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
+                        title="Video Call"
+                      >
+                        <Video size={15} />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
