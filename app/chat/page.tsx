@@ -198,7 +198,7 @@ export default function ChatPage() {
     if (localStream && localVideoRef.current) {
       localVideoRef.current.srcObject = localStream;
     }
-  }, [localStream]);
+  }, [localStream, isInCall]);
 
   // Handle Send Text Message
   async function handleSendMessage(e: React.FormEvent) {
@@ -975,7 +975,10 @@ export default function ChatPage() {
                 {/* Local PIP — floating corner overlay */}
                 <div className="absolute bottom-4 right-4 w-36 h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10">
                   <video
-                    ref={localVideoRef}
+                    ref={(el) => {
+                      localVideoRef.current = el;
+                      if (el && localStream) el.srcObject = localStream;
+                    }}
                     autoPlay
                     playsInline
                     muted
