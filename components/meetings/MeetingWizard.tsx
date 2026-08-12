@@ -37,6 +37,11 @@ type MeetingDocumentDraft = {
   name: string;
   size?: string;
   type?: string;
+  // Populated after real Cloudinary upload
+  storageUrl?: string;
+  storageKey?: string;
+  fileSizeBytes?: number;
+  status?: "uploading" | "done" | "error";
 };
 
 type MeetingData = {
@@ -239,6 +244,28 @@ export default function MeetingWizard() {
             }),
           })
         ));
+      }
+
+      // Save uploaded documents to DB
+      const uploadedDocs = meetingData.documents.filter(
+        (d) => d.status === "done" && d.storageUrl && d.storageKey
+      );
+      if (uploadedDocs.length > 0) {
+        await Promise.all(
+          uploadedDocs.map((doc) =>
+            fetch(`/api/meetings/${meetingId}/documents`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                fileName: doc.name,
+                fileType: doc.type ?? "file",
+                fileSize: doc.fileSizeBytes ?? 0,
+                storageUrl: doc.storageUrl,
+                storageKey: doc.storageKey,
+              }),
+            })
+          )
+        );
       }
 
       router.push("/meetings");

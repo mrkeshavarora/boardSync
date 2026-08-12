@@ -35,7 +35,7 @@ export default async function MeetingDetailsPage(
     Meeting.findById(params.id).populate("organizerId", "name email avatar"),
     MeetingParticipant.find({ meetingId: params.id }).populate("userId", "name email avatar role"),
     AgendaItem.find({ meetingId: params.id }).sort({ order: 1 }).populate("presenterId", "name email"),
-    MeetingDocument.find({ meetingId: params.id }),
+    MeetingDocument.find({ meetingId: params.id }).populate("uploadedBy", "name avatar"),
   ]);
 
   if (!meeting) {
@@ -188,35 +188,49 @@ export default async function MeetingDetailsPage(
 
             {/* Documents */}
             <div className="rounded-2xl border border-white/[0.06] bg-[#0A0A0A] overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.06] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                  <FileText size={16} />
+              <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                    <FileText size={16} />
+                  </div>
+                  <h2 className="text-lg font-600 text-white">Documents</h2>
                 </div>
-                <h2 className="text-lg font-600 text-white">Documents</h2>
+                {documents.length > 0 && (
+                  <span className="badge bg-white/[0.05] text-white/60">{documents.length}</span>
+                )}
               </div>
               <div className="p-6">
                 {documents.length === 0 ? (
                   <p className="text-sm text-white/40 text-center py-8">No documents attached.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {documents.map((doc) => (
-                      <a 
-                        key={doc._id.toString()}
-                        href={doc.storageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer" 
-                        className="group flex items-start gap-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-white/[0.05] flex items-center justify-center text-white/40 group-hover:text-emerald-400 group-hover:bg-emerald-500/10 transition-colors shrink-0">
-                          <FileText size={18} />
-                        </div>
-                        <div className="overflow-hidden flex-1">
-                          <p className="text-sm font-500 text-white truncate">{doc.fileName}</p>
-                          <p className="text-xs text-white/40 mt-1 uppercase">{(doc.fileSize / 1024 / 1024).toFixed(2)} MB • {doc.fileType}</p>
-                        </div>
-                        <Download size={14} className="text-white/20 group-hover:text-white/60 mt-1 shrink-0" />
-                      </a>
-                    ))}
+                    {documents.map((doc) => {
+                      const uploader = (doc as any).uploadedBy as any;
+                      return (
+                        <a
+                          key={doc._id.toString()}
+                          href={doc.storageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="group flex items-start gap-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-emerald-500/20 transition-all"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:bg-emerald-500/20 transition-colors shrink-0 text-[10px] font-700">
+                            {doc.fileType?.toUpperCase().slice(0, 4) || <FileText size={18} />}
+                          </div>
+                          <div className="overflow-hidden flex-1">
+                            <p className="text-sm font-500 text-white truncate group-hover:text-emerald-300 transition-colors">{doc.fileName}</p>
+                            <p className="text-xs text-white/35 mt-0.5">
+                              {(doc.fileSize / 1024 / 1024).toFixed(2)} MB
+                              {uploader?.name ? ` · ${uploader.name}` : ""}
+                            </p>
+                            <p className="text-[10px] text-white/25 mt-0.5">
+                              {new Date(doc.createdAt).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                          </div>
+                          <Download size={14} className="text-white/20 group-hover:text-emerald-400 mt-1 shrink-0 transition-colors" />
+                        </a>
+                      );
+                    })}
                   </div>
                 )}
               </div>
