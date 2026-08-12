@@ -2,6 +2,7 @@
 
 import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
+import GlobalCallToast from "@/components/layout/GlobalCallToast";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
 
@@ -49,6 +50,8 @@ export default function AppShell({ children, title }: AppShellProps) {
           {children}
         </main>
       </div>
+      {/* Global incoming call notification — visible on all pages */}
+      <GlobalCallToast />
     </div>
   );
 }

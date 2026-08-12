@@ -2,7 +2,8 @@
 
 import AppShell from "@/components/layout/AppShell";
 import { useSession } from "next-auth/react";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   MessageSquare, Phone, Video, Send, Mic, MicOff, VideoOff,
   Video as VideoIcon, X, Search, Loader2, UserCheck, Shield, PhoneOff,
@@ -11,6 +12,8 @@ import {
 } from "lucide-react";
 import io from "socket.io-client";
 import { cn, getInitials } from "@/lib/utils";
+import GroupCallRoom from "@/components/chat/GroupCallRoom";
+import { Plus } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -42,6 +45,30 @@ interface Message {
   createdAt: string;
 }
 
+interface GroupMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string | null;
+}
+
+interface Group {
+  _id: string;
+  name: string;
+  description?: string;
+  members: GroupMember[];
+  createdBy: GroupMember;
+}
+
+interface GroupMessage {
+  _id: string;
+  groupId: string;
+  senderId: GroupMember;
+  message: string;
+  createdAt: string;
+}
+
 const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "https://boardsync-signaling.onrender.com";
 
 const pcConfig: RTCConfiguration = {
@@ -53,6 +80,7 @@ const pcConfig: RTCConfiguration = {
 
 export default function ChatPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,7 +92,7 @@ export default function ChatPage() {
   const [deletingMessages, setDeletingMessages] = useState(false);
 
   // People Search / Connection Request
-  const [activeTab, setActiveTab] = useState<"chats" | "people">("chats");
+  const [activeTab, setActiveTab] = useState<"chats" | "people" | "groups">("chats");
   const [peopleSearch, setPeopleSearch] = useState("");
   const [peopleResults, setPeopleResults] = useState<UserResult[]>([]);
   const [searchingPeople, setSearchingPeople] = useState(false);
@@ -87,6 +115,19 @@ export default function ChatPage() {
     roomName: string;
   } | null>(null);
 
+  // ── Group State ──
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [newGroupMessage, setNewGroupMessage] = useState("");
+  const [loadingGroupMessages, setLoadingGroupMessages] = useState(false);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupDesc, setNewGroupDesc] = useState("");
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupCall, setGroupCall] = useState<{ type: "voice" | "video" } | null>(null);
+
   const socketRef = useRef<any>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -100,7 +141,24 @@ export default function ChatPage() {
         const res = await fetch("/api/connections?status=Accepted");
         if (res.ok) {
           const data = await res.json();
-          setContacts(data.connections || []);
+          const loaded: Contact[] = data.connections || [];
+          setContacts(loaded);
+
+          // Auto-accept call from global toast redirect (?accept=callerId&type=...&room=...)
+          const acceptId = searchParams?.get("accept");
+          const callTypeParam = searchParams?.get("type") as "voice" | "video" | null;
+          const roomParam = searchParams?.get("room");
+          if (acceptId && callTypeParam && roomParam) {
+            const caller = loaded.find((c) => c.id === acceptId);
+            if (caller) {
+              setSelectedContact(caller);
+              setIncomingCall({
+                fromUser: caller,
+                type: callTypeParam,
+                roomName: roomParam,
+              });
+            }
+          }
         }
       } catch (e) {
         console.error("Failed to load contacts", e);
@@ -570,8 +628,100 @@ export default function ChatPage() {
           }
         }
       }
+    } catch {} finally { setSendingRequestTo(null); }
+  }
+
+  // ── Group Functions ──
+
+  async function fetchGroups() {
+    try {
+      const res = await fetch("/api/groups");
+      if (res.ok) { const d = await res.json(); setGroups(d.groups ?? []); }
     } catch {}
-    finally { setSendingRequestTo(null); }
+  }
+
+  // Fetch groups when Groups tab is active
+  useEffect(() => {
+    if (activeTab === "groups") fetchGroups();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Poll group messages when a group is selected
+  useEffect(() => {
+    if (!selectedGroup) { setGroupMessages([]); return; }
+    let interval: any;
+    async function fetchGMsgs() {
+      try {
+        const res = await fetch(`/api/groups/${selectedGroup!._id}/messages`);
+        if (res.ok) { const d = await res.json(); setGroupMessages(d.messages ?? []); }
+      } catch {}
+    }
+    setLoadingGroupMessages(true);
+    fetchGMsgs().then(() => setLoadingGroupMessages(false));
+    interval = setInterval(fetchGMsgs, 2500);
+    return () => clearInterval(interval);
+  }, [selectedGroup]);
+
+  async function handleSendGroupMessage(e: React.FormEvent) {
+    e.preventDefault();
+    if (!newGroupMessage.trim() || !selectedGroup || !session?.user?.id) return;
+    const text = newGroupMessage;
+    setNewGroupMessage("");
+    // Optimistic
+    const tempMsg: GroupMessage = {
+      _id: Math.random().toString(),
+      groupId: selectedGroup._id,
+      senderId: {
+        _id: session.user.id,
+        name: session.user.name ?? "You",
+        email: session.user.email ?? "",
+        role: "",
+        avatar: session.user.image ?? null,
+      },
+      message: text,
+      createdAt: new Date().toISOString(),
+    };
+    setGroupMessages((prev) => [...prev, tempMsg]);
+    try {
+      await fetch(`/api/groups/${selectedGroup._id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text }),
+      });
+    } catch {}
+  }
+
+  async function handleCreateGroup() {
+    if (!newGroupName.trim() || selectedGroupMembers.length < 1) return;
+    setCreatingGroup(true);
+    try {
+      const res = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newGroupName.trim(),
+          description: newGroupDesc.trim() || undefined,
+          memberIds: selectedGroupMembers,
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setGroups((prev) => [d.group, ...prev]);
+        setShowCreateGroup(false);
+        setNewGroupName("");
+        setNewGroupDesc("");
+        setSelectedGroupMembers([]);
+        setSelectedGroup(d.group);
+        setActiveTab("groups");
+      }
+    } catch {}
+    finally { setCreatingGroup(false); }
+  }
+
+  function toggleGroupMember(id: string) {
+    setSelectedGroupMembers((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
   }
 
   return (
@@ -588,24 +738,29 @@ export default function ChatPage() {
             <button
               onClick={() => setActiveTab("chats")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-600 transition-all border-b-2",
-                activeTab === "chats"
-                  ? "text-indigo-400 border-indigo-500"
-                  : "text-white/40 border-transparent hover:text-white/60"
+                "flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-600 transition-all border-b-2",
+                activeTab === "chats" ? "text-indigo-400 border-indigo-500" : "text-white/40 border-transparent hover:text-white/60"
               )}
             >
-              <MessageSquare size={13} /> Chats
+              <MessageSquare size={12} /> Chats
+            </button>
+            <button
+              onClick={() => { setActiveTab("groups"); setSelectedContact(null); }}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-600 transition-all border-b-2",
+                activeTab === "groups" ? "text-indigo-400 border-indigo-500" : "text-white/40 border-transparent hover:text-white/60"
+              )}
+            >
+              <Users size={12} /> Groups
             </button>
             <button
               onClick={() => setActiveTab("people")}
               className={cn(
-                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-600 transition-all border-b-2",
-                activeTab === "people"
-                  ? "text-indigo-400 border-indigo-500"
-                  : "text-white/40 border-transparent hover:text-white/60"
+                "flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-600 transition-all border-b-2",
+                activeTab === "people" ? "text-indigo-400 border-indigo-500" : "text-white/40 border-transparent hover:text-white/60"
               )}
             >
-              <Users size={13} /> Find People
+              <UserPlus size={12} /> People
             </button>
           </div>
 
@@ -760,12 +915,59 @@ export default function ChatPage() {
               </div>
             </>
           )}
+
+          {/* ── Groups Tab ── */}
+          {activeTab === "groups" && (
+            <>
+              <div className="p-3 border-b border-white/[0.06] flex items-center gap-2">
+                <p className="flex-1 text-xs font-600 text-white/50 uppercase tracking-wider">My Groups</p>
+                <button
+                  onClick={() => setShowCreateGroup(true)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-600 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 transition-all"
+                >
+                  <Plus size={11} /> New Group
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {groups.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-white/25 text-center gap-2">
+                    <Users size={28} className="text-white/10" />
+                    <p className="text-xs">No groups yet.</p>
+                    <button onClick={() => setShowCreateGroup(true)} className="text-xs text-indigo-400 hover:text-indigo-300 transition-all flex items-center gap-1">
+                      <Plus size={12} /> Create a group
+                    </button>
+                  </div>
+                ) : (
+                  groups.map((g) => (
+                    <button
+                      key={g._id}
+                      onClick={() => { setSelectedGroup(g); setSelectedContact(null); }}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
+                        selectedGroup?._id === g._id
+                          ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                          : "border border-transparent hover:bg-white/[0.03] text-white/70 hover:text-white"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-700 text-white shrink-0">
+                        {g.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-600 truncate">{g.name}</p>
+                        <p className="text-xs text-white/35 truncate">{g.members.length} members</p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </aside>
 
-        {/* Right Panel: Chat Area */}
+        {/* Right Panel: Chat or Group Chat */}
         <main className={cn(
           "flex-1 flex flex-col min-w-0 bg-black/[0.01]",
-          selectedContact ? "flex" : "hidden md:flex"
+          (selectedContact || selectedGroup) ? "flex" : "hidden md:flex"
         )}>
           {selectedContact ? (
             <>
@@ -912,11 +1114,113 @@ export default function ChatPage() {
                 </button>
               </form>
             </>
+          ) : selectedGroup ? (
+            <>
+              {/* Group Active Header */}
+              <div className="px-4 md:px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-white/[0.01]">
+                <div className="flex items-center gap-2 md:gap-3">
+                  <button
+                    onClick={() => setSelectedGroup(null)}
+                    className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] transition-all"
+                  >
+                    <ArrowLeft size={16} />
+                  </button>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-700 text-white">
+                    {selectedGroup.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-sm md:text-base font-600 text-white tracking-tight">{selectedGroup.name}</h3>
+                    <p className="text-xs text-white/40">{selectedGroup.members.length} members</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setGroupCall({ type: "voice" })}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
+                    title="Voice Call"
+                  >
+                    <Phone size={15} />
+                  </button>
+                  <button
+                    onClick={() => setGroupCall({ type: "video" })}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
+                    title="Video Call"
+                  >
+                    <Video size={15} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Group Chat Feed */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {loadingGroupMessages ? (
+                  <div className="flex items-center justify-center p-8 text-white/30 text-sm gap-2">
+                    <Loader2 size={15} className="animate-spin" /> Loading chat history...
+                  </div>
+                ) : groupMessages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-white/25 text-center">
+                    <Users size={32} className="text-white/10 mb-2" />
+                    <p className="text-sm">Say hello to the group! No messages yet.</p>
+                  </div>
+                ) : (
+                  groupMessages.map((msg) => {
+                    const isSelf = msg.senderId._id === session?.user?.id;
+                    return (
+                      <div
+                        key={msg._id}
+                        className={cn(
+                          "flex max-w-[70%] flex-col space-y-1.5",
+                          isSelf ? "ml-auto items-end" : "mr-auto items-start"
+                        )}
+                      >
+                        {!isSelf && (
+                          <div className="flex items-center gap-1.5 px-1">
+                            <span className="text-[10px] font-600 text-indigo-300/70">{msg.senderId.name}</span>
+                          </div>
+                        )}
+                        <div
+                          className={cn(
+                            "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
+                            isSelf
+                              ? "bg-indigo-500 text-white rounded-br-none"
+                              : "bg-white/[0.04] border border-white/[0.06] text-white/90 rounded-bl-none"
+                          )}
+                        >
+                          {msg.message}
+                        </div>
+                        <span className="text-[9px] text-white/35">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Group Input panel */}
+              <form onSubmit={handleSendGroupMessage} className="p-4 border-t border-white/[0.06] flex items-center gap-3">
+                <input
+                  type="text"
+                  placeholder="Type a message to the group..."
+                  value={newGroupMessage}
+                  onChange={(e) => setNewGroupMessage(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/80 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
+                />
+                <button
+                  type="submit"
+                  disabled={!newGroupMessage.trim()}
+                  className="btn-gradient w-11 h-11 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-50"
+                >
+                  <Send size={15} />
+                </button>
+              </form>
+            </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-white/30">
               <MessageSquare size={48} className="text-white/10 mb-3" />
               <h4 className="text-base font-600 text-white/70">Start a Conversation</h4>
-              <p className="text-sm max-w-sm mt-1">Select a connected board colleague from the left panel to begin instant text messaging or direct audio/video calling.</p>
+              <p className="text-sm max-w-sm mt-1">Select a connected board colleague or group from the left panel to begin instant text messaging or direct audio/video calling.</p>
             </div>
           )}
         </main>
@@ -1113,6 +1417,103 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* ── Group Call Room Overlay ── */}
+      {groupCall && selectedGroup && session?.user && (
+        <GroupCallRoom
+          groupId={selectedGroup._id}
+          groupName={selectedGroup.name}
+          callType={groupCall.type}
+          currentUser={{ id: session.user.id, name: session.user.name || "User" }}
+          onEnd={() => setGroupCall(null)}
+        />
+      )}
+
+      {/* ── Create Group Modal ── */}
+      {showCreateGroup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0A0A0A] border border-white/[0.08] w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-in">
+            <h3 className="text-lg font-600 text-white mb-4">Create New Group</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Group Name</label>
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="e.g. Finance Committee"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Description (optional)</label>
+                <input
+                  type="text"
+                  value={newGroupDesc}
+                  onChange={(e) => setNewGroupDesc(e.target.value)}
+                  placeholder="What is this group for?"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Add Members</label>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar border border-white/[0.06] rounded-xl p-2 bg-white/[0.01]">
+                  {contacts.length === 0 ? (
+                    <p className="text-xs text-white/30 text-center py-4">No connected contacts to add.</p>
+                  ) : (
+                    contacts.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggleGroupMember(c.id)}
+                        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.04] transition-colors"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-600 text-white">
+                            {getInitials(c.name)}
+                          </div>
+                          <span className="text-sm text-white/80">{c.name}</span>
+                        </div>
+                        <div className={cn(
+                          "w-5 h-5 rounded flex items-center justify-center border transition-all",
+                          selectedGroupMembers.includes(c.id)
+                            ? "bg-indigo-500 border-indigo-500 text-white"
+                            : "bg-transparent border-white/[0.1] text-transparent"
+                        )}>
+                          <Check size={12} />
+                        </div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                onClick={() => { setShowCreateGroup(false); setNewGroupName(""); setSelectedGroupMembers([]); }}
+                className="px-4 py-2 rounded-lg text-sm font-500 text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors"
+                disabled={creatingGroup}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGroup}
+                disabled={creatingGroup || !newGroupName.trim() || selectedGroupMembers.length < 1}
+                className="btn-gradient px-4 py-2 rounded-lg text-sm font-500 flex items-center gap-2 disabled:opacity-50"
+              >
+                {creatingGroup ? <Loader2 size={14} className="animate-spin" /> : null}
+                Create Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </AppShell>
   );
 }
