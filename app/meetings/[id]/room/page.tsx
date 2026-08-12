@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2, Circle, Download
+  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2, Circle, Download, Sparkles
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
 import io from "socket.io-client";
+import LiveTranscriptPanel from "@/components/meetings/LiveTranscriptPanel";
 
 const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
@@ -50,6 +51,10 @@ export default function MeetingRoomPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [ending, setEnding] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(true);
+  const [isSttListening, setIsSttListening] = useState(false);
+  const [sttStatusText, setSttStatusText] = useState("Live transcription");
+  const [sttStatusColor, setSttStatusColor] = useState("text-emerald-400");
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
 
   // WebRTC refs and states
@@ -85,6 +90,136 @@ export default function MeetingRoomPage() {
     const t = setInterval(() => setElapsed((prev) => prev + 1), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Speech Recognition / STT Loop
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!socketConnected || !session?.user) return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setSttStatusText("Transcription not supported");
+      setSttStatusColor("text-red-400");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => {
+      setIsSttListening(true);
+      setSttStatusText("Live transcription");
+      setSttStatusColor("text-emerald-400");
+      if (socketRef.current) {
+        socketRef.current.emit("transcript:started", {
+          meetingId,
+          speakerId: session.user.id,
+          speakerName: session.user.name || "Participant"
+        });
+      }
+    };
+
+    recognition.onresult = async (event: any) => {
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      const timestamp = new Date().toISOString();
+
+      if (interimTranscript.trim() && socketRef.current) {
+        socketRef.current.emit("transcript:partial", {
+          meetingId,
+          speakerId: session.user.id,
+          speakerName: session.user.name || "Participant",
+          text: interimTranscript.trim(),
+          timestamp,
+          isFinal: false
+        });
+      }
+
+      if (finalTranscript.trim()) {
+        const segment = {
+          meetingId,
+          speakerId: session.user.id,
+          speakerName: session.user.name || "Participant",
+          text: finalTranscript.trim(),
+          timestamp,
+          isFinal: true
+        };
+
+        if (socketRef.current) {
+          socketRef.current.emit("transcript:final", segment);
+        }
+
+        // Save segment incrementally to DB
+        try {
+          await fetch(`/api/meetings/${meetingId}/transcript`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(segment)
+          });
+        } catch (err) {
+          console.error("Failed to save transcript to DB:", err);
+        }
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        setSttStatusText("Mic permission denied");
+        setSttStatusColor("text-red-400");
+      } else {
+        setSttStatusText("Transcription error");
+        setSttStatusColor("text-amber-400");
+      }
+    };
+
+    recognition.onend = () => {
+      setIsSttListening(false);
+      if (socketRef.current) {
+        socketRef.current.emit("transcript:stopped", {
+          meetingId,
+          speakerId: session.user.id,
+          speakerName: session.user.name || "Participant"
+        });
+      }
+      // Auto-restart if we are not muted
+      if (recognitionRef.current && !isMuted) {
+        try {
+          recognitionRef.current.start();
+        } catch {}
+      }
+    };
+
+    if (!isMuted) {
+      try {
+        recognition.start();
+      } catch (err) {
+        console.error("Failed to start speech recognition:", err);
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {}
+      }
+    };
+  }, [socketConnected, isMuted, meetingId, session]);
 
   // WebRTC & Signalling Setup
   useEffect(() => {
@@ -376,11 +511,22 @@ export default function MeetingRoomPage() {
     if (!confirm("Are you sure you want to end this meeting for everyone?")) return;
     setEnding(true);
     try {
+      // 1. Mark meeting as completed
       await fetch(`/api/meetings/${meetingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "Completed" }),
       });
+
+      // 2. Generate AI Minutes from live transcript segments
+      try {
+        await fetch(`/api/meetings/${meetingId}/generate-ai-minutes`, {
+          method: "POST",
+        });
+      } catch (aiErr) {
+        console.error("AI minutes generation failed:", aiErr);
+      }
+
       handleLeave();
     } finally {
       setEnding(false);
@@ -499,6 +645,18 @@ export default function MeetingRoomPage() {
 
       {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
+        {/* Live Transcript Panel (Left Side) */}
+        {showTranscript && (
+          <LiveTranscriptPanel
+            socket={socketRef.current}
+            meetingId={meetingId}
+            currentUser={{ id: session?.user?.id || "", name: session?.user?.name || "Participant" }}
+            isListening={isSttListening}
+            statusText={sttStatusText}
+            statusColorClass={sttStatusColor}
+          />
+        )}
+
         {/* Streams Container */}
         <div className="flex-1 relative bg-black p-2 sm:p-4 flex items-center justify-center overflow-y-auto">
           <div className={cn(
@@ -663,6 +821,22 @@ export default function MeetingRoomPage() {
         >
           {isCameraOff ? <VideoOff size={18} /> : <Video size={18} />}
           <span className="hidden sm:inline">{isCameraOff ? "Start Video" : "Stop Video"}</span>
+        </button>
+
+        {/* Transcript Toggle */}
+        <button
+          id="toggle-transcript-btn"
+          onClick={() => setShowTranscript((s) => !s)}
+          className={cn(
+            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+            showTranscript
+              ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
+              : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+          )}
+          title={showTranscript ? "Hide Transcript" : "Show Transcript"}
+        >
+          <Sparkles size={18} />
+          <span className="hidden sm:inline">{showTranscript ? "Hide CC" : "Show CC"}</span>
         </button>
 
         {/* Screen Share */}
