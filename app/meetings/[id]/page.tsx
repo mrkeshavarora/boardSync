@@ -9,6 +9,7 @@ import MeetingParticipant from "@/models/MeetingParticipant";
 import AgendaItem from "@/models/AgendaItem";
 import MeetingDocument from "@/models/Document";
 import RSVP from "@/models/RSVP";
+import Minutes from "@/models/Minutes";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import Link from "next/link";
@@ -36,12 +37,13 @@ export default async function MeetingDetailsPage(
   }
 
   // Fetch meeting and all related data in parallel
-  const [meeting, participants, agenda, documents, rsvps] = await Promise.all([
+  const [meeting, participants, agenda, documents, rsvps, existingMinutes] = await Promise.all([
     Meeting.findById(params.id).populate("organizerId", "name email avatar"),
     MeetingParticipant.find({ meetingId: params.id }).populate("userId", "name email avatar role"),
     AgendaItem.find({ meetingId: params.id }).sort({ order: 1 }).populate("presenterId", "name email"),
     MeetingDocument.find({ meetingId: params.id }).populate("uploadedBy", "name avatar"),
     RSVP.find({ meetingId: params.id }),
+    Minutes.findOne({ meetingId: params.id }).select("_id status").lean(),
   ]);
 
   if (!meeting) {
@@ -137,10 +139,28 @@ export default async function MeetingDetailsPage(
               {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:delete")) && (
                 <DeleteMeetingBtn meetingId={params.id} />
               )}
-              {/* Generate Minutes button */}
-              {meeting.status === "Completed" && hasPermission(role, "minutes:generate") && (
-                <GenerateMinutesBtn meetingId={params.id} meetingTitle={meeting.title} />
+              
+              {/* MoM Actions: View Minutes OR Generate Minutes */}
+              {existingMinutes ? (
+                <Link
+                  href={`/minutes/${existingMinutes._id}`}
+                  className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 text-sm bg-indigo-500 hover:bg-indigo-600 text-white transition-all shadow-lg shadow-indigo-500/20"
+                >
+                  <FileText size={16} /> View Minutes ({existingMinutes.status})
+                </Link>
+              ) : (
+                <>
+                  {meeting.status === "Completed" && hasPermission(role, "minutes:generate") && (
+                    <GenerateMinutesBtn meetingId={params.id} meetingTitle={meeting.title} />
+                  )}
+                  {meeting.status === "Completed" && !hasPermission(role, "minutes:generate") && (
+                    <div className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 text-sm bg-white/5 border border-white/10 text-white/50 text-center">
+                      <Clock size={16} /> Pending MoM Generation
+                    </div>
+                  )}
+                </>
               )}
+              
               {/* Re-join Room button — for participants when meeting is In Progress */}
               {meeting.status === "In Progress" && organizer?._id?.toString() !== session.user.id && (
                 <RejoinMeetingBtn meetingId={params.id} />

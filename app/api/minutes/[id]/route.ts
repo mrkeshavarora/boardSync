@@ -24,12 +24,9 @@ export async function GET(request: Request, { params }: Params) {
 
   if (!minutes) return NextResponse.json({ error: "Minutes not found" }, { status: 404 });
 
-  // Board members / guests can only see Published minutes AND must be a participant
+  // Board members / guests can only see minutes if they were a participant
   const role = session.user.role as UserRole;
   if (role === "board_member" || role === "guest") {
-    if (minutes.status !== "Published") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     // Verify the user was a participant in this meeting
     const meetingId = (minutes.meetingId as any)?._id ?? minutes.meetingId;
     const isParticipant = await MeetingParticipant.exists({

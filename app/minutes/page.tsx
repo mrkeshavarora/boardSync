@@ -30,7 +30,7 @@ export default async function MinutesPage({
   let filter: any = {};
 
   if (isBoardMember) {
-    // Board members only see Published minutes for meetings they participated in
+    // Board members see all minutes for meetings they participated in (even Drafts)
     const participations = await MeetingParticipant.find({
       userId: new mongoose.Types.ObjectId(session.user.id),
     }).select("meetingId").lean();
@@ -38,9 +38,12 @@ export default async function MinutesPage({
     const participatedMeetingIds = participations.map((p: any) => p.meetingId);
 
     filter = {
-      status: "Published",
       meetingId: { $in: participatedMeetingIds },
     };
+    
+    if (params.status) {
+      filter.status = params.status;
+    }
   } else if (params.status) {
     filter.status = params.status;
   }
@@ -96,16 +99,14 @@ export default async function MinutesPage({
           </div>
         )}
 
-        {/* Status Filters (admins/secretaries only) */}
-        {!isBoardMember && (
-          <div className="flex gap-2 border-b" style={{ borderColor: "var(--border-subtle)" }}>
-            <FilterTab label="All"       active={!params.status}                    href="/minutes" />
-            <FilterTab label="Drafts"    active={params.status === "Draft"}          href="/minutes?status=Draft" />
-            <FilterTab label="In Review" active={params.status === "Review"}         href="/minutes?status=Review" />
-            <FilterTab label="Approved"  active={params.status === "Approved"}       href="/minutes?status=Approved" />
-            <FilterTab label="Published" active={params.status === "Published"}      href="/minutes?status=Published" />
-          </div>
-        )}
+        {/* Status Filters */}
+        <div className="flex gap-2 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+          <FilterTab label="All"       active={!params.status}                    href="/minutes" />
+          <FilterTab label="Drafts"    active={params.status === "Draft"}          href="/minutes?status=Draft" />
+          <FilterTab label="In Review" active={params.status === "Review"}         href="/minutes?status=Review" />
+          <FilterTab label="Approved"  active={params.status === "Approved"}       href="/minutes?status=Approved" />
+          <FilterTab label="Published" active={params.status === "Published"}      href="/minutes?status=Published" />
+        </div>
 
         {/* List */}
         <div className="space-y-3">

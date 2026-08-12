@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   ChevronLeft, FileText, CheckCircle2, AlertTriangle,
   Save, Loader2, Send, Edit3, Gavel, Lightbulb, Target,
@@ -17,6 +18,7 @@ export default function MinutesDetailPage({
 }) {
   const resolvedParams = use(params);
   const router = useRouter();
+  const { data: session } = useSession();
   const [minutes, setMinutes] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,6 +131,12 @@ export default function MinutesDetailPage({
       })
     : "N/A";
 
+  // Permissions
+  const role = session?.user?.role;
+  const isBoardMember = role === "board_member" || role === "guest";
+  const canEdit = !isBoardMember;
+  const canApprove = !isBoardMember;
+
   return (
     <AppShell title={`Minutes: ${meeting?.title || "Meeting"}`}>
       <div className="max-w-5xl mx-auto space-y-6 pb-20">
@@ -145,7 +153,7 @@ export default function MinutesDetailPage({
             {(isDraftOrReview || isApproved || isPublished) && (
               <MinutesPDFDownload minutes={minutes} />
             )}
-            {isDraftOrReview && !isEditing && (
+            {isDraftOrReview && !isEditing && canEdit && (
               <button
                 onClick={() => setIsEditing(true)}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-600 transition-colors"
@@ -153,7 +161,7 @@ export default function MinutesDetailPage({
                 <Edit3 size={16} /> Edit Draft
               </button>
             )}
-            {isEditing && (
+            {isEditing && canEdit && (
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -163,7 +171,7 @@ export default function MinutesDetailPage({
                 Save Changes
               </button>
             )}
-            {isDraftOrReview && !isEditing && (
+            {isDraftOrReview && !isEditing && canApprove && (
               <button
                 onClick={handleApprove}
                 disabled={approving}
@@ -173,7 +181,7 @@ export default function MinutesDetailPage({
                 Approve Minutes
               </button>
             )}
-            {isApproved && (
+            {isApproved && canApprove && (
               <button
                 onClick={() => setShowPublishModal(true)}
                 className="flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-600 transition-colors"
@@ -191,8 +199,21 @@ export default function MinutesDetailPage({
           </div>
         )}
 
-        {/* AI Draft governance notice */}
-        {minutes.generatedByAI && !isPublished && (
+        {/* Board Member Notice for Drafts */}
+        {isBoardMember && !isPublished && (
+          <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
+            <FileText size={18} className="text-indigo-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-600 text-indigo-400">Draft Pending Approval</p>
+              <p className="text-xs text-indigo-300/80 mt-1">
+                These minutes have been drafted but are not yet officially approved by the Secretary. You will be notified when they are published.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* AI Draft governance notice (Admins/Secretaries only) */}
+        {minutes.generatedByAI && !isPublished && !isBoardMember && (
           <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
             <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
             <div>
