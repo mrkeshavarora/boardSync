@@ -249,15 +249,15 @@ export default function GroupCallRoom({
       <div className="flex-1 overflow-hidden p-4">
         <div
           className={cn(
-            "h-full grid gap-3",
-            allParticipants === 1 && "grid-cols-1",
-            allParticipants === 2 && "grid-cols-2",
-            allParticipants <= 4 && allParticipants > 2 && "grid-cols-2",
-            allParticipants > 4 && "grid-cols-3"
+            "h-full grid gap-3 place-content-center",
+            allParticipants === 1 && "grid-cols-1 max-w-2xl mx-auto",
+            allParticipants === 2 && "grid-cols-1 sm:grid-cols-2",
+            allParticipants <= 4 && allParticipants > 2 && "grid-cols-2 sm:grid-cols-2",
+            allParticipants > 4 && "grid-cols-2 sm:grid-cols-3"
           )}
         >
           {/* Self tile */}
-          <div className="relative rounded-2xl overflow-hidden bg-zinc-900 border border-white/[0.08]">
+          <div className="relative rounded-2xl overflow-hidden bg-zinc-900 border border-white/[0.08] aspect-square w-full max-w-[400px] mx-auto">
             {callType === "video" ? (
               <>
                 <video
@@ -363,7 +363,7 @@ function RemoteTile({
   }, [participant.stream]);
 
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-zinc-900 border border-white/[0.08]">
+    <div className="relative rounded-2xl overflow-hidden bg-zinc-900 border border-white/[0.08] aspect-square w-full max-w-[400px] mx-auto">
       {callType === "video" && participant.stream ? (
         <video
           ref={(el) => {
