@@ -713,6 +713,8 @@ export default function ChatPage() {
     setSelectedGroupMembers((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
+  }
+
   async function startGroupCall(type: "voice" | "video") {
     if (!selectedGroup) return;
     // Notify others

@@ -31,6 +31,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const isValid = await bcrypt.compare(parsed.data.password, user.password);
         if (!isValid) return null;
 
+        if (user.status === "pending") {
+          throw new Error("PendingApproval");
+        }
+        if (user.status === "inactive") {
+          throw new Error("InactiveAccount");
+        }
+
         await User.findByIdAndUpdate(user._id, { lastLogin: new Date() });
 
         return {

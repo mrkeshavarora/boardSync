@@ -34,12 +34,12 @@ export async function POST(request: Request) {
       email: email.toLowerCase().trim(),
       password: hashedPassword,
       role: "board_member", // New self-registered users get board_member role
-      status: "active",
+      status: "pending", // Must be approved by an admin
     });
 
     return NextResponse.json({
       success: true,
-      message: "Account created successfully. You can now sign in.",
+      message: "Account created successfully. Please wait for an admin to approve your request.",
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
     }, { status: 201 });
 

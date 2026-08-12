@@ -25,7 +25,13 @@ export default function LoginPage() {
         redirect: false,
       });
       if (res?.error) {
-        setError("Invalid email or password. Please try again.");
+        if (res.error.includes("PendingApproval") || res.error === "PendingApproval") {
+          setError("Your account is pending. Please wait for an admin to accept your request.");
+        } else if (res.error.includes("InactiveAccount") || res.error === "InactiveAccount") {
+          setError("Your account has been deactivated. Contact an administrator.");
+        } else {
+          setError("Invalid email or password. Please try again.");
+        }
       } else {
         router.push("/dashboard");
         router.refresh();

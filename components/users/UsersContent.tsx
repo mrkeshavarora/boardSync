@@ -158,6 +158,25 @@ export default function UsersContent() {
     }
   };
 
+  const handleUpdateStatus = async (userId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/users/${userId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        fetchUsers();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to update status");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
+    }
+  };
+
   const handleDeleteUser = async (userId: string, userName: string) => {
     if (!confirm(`Are you sure you want to remove "${userName}"?`)) return;
     try {
@@ -301,6 +320,15 @@ export default function UsersContent() {
                     </td>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {user.status === "pending" && (
+                          <button
+                            onClick={() => handleUpdateStatus(user._id, "active")}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-emerald-400/50 hover:text-emerald-400 hover:bg-emerald-500/[0.08] transition-all"
+                            title="Approve User"
+                          >
+                            <CheckCircle2 size={13} />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setSelectedUser(user);
