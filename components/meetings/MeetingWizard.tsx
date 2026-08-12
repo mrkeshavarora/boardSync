@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Check, ChevronRight, Save } from "lucide-react";
+import { AlertCircle, ArrowRight, CalendarDays, Check, ChevronRight, List, Mail, Save, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StepDetails from "./steps/StepDetails";
 import StepParticipants from "./steps/StepParticipants";
 import StepAgenda from "./steps/StepAgenda";
 import StepDocuments from "./steps/StepDocuments";
 import StepReview from "./steps/StepReview";
+import SendInviteBtn from "./SendInviteBtn";
 
 const STEPS = [
   { id: "details", title: "Details" },
@@ -92,6 +93,123 @@ const isValidHttpUrl = (value: string) => {
   }
 };
 
+// ─── Post-Create Success + Invite Screen ─────────────────────────────────────
+function PostCreateScreen({
+  meetingId,
+  meetingTitle,
+  participantCount,
+  agendaCount,
+  onGoToMeeting,
+}: {
+  meetingId: string;
+  meetingTitle: string;
+  participantCount: number;
+  agendaCount: number;
+  onGoToMeeting: () => void;
+}) {
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Success Banner */}
+      <div
+        className="rounded-2xl p-6 border border-emerald-500/20 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(5,150,105,0.04) 100%)" }}
+      >
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="relative z-10 flex items-start gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0">
+            <Check size={22} className="text-emerald-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-700 text-white mb-1">Meeting Created Successfully!</h2>
+            <p className="text-sm text-white/50 truncate">&ldquo;{meetingTitle}&rdquo;</p>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <span className="flex items-center gap-1.5 text-xs font-500 text-white/60 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08]">
+                <CalendarDays size={12} className="text-indigo-400" /> Meeting Scheduled
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-500 text-white/60 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08]">
+                <Users size={12} className="text-purple-400" /> {participantCount} Participant{participantCount !== 1 ? "s" : ""}
+              </span>
+              <span className="flex items-center gap-1.5 text-xs font-500 text-white/60 px-3 py-1 rounded-full bg-white/[0.05] border border-white/[0.08]">
+                <List size={12} className="text-amber-400" /> {agendaCount} Agenda Item{agendaCount !== 1 ? "s" : ""}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Send Invite Card */}
+      <div className="rounded-2xl border border-white/[0.06] overflow-hidden" style={{ background: "var(--bg-card)" }}>
+        <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", boxShadow: "0 6px 20px rgba(99,102,241,0.3)" }}
+            >
+              <Mail size={16} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-base font-700 text-white">Send Meeting Invitations</h3>
+              <p className="text-xs text-white/40">Email all participants with meeting details and a secure join link</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-6 space-y-4">
+          {/* Email contents preview */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              "\uD83D\uDCC5 Meeting title & date",
+              "\uD83D\uDD50 Time & timezone",
+              "\uD83D\uDC64 Organizer details",
+              "\uD83D\uDCCC Full agenda",
+              "\uD83D\uDC65 Participant list",
+              "\uD83D\uDD17 Secure join link",
+            ].map((item) => (
+              <div
+                key={item}
+                className="flex items-center gap-2 text-xs text-white/50 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/[0.05]"
+              >
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+
+          {participantCount === 0 ? (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-sm text-amber-300">
+              <AlertCircle size={16} className="shrink-0" />
+              <span>No participants were added — invites cannot be sent. Add participants from the meeting detail page.</span>
+            </div>
+          ) : (
+            <SendInviteBtn
+              meetingId={meetingId}
+              initialSentCount={0}
+              totalParticipants={participantCount}
+              hasBeenSentBefore={false}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div className="flex items-center justify-between gap-3">
+        <a
+          href="/meetings"
+          className="px-4 py-2.5 rounded-xl text-sm font-500 text-white/60 hover:text-white hover:bg-white/[0.05] border border-white/[0.06] transition-all"
+        >
+          Back to Meetings
+        </a>
+        <button
+          onClick={onGoToMeeting}
+          className="btn-gradient px-5 py-2.5 rounded-xl text-sm font-600 flex items-center gap-2"
+        >
+          Go to Meeting <ArrowRight size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Wizard ──────────────────────────────────────────────────────────────
 export default function MeetingWizard() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -112,6 +230,8 @@ export default function MeetingWizard() {
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<MeetingFormErrors>({});
+  // Holds the new meeting ID after successful creation — triggers the invite screen
+  const [createdMeetingId, setCreatedMeetingId] = useState<string | null>(null);
 
   const validateMeetingData = () => {
     const nextErrors: MeetingFormErrors = {};
@@ -286,14 +406,30 @@ export default function MeetingWizard() {
         );
       }
 
-      router.push(`/meetings/${meetingId}`);
-      router.refresh();
+      // Show the post-create invite screen instead of navigating away immediately
+      setCreatedMeetingId(meetingId);
     } catch (error) {
       setErrors({ form: (error as Error).message || "Unable to create meeting. Please try again." });
     } finally {
       setLoading(false);
     }
   };
+
+  // Render success + invite screen once the meeting is created
+  if (createdMeetingId) {
+    return (
+      <PostCreateScreen
+        meetingId={createdMeetingId}
+        meetingTitle={meetingData.title}
+        participantCount={meetingData.participants.length}
+        agendaCount={meetingData.agenda.length}
+        onGoToMeeting={() => {
+          router.push(`/meetings/${createdMeetingId}`);
+          router.refresh();
+        }}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
