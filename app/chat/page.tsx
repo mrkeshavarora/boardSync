@@ -152,11 +152,12 @@ export default function ChatPage() {
             const caller = loaded.find((c) => c.id === acceptId);
             if (caller) {
               setSelectedContact(caller);
-              setIncomingCall({
-                fromUser: caller,
-                type: callTypeParam,
-                roomName: roomParam,
-              });
+              // Clear URL params so it doesn't re-trigger on refresh
+              window.history.replaceState({}, "", "/chat");
+              // Wait for state to settle then start call
+              setTimeout(() => {
+                autoAcceptCall(caller, callTypeParam, roomParam);
+              }, 100);
             }
           }
         }
@@ -197,17 +198,8 @@ export default function ChatPage() {
           const isRecent = new Date().getTime() - new Date(latestMsg.createdAt).getTime() < 15000; // within 15 seconds
 
           if (isFromOther && isRecent) {
-            // Case 1: Incoming call invite
-            if (latestMsg.message.startsWith("[CALL_INVITE]:") && !isInCall && !incomingCall) {
-              const parts = latestMsg.message.split(":");
-              const type = parts[1] as "voice" | "video";
-              const roomName = parts[2];
-              setIncomingCall({
-                fromUser: selectedContact,
-                type,
-                roomName,
-              });
-            }
+            // Case 1: Incoming call invite (Handled by GlobalCallToast globally)
+            // We ignore it here so it doesn't trigger the old bottom popup.
 
             // Case 2: Outgoing call declined by remote user
             if (latestMsg.message.startsWith("[CALL_DECLINED]:") && isInCall) {
@@ -348,47 +340,26 @@ export default function ChatPage() {
     }
   }
 
-  async function acceptCall() {
-    if (!incomingCall || !session?.user?.id) return;
-    const call = incomingCall;
-    setIncomingCall(null);
-    setCallType(call.type);
+  async function autoAcceptCall(caller: Contact, type: "voice" | "video", roomName: string) {
+    if (!session?.user?.id) return;
+    setCallType(type);
     setIsInCall(true);
     setIsCalling(false);
     setIsMuted(false);
-    setIsCameraOff(call.type === "voice");
+    setIsCameraOff(type === "voice");
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: call.type === "video",
+        video: type === "video",
         audio: true,
       });
-      setLocalStream(stream); // useEffect will bind srcObject after render
+      setLocalStream(stream);
 
-      connectToSignalingRoom(call.roomName, stream);
+      connectToSignalingRoom(roomName, stream);
     } catch (e) {
       console.error("Failed to accept call", e);
       alert("Failed to access camera/microphone.");
       endCall();
-    }
-  }
-
-  async function declineCall() {
-    if (!incomingCall || !selectedContact) return;
-    const call = incomingCall;
-    setIncomingCall(null);
-
-    try {
-      await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          receiverId: selectedContact.id,
-          message: `[CALL_DECLINED]:${call.roomName}`,
-        }),
-      });
-    } catch (e) {
-      console.error(e);
     }
   }
 
@@ -636,13 +607,33 @@ export default function ChatPage() {
   async function fetchGroups() {
     try {
       const res = await fetch("/api/groups");
-      if (res.ok) { const d = await res.json(); setGroups(d.groups ?? []); }
+      if (res.ok) { 
+        const d = await res.json(); 
+        const loadedGroups = d.groups ?? [];
+        setGroups(loadedGroups); 
+        
+        // Auto-accept group call from global toast
+        const acceptGroupId = searchParams?.get("acceptGroup");
+        const callTypeParam = searchParams?.get("type") as "voice" | "video" | null;
+        if (acceptGroupId && callTypeParam) {
+          const g = loadedGroups.find((x: any) => x._id === acceptGroupId);
+          if (g) {
+            setActiveTab("groups");
+            setSelectedContact(null);
+            setSelectedGroup(g);
+            window.history.replaceState({}, "", "/chat");
+            setTimeout(() => {
+              setGroupCall({ type: callTypeParam });
+            }, 100);
+          }
+        }
+      }
     } catch {}
   }
 
-  // Fetch groups when Groups tab is active
+  // Fetch groups when Groups tab is active OR if we have an acceptGroup param on load
   useEffect(() => {
-    if (activeTab === "groups") fetchGroups();
+    if (activeTab === "groups" || searchParams?.has("acceptGroup")) fetchGroups();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
@@ -722,6 +713,15 @@ export default function ChatPage() {
     setSelectedGroupMembers((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
     );
+  async function startGroupCall(type: "voice" | "video") {
+    if (!selectedGroup) return;
+    // Notify others
+    fetch(`/api/groups/${selectedGroup._id}/call-invite`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    }).catch(() => {});
+    setGroupCall({ type });
   }
 
   return (
@@ -1135,14 +1135,14 @@ export default function ChatPage() {
                 </div>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setGroupCall({ type: "voice" })}
+                    onClick={() => startGroupCall("voice")}
                     className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
                     title="Voice Call"
                   >
                     <Phone size={15} />
                   </button>
                   <button
-                    onClick={() => setGroupCall({ type: "video" })}
+                    onClick={() => startGroupCall("video")}
                     className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/60 hover:text-white hover:bg-white/[0.08] transition-all"
                     title="Video Call"
                   >
@@ -1165,6 +1165,19 @@ export default function ChatPage() {
                 ) : (
                   groupMessages.map((msg) => {
                     const isSelf = msg.senderId._id === session?.user?.id;
+                    
+                    if (msg.message.startsWith("[GROUP_CALL_INVITE]:")) {
+                      const type = msg.message.split(":")[1];
+                      return (
+                        <div key={msg._id} className="flex justify-center my-2">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-500 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <PhoneCall size={12} />
+                            {isSelf ? `You started a group ${type} call` : `${msg.senderId.name} started a group ${type} call`}
+                          </span>
+                        </div>
+                      );
+                    }
+                    
                     return (
                       <div
                         key={msg._id}
@@ -1347,34 +1360,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Ringing/Incoming Call Dialog Pop Up */}
-      {incomingCall && (
-        <div className="fixed bottom-6 right-6 left-6 md:left-auto md:w-80 z-50 bg-[#0f172a]/95 border border-white/10 rounded-2xl p-5 shadow-2xl animate-fade-in backdrop-blur-md">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0 animate-bounce">
-              <PhoneCall size={20} />
-            </div>
-            <div>
-              <h4 className="text-sm font-600 text-white leading-tight">{incomingCall.fromUser.name}</h4>
-              <p className="text-xs text-white/40 mt-1 capitalize">Incoming {incomingCall.type} Call...</p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={declineCall}
-              className="flex-1 py-2.5 rounded-lg text-xs font-600 text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all flex items-center justify-center gap-1"
-            >
-              <PhoneOff size={12} /> Decline
-            </button>
-            <button
-              onClick={acceptCall}
-              className="flex-1 py-2.5 rounded-lg text-xs font-600 text-white bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-600/20 transition-all flex items-center justify-center gap-1"
-            >
-              <Check size={14} /> Accept
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Old Ringing/Incoming Call Dialog Pop Up removed to use GlobalCallToast */}
 
       {/* Delete All Messages Confirmation Modal */}
       {showDeleteConfirm && selectedContact && (

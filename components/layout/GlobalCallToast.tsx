@@ -14,6 +14,9 @@ interface IncomingCall {
   type: "voice" | "video";
   roomName: string;
   messageId: string;
+  isGroup?: boolean;
+  groupId?: string;
+  groupName?: string;
 }
 
 // How often to poll (ms)
@@ -26,6 +29,12 @@ export default function GlobalCallToast() {
   const [dismissedId, setDismissedId] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    // Initialize dismissed ID from session storage
+    const stored = sessionStorage.getItem("dismissedCallId");
+    if (stored) setDismissedId(stored);
+  }, []);
 
   const poll = async () => {
     try {
@@ -60,15 +69,21 @@ export default function GlobalCallToast() {
   const dismiss = () => {
     if (!incomingCall) return;
     setDismissedId(incomingCall.messageId);
-    // Send decline message
-    fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        receiverId: incomingCall.callerId,
-        message: `[CALL_DECLINED]:${incomingCall.roomName}`,
-      }),
-    }).catch(() => {});
+    sessionStorage.setItem("dismissedCallId", incomingCall.messageId);
+    
+    // Send decline message ONLY if it's a 1-on-1 call.
+    // For group calls, declining just dismisses the toast locally.
+    if (!incomingCall.isGroup) {
+      fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          receiverId: incomingCall.callerId,
+          message: `[CALL_DECLINED]:${incomingCall.roomName}`,
+        }),
+      }).catch(() => {});
+    }
+    
     setIsVisible(false);
     setTimeout(() => setIncomingCall(null), 300);
   };
@@ -76,10 +91,15 @@ export default function GlobalCallToast() {
   const accept = () => {
     if (!incomingCall) return;
     setDismissedId(incomingCall.messageId);
+    sessionStorage.setItem("dismissedCallId", incomingCall.messageId);
     setIsVisible(false);
     setTimeout(() => setIncomingCall(null), 200);
-    // Navigate to chat with this person — the chat page handles the WebRTC connection
-    router.push(`/chat?accept=${incomingCall.callerId}&type=${incomingCall.type}&room=${incomingCall.roomName}`);
+    // Navigate to chat with this person or group
+    if (incomingCall.isGroup) {
+      router.push(`/chat?acceptGroup=${incomingCall.groupId}&type=${incomingCall.type}`);
+    } else {
+      router.push(`/chat?accept=${incomingCall.callerId}&type=${incomingCall.type}&room=${incomingCall.roomName}`);
+    }
   };
 
   if (!incomingCall) return null;
@@ -121,7 +141,7 @@ export default function GlobalCallToast() {
               </div>
               <div>
                 <p className="text-[11px] font-600 text-indigo-400 uppercase tracking-wider">
-                  Incoming {incomingCall.type} call
+                  Incoming {incomingCall.isGroup ? "Group " : ""}{incomingCall.type} call
                 </p>
               </div>
             </div>
@@ -151,9 +171,15 @@ export default function GlobalCallToast() {
               <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-[#0f1629]" />
             </div>
             <div>
-              <p className="text-base font-700 text-white leading-tight">{incomingCall.callerName}</p>
-              <p className="text-xs text-white/40 uppercase mt-0.5">
-                {incomingCall.callerRole?.replace(/_/g, " ")}
+              <p className="text-base font-700 text-white leading-tight">
+                {incomingCall.isGroup ? incomingCall.groupName : incomingCall.callerName}
+              </p>
+              <p className="text-xs text-white/40 uppercase mt-0.5 flex items-center gap-1">
+                {incomingCall.isGroup ? (
+                  <>Started by <span className="text-white/70 font-500">{incomingCall.callerName}</span></>
+                ) : (
+                  incomingCall.callerRole?.replace(/_/g, " ")
+                )}
               </p>
             </div>
           </div>

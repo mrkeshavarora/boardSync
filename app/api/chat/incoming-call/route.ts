@@ -14,27 +14,62 @@ export async function GET() {
   await connectDB();
 
   const since = new Date(Date.now() - 20_000); // 20 second window
+  const userId = new mongoose.Types.ObjectId(session.user.id);
 
-  const msg = await ChatMessage.findOne({
-    receiverId: new mongoose.Types.ObjectId(session.user.id),
+  // 1. Check for 1-on-1 calls
+  const directMsg = await ChatMessage.findOne({
+    receiverId: userId,
     message: { $regex: /^\[CALL_INVITE\]:/ },
     createdAt: { $gte: since },
-  })
-    .sort({ createdAt: -1 })
-    .lean();
+  }).sort({ createdAt: -1 }).lean();
 
-  if (!msg) return NextResponse.json({ call: null });
+  // 2. Check for group calls
+  // First find all groups the user is in
+  const userGroups = await mongoose.connection.models.Group.find({ members: userId }).select("_id name").lean();
+  const groupIds = userGroups.map((g: any) => g._id);
+
+  const groupMsg = await mongoose.connection.models.GroupMessage.findOne({
+    groupId: { $in: groupIds },
+    senderId: { $ne: userId }, // Don't ring if *I* started the call
+    message: { $regex: /^\[GROUP_CALL_INVITE\]:/ },
+    createdAt: { $gte: since },
+  }).sort({ createdAt: -1 }).lean();
+
+  // Determine the latest call
+  let latestMsg = null;
+  let isGroup = false;
+  let groupName = null;
+  let groupIdStr = null;
+
+  if (directMsg && groupMsg) {
+    if ((groupMsg as any).createdAt > (directMsg as any).createdAt) {
+      latestMsg = groupMsg;
+      isGroup = true;
+    } else {
+      latestMsg = directMsg;
+    }
+  } else if (groupMsg) {
+    latestMsg = groupMsg;
+    isGroup = true;
+  } else if (directMsg) {
+    latestMsg = directMsg;
+  }
+
+  if (!latestMsg) return NextResponse.json({ call: null });
+
+  if (isGroup) {
+    const g = userGroups.find((g: any) => g._id.equals((latestMsg as any).groupId));
+    groupName = g ? g.name : "A Group";
+    groupIdStr = (latestMsg as any).groupId.toString();
+  }
 
   // Fetch caller info
-  const caller = await User.findById(msg.senderId)
-    .select("name email avatar role")
-    .lean();
-
+  const caller = await User.findById((latestMsg as any).senderId).select("name email avatar role").lean();
   if (!caller) return NextResponse.json({ call: null });
 
-  const parts = (msg.message as string).split(":");
+  const parts = ((latestMsg as any).message as string).split(":");
   const callType = parts[1] as "voice" | "video";
-  const roomName = parts[2];
+  const roomName = isGroup ? "" : parts[2]; // Group calls don't need roomName, they just use the groupId
 
   return NextResponse.json({
     call: {
@@ -44,7 +79,10 @@ export async function GET() {
       callerRole: (caller as any).role,
       type: callType,
       roomName,
-      messageId: (msg as any)._id.toString(),
+      messageId: (latestMsg as any)._id.toString(),
+      isGroup,
+      groupId: groupIdStr,
+      groupName,
     },
   });
 }
