@@ -18,6 +18,7 @@ import DeleteMeetingBtn from "@/components/meetings/DeleteMeetingBtn";
 import RSVPAction from "@/components/meetings/RSVPAction";
 import GenerateMinutesBtn from "@/components/minutes/GenerateMinutesBtn";
 import SendInviteBtn from "@/components/meetings/SendInviteBtn";
+import RejoinMeetingBtn from "@/components/meetings/RejoinMeetingBtn";
 
 export const metadata: Metadata = { title: "Meeting Details" };
 
@@ -128,6 +129,10 @@ export default async function MeetingDetailsPage(
               {organizer?._id?.toString() === session.user.id && (
                 <StartMeetingBtn meetingId={params.id} currentStatus={meeting.status} />
               )}
+              {/* Re-join Meeting button — for organizer when meeting is In Progress (i.e. they left and returned) */}
+              {meeting.status === "In Progress" && organizer?._id?.toString() === session.user.id && (
+                <RejoinMeetingBtn meetingId={params.id} />
+              )}
               {/* Delete Meeting button — for organizer or admin */}
               {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:delete")) && (
                 <DeleteMeetingBtn meetingId={params.id} />
@@ -136,14 +141,9 @@ export default async function MeetingDetailsPage(
               {meeting.status === "Completed" && hasPermission(role, "minutes:generate") && (
                 <GenerateMinutesBtn meetingId={params.id} meetingTitle={meeting.title} />
               )}
-              {/* Join Room button — for all participants when In Progress */}
+              {/* Re-join Room button — for participants when meeting is In Progress */}
               {meeting.status === "In Progress" && organizer?._id?.toString() !== session.user.id && (
-                <Link
-                  href={`/meetings/${params.id}/room`}
-                  className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 text-sm text-white bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/30 transition-all"
-                >
-                  <Video size={18} /> Join Meeting Now
-                </Link>
+                <RejoinMeetingBtn meetingId={params.id} />
               )}
               {meeting.onlineMeeting && (
                 <a 
