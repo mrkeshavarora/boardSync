@@ -6,7 +6,8 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import {
   MessageSquare, Phone, Video, Send, Mic, MicOff, VideoOff,
   Video as VideoIcon, X, Search, Loader2, UserCheck, Shield, PhoneOff,
-  PhoneCall, Check, PhoneForwarded, ArrowLeft
+  PhoneCall, Check, PhoneForwarded, ArrowLeft, Trash2, AlertTriangle,
+  UserPlus, UserX, Users, Clock
 } from "lucide-react";
 import io from "socket.io-client";
 import { cn, getInitials } from "@/lib/utils";
@@ -18,6 +19,19 @@ interface Contact {
   role: string;
   avatar: string | null;
   status: string;
+}
+
+interface UserResult {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string | null;
+}
+
+interface ConnectionStatus {
+  status: "Pending" | "Accepted";
+  direction: "outgoing" | "incoming";
 }
 
 interface Message {
@@ -46,6 +60,16 @@ export default function ChatPage() {
   const [newMessage, setNewMessage] = useState("");
   const [loadingContacts, setLoadingContacts] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingMessages, setDeletingMessages] = useState(false);
+
+  // People Search / Connection Request
+  const [activeTab, setActiveTab] = useState<"chats" | "people">("chats");
+  const [peopleSearch, setPeopleSearch] = useState("");
+  const [peopleResults, setPeopleResults] = useState<UserResult[]>([]);
+  const [searchingPeople, setSearchingPeople] = useState(false);
+  const [allConnections, setAllConnections] = useState<Record<string, ConnectionStatus>>({});
+  const [sendingRequestTo, setSendingRequestTo] = useState<string | null>(null);
 
   // Call States
   const [isInCall, setIsInCall] = useState(false);
@@ -212,6 +236,23 @@ export default function ChatPage() {
     } catch (e) {
       console.error(e);
       setMessages((prev) => prev.filter((m) => m._id !== tempId));
+    }
+  }
+
+  // Delete all messages with selected contact
+  async function handleDeleteAllMessages() {
+    if (!selectedContact) return;
+    setDeletingMessages(true);
+    try {
+      const res = await fetch(`/api/chat/${selectedContact.id}`, { method: "DELETE" });
+      if (res.ok) {
+        setMessages([]);
+        setShowDeleteConfirm(false);
+      }
+    } catch (e) {
+      console.error("Failed to delete messages", e);
+    } finally {
+      setDeletingMessages(false);
     }
   }
 
@@ -462,6 +503,77 @@ export default function ChatPage() {
     );
   }, [contacts, searchQuery]);
 
+  // Fetch ALL connection statuses (for People tab badge)
+  async function fetchAllConnections() {
+    try {
+      const res = await fetch("/api/connections");
+      if (!res.ok) return;
+      const data = await res.json();
+      const map: Record<string, ConnectionStatus> = {};
+      for (const conn of data.connections ?? []) {
+        map[conn.id] = { status: conn.status, direction: conn.direction };
+      }
+      setAllConnections(map);
+    } catch {}
+  }
+
+  // Search people via /api/users?search=...
+  async function searchPeople(query: string) {
+    if (!query.trim()) { setPeopleResults([]); return; }
+    setSearchingPeople(true);
+    try {
+      const res = await fetch(`/api/users?search=${encodeURIComponent(query)}&limit=20`);
+      if (!res.ok) return;
+      const data = await res.json();
+      // Exclude self
+      const filtered = (data.users ?? []).filter((u: UserResult) => u._id !== session?.user?.id);
+      setPeopleResults(filtered);
+    } catch {}
+    finally { setSearchingPeople(false); }
+  }
+
+  // Debounce people search
+  useEffect(() => {
+    const t = setTimeout(() => searchPeople(peopleSearch), 400);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peopleSearch]);
+
+  // Load all connections when tab switches to people
+  useEffect(() => {
+    if (activeTab === "people") fetchAllConnections();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
+  // Send / accept connection request
+  async function sendConnectionRequest(userId: string) {
+    setSendingRequestTo(userId);
+    try {
+      const res = await fetch("/api/connections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: userId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const conn = data.connection;
+        setAllConnections((prev) => ({
+          ...prev,
+          [userId]: { status: conn.status, direction: conn.direction },
+        }));
+        // If newly accepted (they had sent to us and we just accepted), refresh contacts
+        if (conn.status === "Accepted") {
+          const contactRes = await fetch("/api/connections?status=Accepted");
+          if (contactRes.ok) {
+            const contactData = await contactRes.json();
+            setContacts(contactData.connections ?? []);
+          }
+        }
+      }
+    } catch {}
+    finally { setSendingRequestTo(null); }
+  }
+
   return (
     <AppShell title="Direct Messaging">
       <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] flex rounded-2xl border border-white/[0.06] overflow-hidden relative" style={{ background: "var(--bg-card)" }}>
@@ -471,56 +583,183 @@ export default function ChatPage() {
           "w-full md:w-80 border-r border-white/[0.06] flex flex-col shrink-0 bg-white/[0.01]",
           selectedContact ? "hidden md:flex" : "flex"
         )}>
-          <div className="p-4 border-b border-white/[0.06]">
-            <div className="relative flex items-center">
-              <Search className="absolute left-3 w-4 h-4 text-white/30" />
-              <input
-                type="text"
-                placeholder="Search connected users..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 transition-all"
-              />
-            </div>
+          {/* Tab switcher */}
+          <div className="flex border-b border-white/[0.06]">
+            <button
+              onClick={() => setActiveTab("chats")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-600 transition-all border-b-2",
+                activeTab === "chats"
+                  ? "text-indigo-400 border-indigo-500"
+                  : "text-white/40 border-transparent hover:text-white/60"
+              )}
+            >
+              <MessageSquare size={13} /> Chats
+            </button>
+            <button
+              onClick={() => setActiveTab("people")}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-1.5 py-3 text-xs font-600 transition-all border-b-2",
+                activeTab === "people"
+                  ? "text-indigo-400 border-indigo-500"
+                  : "text-white/40 border-transparent hover:text-white/60"
+              )}
+            >
+              <Users size={13} /> Find People
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {loadingContacts ? (
-              <div className="flex items-center justify-center p-8 text-white/40 text-sm gap-2">
-                <Loader2 size={16} className="animate-spin" /> Loading connected users...
+          {activeTab === "chats" ? (
+            <>
+              <div className="p-3 border-b border-white/[0.06]">
+                <div className="relative flex items-center">
+                  <Search className="absolute left-3 w-4 h-4 text-white/30" />
+                  <input
+                    type="text"
+                    placeholder="Search connected users..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 transition-all"
+                  />
+                </div>
               </div>
-            ) : filteredContacts.length === 0 ? (
-              <div className="text-center p-8 text-white/30 text-xs">
-                No connections found.
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {loadingContacts ? (
+                  <div className="flex items-center justify-center p-8 text-white/40 text-sm gap-2">
+                    <Loader2 size={16} className="animate-spin" /> Loading connected users...
+                  </div>
+                ) : filteredContacts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-white/25 text-center gap-2">
+                    <Users size={28} className="text-white/10" />
+                    <p className="text-xs">No connections yet.</p>
+                    <button
+                      onClick={() => setActiveTab("people")}
+                      className="text-xs text-indigo-400 hover:text-indigo-300 transition-all mt-1 flex items-center gap-1"
+                    >
+                      <UserPlus size={12} /> Find people to connect
+                    </button>
+                  </div>
+                ) : (
+                  filteredContacts.map((contact) => (
+                    <button
+                      key={contact.id}
+                      onClick={() => setSelectedContact(contact)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
+                        selectedContact?.id === contact.id
+                          ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                          : "border border-transparent hover:bg-white/[0.03] text-white/70 hover:text-white"
+                      )}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0 relative">
+                        {contact.avatar ? (
+                          <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          getInitials(contact.name)
+                        )}
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1e293b]" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-600 truncate">{contact.name}</p>
+                        <p className="text-xs text-white/40 truncate uppercase">{contact.role.replace(/_/g, " ")}</p>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
-            ) : (
-              filteredContacts.map((contact) => (
-                <button
-                  key={contact.id}
-                  onClick={() => setSelectedContact(contact)}
-                  className={cn(
-                    "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
-                    selectedContact?.id === contact.id
-                      ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
-                      : "border border-transparent hover:bg-white/[0.03] text-white/70 hover:text-white"
+            </>
+          ) : (
+            /* ── Find People Tab ── */
+            <>
+              <div className="p-3 border-b border-white/[0.06]">
+                <div className="relative flex items-center">
+                  <Search className="absolute left-3 w-4 h-4 text-white/30" />
+                  <input
+                    type="text"
+                    placeholder="Search by name or email..."
+                    value={peopleSearch}
+                    onChange={(e) => setPeopleSearch(e.target.value)}
+                    autoFocus
+                    className="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 transition-all"
+                  />
+                  {searchingPeople && (
+                    <Loader2 size={14} className="absolute right-3 text-white/30 animate-spin" />
                   )}
-                >
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0 relative">
-                    {contact.avatar ? (
-                      <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" />
-                    ) : (
-                      getInitials(contact.name)
-                    )}
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1e293b]" />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                {!peopleSearch.trim() ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-white/25 text-center gap-2">
+                    <Search size={28} className="text-white/10" />
+                    <p className="text-xs">Type a name or email to discover board members.</p>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-600 truncate">{contact.name}</p>
-                    <p className="text-xs text-white/40 truncate uppercase">{contact.role.replace(/_/g, " ")}</p>
+                ) : searchingPeople && peopleResults.length === 0 ? (
+                  <div className="flex items-center justify-center p-8 text-white/30 text-xs gap-2">
+                    <Loader2 size={14} className="animate-spin" /> Searching...
                   </div>
-                </button>
-              ))
-            )}
-          </div>
+                ) : !searchingPeople && peopleResults.length === 0 ? (
+                  <div className="text-center p-8 text-white/30 text-xs">No users found.</div>
+                ) : (
+                  peopleResults.map((user) => {
+                    const connStatus = allConnections[user._id];
+                    const isAccepted = connStatus?.status === "Accepted";
+                    const isPendingOut = connStatus?.status === "Pending" && connStatus.direction === "outgoing";
+                    const isPendingIn = connStatus?.status === "Pending" && connStatus.direction === "incoming";
+                    const isSending = sendingRequestTo === user._id;
+
+                    return (
+                      <div
+                        key={user._id}
+                        className="flex items-center gap-3 p-3 rounded-xl border border-transparent hover:bg-white/[0.03] transition-all group"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0">
+                          {user.avatar ? (
+                            <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            getInitials(user.name)
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-600 text-white/80 truncate">{user.name}</p>
+                          <p className="text-[10px] text-white/35 truncate uppercase">{user.role.replace(/_/g, " ")}</p>
+                        </div>
+                        <div className="shrink-0">
+                          {isAccepted ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-600 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              <UserCheck size={10} /> Connected
+                            </span>
+                          ) : isPendingOut ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-600 bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              <Clock size={10} /> Pending
+                            </span>
+                          ) : isPendingIn ? (
+                            <button
+                              onClick={() => sendConnectionRequest(user._id)}
+                              disabled={isSending}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-600 bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 hover:bg-indigo-500/25 transition-all disabled:opacity-60"
+                            >
+                              {isSending ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                              Accept
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => sendConnectionRequest(user._id)}
+                              disabled={isSending}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-600 bg-white/[0.05] text-white/50 border border-white/[0.08] hover:bg-indigo-500/15 hover:text-indigo-400 hover:border-indigo-500/25 transition-all disabled:opacity-60"
+                            >
+                              {isSending ? <Loader2 size={10} className="animate-spin" /> : <UserPlus size={10} />}
+                              Connect
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
         </aside>
 
         {/* Right Panel: Chat Area */}
@@ -553,7 +792,7 @@ export default function ChatPage() {
                   </div>
                 </div>
 
-                {/* Video/Voice calling buttons */}
+                {/* Video/Voice calling buttons + Delete */}
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => startCall("voice")}
@@ -568,6 +807,13 @@ export default function ChatPage() {
                     title="Video Call"
                   >
                     <Video size={15} />
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-red-400/60 hover:text-red-400 hover:bg-red-500/[0.08] hover:border-red-500/20 transition-all"
+                    title="Delete All Messages"
+                  >
+                    <Trash2 size={15} />
                   </button>
                 </div>
               </div>
@@ -819,6 +1065,48 @@ export default function ChatPage() {
             >
               <Check size={14} /> Accept
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete All Messages Confirmation Modal */}
+      {showDeleteConfirm && selectedContact && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)" }}>
+          <div
+            className="w-full max-w-sm rounded-2xl border border-white/[0.08] p-6 shadow-2xl"
+            style={{ background: "var(--bg-card)" }}
+          >
+            <div className="flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-600 text-white mb-1">Delete All Messages?</h3>
+                <p className="text-sm text-white/50 leading-relaxed">
+                  This will permanently delete your entire conversation with <span className="text-white/80 font-500">{selectedContact.name}</span>. This action cannot be undone.
+                </p>
+              </div>
+              <div className="flex gap-3 w-full mt-1">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deletingMessages}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-500 text-white/60 bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] hover:text-white transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAllMessages}
+                  disabled={deletingMessages}
+                  className="flex-1 py-2.5 rounded-lg text-sm font-600 text-white bg-red-600 hover:bg-red-500 shadow-lg shadow-red-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {deletingMessages ? (
+                    <><Loader2 size={14} className="animate-spin" /> Deleting...</>
+                  ) : (
+                    <><Trash2 size={14} /> Delete All</>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

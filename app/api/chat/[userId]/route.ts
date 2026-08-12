@@ -31,3 +31,26 @@ export async function GET(
 
   return NextResponse.json({ messages });
 }
+
+export async function DELETE(
+  request: Request,
+  props: { params: Promise<{ userId: string }> }
+) {
+  const params = await props.params;
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const otherUserId = params.userId;
+
+  await connectDB();
+
+  // Delete all messages between both users in either direction
+  await ChatMessage.deleteMany({
+    $or: [
+      { senderId: session.user.id, receiverId: otherUserId },
+      { senderId: otherUserId, receiverId: session.user.id },
+    ],
+  });
+
+  return NextResponse.json({ success: true });
+}
