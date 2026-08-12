@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Minutes from "@/models/Minutes";
+import MeetingParticipant from "@/models/MeetingParticipant";
 import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
+import mongoose from "mongoose";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -16,20 +18,32 @@ export async function GET(request: Request, { params }: Params) {
   await connectDB();
 
   const minutes = await Minutes.findById(id)
-    .populate("meetingId", "title scheduledAt status type location meetingLink organizerId")
+    .populate("meetingId", "title date status meetingType location onlineMeeting organizerId")
     .populate("draftedBy", "name email")
     .populate("approvedBy", "name email");
 
   if (!minutes) return NextResponse.json({ error: "Minutes not found" }, { status: 404 });
 
-  // Board members can only see published minutes
+  // Board members / guests can only see Published minutes AND must be a participant
   const role = session.user.role as UserRole;
-  if ((role === "board_member" || role === "guest") && minutes.status !== "Published") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (role === "board_member" || role === "guest") {
+    if (minutes.status !== "Published") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    // Verify the user was a participant in this meeting
+    const meetingId = (minutes.meetingId as any)?._id ?? minutes.meetingId;
+    const isParticipant = await MeetingParticipant.exists({
+      meetingId,
+      userId: new mongoose.Types.ObjectId(session.user.id),
+    });
+    if (!isParticipant) {
+      return NextResponse.json({ error: "Forbidden — you were not a participant in this meeting." }, { status: 403 });
+    }
   }
 
   return NextResponse.json({ minutes });
 }
+
 
 // PATCH /api/minutes/[id] — update minutes fields (Secretary/Admin only)
 export async function PATCH(request: Request, { params }: Params) {
