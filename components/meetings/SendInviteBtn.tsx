@@ -42,9 +42,15 @@ export default function SendInviteBtn({
         throw new Error(data.error || "Failed to send invite");
       }
 
+      if (data.sentCount === 0) {
+        setStatus("error");
+        setMessage(`Failed to send invites. Please check SMTP settings.`);
+        return;
+      }
+
       setStatus("success");
       setIsSent(true);
-      setSentCount(data.sentCount || totalParticipants);
+      setSentCount(data.sentCount ?? 0);
       setMessage(data.message || "Meeting invite sent successfully");
 
       router.refresh();
