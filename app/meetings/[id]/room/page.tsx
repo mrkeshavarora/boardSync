@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2,
+  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2, Circle, Download
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,8 @@ export default function MeetingRoomPage() {
   const [elapsed, setElapsed] = useState(0);
   const [showSidebar, setShowSidebar] = useState(false);
   const [ending, setEnding] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
@@ -58,6 +60,7 @@ export default function MeetingRoomPage() {
   const pcs = useRef<Record<string, RTCPeerConnection>>({});
   const [remoteStreams, setRemoteStreams] = useState<PeerStream[]>([]);
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
   // Fetch meeting info
   useEffect(() => {
@@ -368,8 +371,53 @@ export default function MeetingRoomPage() {
   };
 
   const handleLeave = () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+    }
     router.push(`/meetings/${meetingId}`);
   };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop();
+      setIsRecording(false);
+    } else {
+      if (!cameraStreamRef.current) {
+        alert("Microphone is not initialized.");
+        return;
+      }
+      setRecordedChunks([]);
+      try {
+        const mr = new MediaRecorder(cameraStreamRef.current, { mimeType: "audio/webm" });
+        mediaRecorderRef.current = mr;
+        mr.ondataavailable = (e) => {
+          if (e.data.size > 0) {
+            setRecordedChunks((prev) => [...prev, e.data]);
+          }
+        };
+        mr.start(1000);
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Recording failed", err);
+        alert("Recording failed to start. Browser may not support audio/webm.");
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!isRecording && recordedChunks.length > 0) {
+      const blob = new Blob(recordedChunks, { type: "audio/webm" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `meeting_recording_${meetingId}.webm`;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+      setRecordedChunks([]);
+      alert("Recording downloaded! You can upload this file to Generate Minutes.");
+    }
+  }, [isRecording, recordedChunks, meetingId]);
 
   if (loadingMeeting) {
     return (
@@ -614,6 +662,22 @@ export default function MeetingRoomPage() {
           {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
           <span className="hidden sm:inline">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
         </button>
+
+        {/* Record */}
+        {isOrganizer && (
+          <button
+            onClick={toggleRecording}
+            className={cn(
+              "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+              isRecording
+                ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 animate-pulse"
+                : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+            )}
+          >
+            <Circle size={18} className={isRecording ? "text-red-400" : ""} />
+            <span className="hidden sm:inline">{isRecording ? "Stop Record" : "Record"}</span>
+          </button>
+        )}
 
         {/* Divider */}
         <div className="w-px h-8 sm:h-10 bg-white/[0.08] mx-1 shrink-0" />

@@ -16,6 +16,7 @@ import { getInitials } from "@/lib/utils";
 import StartMeetingBtn from "@/components/meetings/StartMeetingBtn";
 import DeleteMeetingBtn from "@/components/meetings/DeleteMeetingBtn";
 import RSVPAction from "@/components/meetings/RSVPAction";
+import GenerateMinutesBtn from "@/components/minutes/GenerateMinutesBtn";
 
 export const metadata: Metadata = { title: "Meeting Details" };
 
@@ -117,6 +118,10 @@ export default async function MeetingDetailsPage(
               {/* Delete Meeting button — for organizer or admin */}
               {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:delete")) && (
                 <DeleteMeetingBtn meetingId={params.id} />
+              )}
+              {/* Generate Minutes button */}
+              {meeting.status === "Completed" && hasPermission(role, "minutes:generate") && (
+                <GenerateMinutesBtn meetingId={params.id} meetingTitle={meeting.title} />
               )}
               {/* Join Room button — for all participants when In Progress */}
               {meeting.status === "In Progress" && organizer?._id?.toString() !== session.user.id && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Save, Send, CheckCircle2, Clock, FileText, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -55,22 +55,56 @@ Proposed by: James Miller | Seconded by: Sarah Kim | Result: Passed (10–0)</p>
 
 <p><em>Minutes prepared by: Sarah Kim, Board Secretary</em></p>`);
 
-  const handleSave = async () => {
+  useEffect(() => {
+    async function loadMinutes() {
+      try {
+        const res = await fetch(`/api/meetings/${meetingId}/minutes`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.minutes && data.minutes.content) {
+            setContent(data.minutes.content);
+            setStatus(data.minutes.status as Status);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load minutes", err);
+      }
+    }
+    loadMinutes();
+  }, [meetingId]);
+
+  const handleSave = async (newStatus?: Status) => {
     setIsSaving(true);
-    // TODO: API call to PUT /api/meetings/[id]/minutes
-    await new Promise((r) => setTimeout(r, 800));
-    setLastSaved(new Date());
-    setIsSaving(false);
+    const saveStatus = newStatus || status;
+    try {
+      const res = await fetch(`/api/meetings/${meetingId}/minutes`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, status: saveStatus }),
+      });
+      if (res.status === 404) {
+        // If not found, create it
+        await fetch(`/api/meetings/${meetingId}/minutes`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, status: saveStatus }),
+        });
+      }
+      setLastSaved(new Date());
+      if (newStatus) setStatus(newStatus);
+    } catch (err) {
+      console.error("Failed to save minutes", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSubmitForReview = async () => {
-    setStatus("Review");
-    await handleSave();
+    await handleSave("Review");
   };
 
   const handleApprove = async () => {
-    setStatus("Approved");
-    await handleSave();
+    await handleSave("Approved");
   };
 
   const execCommand = (command: string) => {
@@ -103,7 +137,7 @@ Proposed by: James Miller | Seconded by: Sarah Kim | Result: Passed (10–0)</p>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={isSaving}
             className="px-3 py-2 rounded-lg text-sm font-500 text-white bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-colors flex items-center gap-2"
           >
