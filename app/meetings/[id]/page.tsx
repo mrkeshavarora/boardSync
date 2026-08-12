@@ -8,12 +8,14 @@ import Meeting from "@/models/Meeting";
 import MeetingParticipant from "@/models/MeetingParticipant";
 import AgendaItem from "@/models/AgendaItem";
 import MeetingDocument from "@/models/Document";
+import RSVP from "@/models/RSVP";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import Link from "next/link";
 import { getInitials } from "@/lib/utils";
 import StartMeetingBtn from "@/components/meetings/StartMeetingBtn";
 import DeleteMeetingBtn from "@/components/meetings/DeleteMeetingBtn";
+import RSVPAction from "@/components/meetings/RSVPAction";
 
 export const metadata: Metadata = { title: "Meeting Details" };
 
@@ -31,11 +33,12 @@ export default async function MeetingDetailsPage(
   }
 
   // Fetch meeting and all related data in parallel
-  const [meeting, participants, agenda, documents] = await Promise.all([
+  const [meeting, participants, agenda, documents, rsvps] = await Promise.all([
     Meeting.findById(params.id).populate("organizerId", "name email avatar"),
     MeetingParticipant.find({ meetingId: params.id }).populate("userId", "name email avatar role"),
     AgendaItem.find({ meetingId: params.id }).sort({ order: 1 }).populate("presenterId", "name email"),
     MeetingDocument.find({ meetingId: params.id }).populate("uploadedBy", "name avatar"),
+    RSVP.find({ meetingId: params.id }),
   ]);
 
   if (!meeting) {
@@ -43,6 +46,17 @@ export default async function MeetingDetailsPage(
   }
 
   const organizer = meeting.organizerId as any;
+
+  // Build map of user ID -> RSVP status
+  const rsvpMap: Record<string, "Pending" | "Accepted" | "Tentative" | "Declined"> = {};
+  rsvps.forEach((r) => {
+    if (r.userId) {
+      const uid = (r.userId as any)._id ? (r.userId as any)._id.toString() : r.userId.toString();
+      rsvpMap[uid] = r.status;
+    }
+  });
+
+  const currentUserRsvp = rsvpMap[session.user.id] || "Pending";
 
   return (
     <AppShell title="Meeting Details">
@@ -238,8 +252,11 @@ export default async function MeetingDetailsPage(
 
           </div>
 
-          {/* Right Column: Participants */}
+          {/* Right Column: RSVP & Participants */}
           <div className="space-y-6">
+            {/* Interactive RSVP Action Component */}
+            <RSVPAction meetingId={params.id} initialStatus={currentUserRsvp} />
+
             <div className="rounded-2xl border border-white/[0.06] bg-[#0A0A0A] overflow-hidden sticky top-6">
               <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -258,19 +275,36 @@ export default async function MeetingDetailsPage(
                     {participants.map((p) => {
                       const user = p.userId as any;
                       if (!user) return null;
+                      const uid = user._id ? user._id.toString() : user.toString();
+                      const status = rsvpMap[uid] || "Pending";
                       return (
-                        <div key={p._id.toString()} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors">
-                          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0">
-                            {user.avatar ? (
-                              <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                              getInitials(user.name)
-                            )}
+                        <div key={p._id.toString()} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/[0.03] transition-colors gap-2">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0">
+                              {user.avatar ? (
+                                <img src={user.avatar} alt={user.name} className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                getInitials(user.name)
+                              )}
+                            </div>
+                            <div className="overflow-hidden min-w-0">
+                              <p className="text-sm font-500 text-white truncate">{user.name}</p>
+                              <p className="text-xs text-white/40 truncate">{p.role}</p>
+                            </div>
                           </div>
-                          <div className="overflow-hidden flex-1">
-                            <p className="text-sm font-500 text-white truncate">{user.name}</p>
-                            <p className="text-xs text-white/40 truncate">{p.role}</p>
-                          </div>
+                          <span
+                            className={
+                              status === "Accepted"
+                                ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0"
+                                : status === "Tentative"
+                                ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0"
+                                : status === "Declined"
+                                ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-red-500/10 text-red-300 border border-red-500/20 shrink-0"
+                                : "text-[10px] font-600 px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10 shrink-0"
+                            }
+                          >
+                            {status === "Declined" ? "Cannot Attend" : status === "Accepted" ? "Attending" : status}
+                          </span>
                         </div>
                       );
                     })}

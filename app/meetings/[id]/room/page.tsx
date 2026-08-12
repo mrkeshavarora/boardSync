@@ -435,9 +435,9 @@ export default function MeetingRoomPage() {
       {/* Main area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Streams Container */}
-        <div className="flex-1 relative bg-black p-4 flex items-center justify-center">
+        <div className="flex-1 relative bg-black p-2 sm:p-4 flex items-center justify-center overflow-y-auto">
           <div className={cn(
-            "grid gap-4 w-full h-full max-h-[80vh] items-center justify-center",
+            "grid gap-3 sm:gap-4 w-full h-full max-h-[80vh] items-center justify-center",
             totalParticipants === 1 ? "grid-cols-1 max-w-4xl" : "grid-cols-1 md:grid-cols-2 max-w-6xl"
           )}>
             {/* Local Video Card */}

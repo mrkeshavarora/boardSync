@@ -1292,7 +1292,7 @@ export default function ChatPage() {
                 )}
 
                 {/* Local PIP — floating corner overlay */}
-                <div className="absolute bottom-4 right-4 w-36 h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10">
+                <div className="absolute bottom-4 right-4 w-28 h-20 sm:w-36 sm:h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10">
                   <video
                     ref={(el) => {
                       localVideoRef.current = el;
@@ -1308,12 +1308,12 @@ export default function ChatPage() {
               </>
             ) : (
               /* Voice call layout */
-              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <div className="w-28 h-28 rounded-full bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-5 animate-pulse">
-                  <Mic size={40} />
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-indigo-500/10 border-2 border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-5 animate-pulse">
+                  <Mic size={36} />
                 </div>
-                <h3 className="text-xl font-600 text-white">{selectedContact?.name}</h3>
-                <p className="text-sm text-emerald-400 mt-2 font-500">● Connected</p>
+                <h3 className="text-lg sm:text-xl font-600 text-white">{selectedContact?.name}</h3>
+                <p className="text-xs sm:text-sm text-emerald-400 mt-2 font-500">● Connected</p>
                 {/* Hidden streams to keep audio working */}
                 <video ref={localVideoRef} autoPlay playsInline muted className="hidden" />
                 <video ref={remoteVideoRef} autoPlay playsInline className="hidden" />
@@ -1322,41 +1322,41 @@ export default function ChatPage() {
           </div>
 
           {/* Controls bar — shrink-0 so it's ALWAYS visible at bottom */}
-          <div className="shrink-0 py-5 px-6 bg-black/70 backdrop-blur-md flex items-center justify-center gap-5 z-20 border-t border-white/[0.06]">
+          <div className="shrink-0 py-4 sm:py-5 px-4 sm:px-6 bg-black/80 backdrop-blur-md flex items-center justify-center gap-4 sm:gap-5 z-20 border-t border-white/[0.06]">
             <button
               onClick={toggleMute}
               className={cn(
-                "w-13 h-13 w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all",
+                "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all shrink-0",
                 isMuted
                   ? "bg-red-500/20 border-red-500/40 text-red-400"
                   : "bg-white/[0.08] border-white/[0.12] text-white/80 hover:text-white hover:bg-white/[0.15]"
               )}
               title={isMuted ? "Unmute Mic" : "Mute Mic"}
             >
-              {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+              {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
 
             {callType === "video" && (
               <button
                 onClick={toggleCamera}
                 className={cn(
-                  "w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all",
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all shrink-0",
                   isCameraOff
                     ? "bg-red-500/20 border-red-500/40 text-red-400"
                     : "bg-white/[0.08] border-white/[0.12] text-white/80 hover:text-white hover:bg-white/[0.15]"
                 )}
                 title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
               >
-                {isCameraOff ? <VideoOff size={20} /> : <VideoIcon size={20} />}
+                {isCameraOff ? <VideoOff size={18} /> : <VideoIcon size={18} />}
               </button>
             )}
 
             <button
               onClick={endCall}
-              className="w-16 h-16 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 transition-all"
+              className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 transition-all shrink-0"
               title="End Call"
             >
-              <PhoneOff size={24} />
+              <PhoneOff size={22} />
             </button>
           </div>
         </div>

@@ -28,6 +28,7 @@ type MeetingParticipantDraft = {
 type MeetingAgendaDraft = {
   id: string;
   title: string;
+  description?: string;
   duration: number;
   presenter?: string;
 };
@@ -241,6 +242,23 @@ export default function MeetingWizard() {
             body: JSON.stringify({
               userId: participant.userId,
               role: participant.role || "Attendee",
+            }),
+          })
+        ));
+      }
+
+      // Save Agenda items to DB
+      if (meetingData.agenda?.length) {
+        await Promise.all(meetingData.agenda.map((item, index) =>
+          fetch(`/api/meetings/${meetingId}/agenda`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: item.title,
+              description: item.description,
+              estimatedDuration: item.duration,
+              presenterId: item.presenter || undefined,
+              order: index + 1,
             }),
           })
         ));

@@ -106,7 +106,7 @@ export default function GlobalCallToast() {
 
   return (
     <div
-      className={`fixed top-5 right-5 z-[9999] w-80 transition-all duration-300 ease-out ${
+      className={`fixed top-3 left-3 right-3 sm:left-auto sm:right-5 sm:w-80 w-auto z-[9999] transition-all duration-300 ease-out ${
         isVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
       }`}
     >

@@ -6,6 +6,7 @@ import { CalendarDays, Plus, Link as LinkIcon } from "lucide-react";
 import DeleteMeetingButton from "@/components/meetings/DeleteMeetingButton";
 import connectDB from "@/lib/mongodb";
 import Meeting from "@/models/Meeting";
+import MeetingParticipant from "@/models/MeetingParticipant";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import Link from "next/link";
@@ -19,9 +20,20 @@ export default async function MeetingsPage() {
   await connectDB();
   const canReadAll = hasPermission(session.user.role as UserRole, "meetings:read");
   const canDelete = hasPermission(session.user.role as UserRole, "meetings:delete");
-  const meetings = canReadAll
-    ? await Meeting.find({}).sort({ createdAt: -1 }).limit(50).populate("organizerId", "name email")
-    : [];
+
+  let meetings = [];
+  if (canReadAll) {
+    meetings = await Meeting.find({}).sort({ createdAt: -1 }).limit(50).populate("organizerId", "name email");
+  } else {
+    const participantRecords = await MeetingParticipant.find({ userId: session.user.id }).select("meetingId");
+    const meetingIds = participantRecords.map((p) => p.meetingId);
+    meetings = await Meeting.find({
+      $or: [{ organizerId: session.user.id }, { _id: { $in: meetingIds } }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate("organizerId", "name email");
+  }
 
   return (
     <AppShell title="Meetings">

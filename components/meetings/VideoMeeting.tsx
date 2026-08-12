@@ -159,8 +159,8 @@ export default function VideoMeeting({ meetingId, onClose }: { meetingId: string
 
   return (
     <div className="flex gap-4 flex-col">
-      <div className="flex gap-4">
-        <div className="w-1/2">
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="w-full md:w-1/2">
           <p className="text-sm text-white/60">You</p>
           <div className="relative w-full rounded-md overflow-hidden bg-black">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-auto rounded-md bg-black" />
@@ -186,13 +186,13 @@ export default function VideoMeeting({ meetingId, onClose }: { meetingId: string
             )}
           </div>
         </div>
-        <div className="w-1/2">
+        <div className="w-full md:w-1/2">
           <p className="text-sm text-white/60">Remote</p>
           <div ref={remoteContainerRef} className="grid grid-cols-1 gap-2" />
         </div>
       </div>
 
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-wrap gap-2 items-center">
         <button
           onClick={() => {
             // toggle mute

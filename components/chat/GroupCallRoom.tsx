@@ -228,13 +228,13 @@ export default function GroupCallRoom({
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col">
       {/* Header */}
-      <div className="shrink-0 px-6 py-3 flex items-center justify-between bg-black/70 backdrop-blur-sm border-b border-white/[0.06]">
-        <div className="flex items-center gap-3">
+      <div className="shrink-0 px-4 sm:px-6 py-3 flex items-center justify-between bg-black/70 backdrop-blur-sm border-b border-white/[0.06]">
+        <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
             <Users size={16} />
           </div>
           <div>
-            <h4 className="text-sm font-600 text-white">{groupName}</h4>
+            <h4 className="text-xs sm:text-sm font-600 text-white truncate">{groupName}</h4>
             <p className="text-[10px] text-white/50 uppercase">
               {callType} Call · {allParticipants} participant{allParticipants !== 1 ? "s" : ""}
             </p>
@@ -246,7 +246,7 @@ export default function GroupCallRoom({
       </div>
 
       {/* Video grid */}
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4">
         <div
           className={cn(
             "h-full grid gap-3 place-content-center",
@@ -305,41 +305,41 @@ export default function GroupCallRoom({
       </div>
 
       {/* Controls bar */}
-      <div className="shrink-0 py-5 px-6 bg-black/70 backdrop-blur-md flex items-center justify-center gap-5 border-t border-white/[0.06]">
+      <div className="shrink-0 py-4 sm:py-5 px-4 sm:px-6 bg-black/70 backdrop-blur-md flex items-center justify-center gap-4 sm:gap-5 border-t border-white/[0.06]">
         <button
           onClick={toggleMute}
           className={cn(
-            "w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all",
+            "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all shrink-0",
             isMuted
               ? "bg-red-500/20 border-red-500/40 text-red-400"
               : "bg-white/[0.08] border-white/[0.12] text-white/80 hover:text-white hover:bg-white/[0.15]"
           )}
           title={isMuted ? "Unmute" : "Mute"}
         >
-          {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+          {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
         </button>
 
         {callType === "video" && (
           <button
             onClick={toggleCamera}
             className={cn(
-              "w-14 h-14 rounded-full flex items-center justify-center border-2 transition-all",
+              "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center border-2 transition-all shrink-0",
               isCameraOff
                 ? "bg-red-500/20 border-red-500/40 text-red-400"
                 : "bg-white/[0.08] border-white/[0.12] text-white/80 hover:text-white hover:bg-white/[0.15]"
             )}
             title={isCameraOff ? "Turn Camera On" : "Turn Camera Off"}
           >
-            {isCameraOff ? <VideoOff size={20} /> : <Video size={20} />}
+            {isCameraOff ? <VideoOff size={18} /> : <Video size={18} />}
           </button>
         )}
 
         <button
           onClick={onEnd}
-          className="w-16 h-16 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 transition-all"
+          className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 transition-all shrink-0"
           title="Leave Call"
         >
-          <PhoneOff size={24} />
+          <PhoneOff size={22} />
         </button>
       </div>
     </div>
