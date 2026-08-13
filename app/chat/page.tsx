@@ -853,6 +853,14 @@ export default function ChatPage() {
     setGroupCall({ type });
   }
 
+  const latestCallMsg = [...groupMessages]
+    .reverse()
+    .find((m) => m.message.startsWith("[GROUP_CALL_INVITE]:") || m.message.startsWith("[GROUP_CALL_ENDED]:"));
+  const hasActiveCall = 
+    latestCallMsg && 
+    latestCallMsg.message.startsWith("[GROUP_CALL_INVITE]:") && 
+    Date.now() - new Date(latestCallMsg.createdAt).getTime() < 60 * 60 * 1000;
+
   return (
     <AppShell title="Direct Messaging">
       <div className="max-w-7xl mx-auto h-[calc(100vh-140px)] flex rounded-2xl border border-white/[0.06] overflow-hidden relative" style={{ background: "var(--bg-card)" }}>
@@ -1272,7 +1280,7 @@ export default function ChatPage() {
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  {groupMessages.some(m => m.message.startsWith("[GROUP_CALL_INVITE]:") && Date.now() - new Date(m.createdAt).getTime() < 30 * 60 * 1000) ? (
+                  {hasActiveCall ? (
                     <button
                       onClick={() => setGroupCall({ type: "video" })}
                       className="px-3 py-1.5 rounded-lg text-xs font-700 text-white bg-indigo-500 hover:bg-indigo-600 shadow-lg flex items-center gap-1.5 transition-all"
@@ -1301,11 +1309,7 @@ export default function ChatPage() {
               </div>
 
               {/* Active Call Banner */}
-              {groupMessages.some(
-                (m) =>
-                  m.message.startsWith("[GROUP_CALL_INVITE]:") &&
-                  Date.now() - new Date(m.createdAt).getTime() < 30 * 60 * 1000
-              ) && (
+              {hasActiveCall && (
                 <div className="bg-gradient-to-r from-indigo-950/90 via-purple-950/80 to-slate-900/90 border-b border-indigo-500/30 px-6 py-3 flex items-center justify-between shadow-xl shrink-0 backdrop-blur-md">
                   <div className="flex items-center gap-3">
                     <span className="relative flex h-3 w-3">
@@ -1603,7 +1607,16 @@ export default function ChatPage() {
           groupName={selectedGroup.name}
           callType={groupCall.type}
           currentUser={{ id: session.user.id, name: session.user.name || "User" }}
-          onEnd={() => setGroupCall(null)}
+          onEnd={(isLast) => {
+            setGroupCall(null);
+            if (isLast) {
+              fetch(`/api/groups/${selectedGroup._id}/messages`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ message: `[GROUP_CALL_ENDED]:${groupCall.type}` }),
+              }).catch(() => {});
+            }
+          }}
         />
       )}
 

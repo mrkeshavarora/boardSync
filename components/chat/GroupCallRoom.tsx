@@ -26,7 +26,7 @@ interface Props {
   groupName: string;
   callType: "voice" | "video";
   currentUser: { id: string; name: string };
-  onEnd: () => void;
+  onEnd: (isLast: boolean) => void;
 }
 
 export default function GroupCallRoom({
@@ -110,7 +110,7 @@ export default function GroupCallRoom({
         if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       } catch {
         alert("Camera/microphone access denied.");
-        onEnd();
+        onEnd(true);
         return;
       }
 
@@ -384,7 +384,7 @@ export default function GroupCallRoom({
         )}
 
         <button
-          onClick={onEnd}
+          onClick={() => onEnd(participants.length === 0)}
           className="w-14 h-14 sm:w-16 sm:h-16 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 text-white shadow-xl shadow-red-600/40 transition-all shrink-0"
           title="Leave Video Call"
         >
