@@ -78,6 +78,26 @@ io.on('connection', (socket) => {
     socket.to(meetingId).emit('speech-caption', { senderName, text, timestamp: new Date().toISOString() });
   });
 
+  socket.on('transcript:partial', (data) => {
+    socket.to(data.meetingId).emit('transcript:partial', data);
+  });
+
+  socket.on('transcript:final', (data) => {
+    socket.to(data.meetingId).emit('transcript:final', data);
+  });
+
+  socket.on('transcript:error', (data) => {
+    socket.to(data.meetingId).emit('transcript:error', data);
+  });
+
+  socket.on('transcript:started', (data) => {
+    socket.to(data.meetingId).emit('transcript:started', data);
+  });
+
+  socket.on('transcript:stopped', (data) => {
+    socket.to(data.meetingId).emit('transcript:stopped', data);
+  });
+
   socket.on('leave-room', ({ meetingId }) => {
     socket.leave(meetingId);
     if (rooms.has(meetingId)) {
