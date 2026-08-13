@@ -130,6 +130,7 @@ export default function ChatPage() {
   const [showEditGroup, setShowEditGroup] = useState(false);
   const [editGroupName, setEditGroupName] = useState("");
   const [editGroupDesc, setEditGroupDesc] = useState("");
+  const [editGroupMembers, setEditGroupMembers] = useState<string[]>([]);
   const [updatingGroup, setUpdatingGroup] = useState(false);
 
   const socketRef = useRef<any>(null);
@@ -800,10 +801,17 @@ export default function ChatPage() {
     );
   }
 
+  function toggleEditGroupMember(id: string) {
+    setEditGroupMembers((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  }
+
   function openEditGroupModal() {
     if (!selectedGroup) return;
     setEditGroupName(selectedGroup.name);
     setEditGroupDesc(selectedGroup.description || "");
+    setEditGroupMembers(selectedGroup.members.map((m) => m._id));
     setShowEditGroup(true);
   }
 
@@ -817,6 +825,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           name: editGroupName.trim(),
           description: editGroupDesc.trim() || "",
+          memberIds: editGroupMembers,
         }),
       });
       if (res.ok) {
@@ -1686,10 +1695,12 @@ export default function ChatPage() {
       {/* ── Edit Group Modal ── */}
       {showEditGroup && selectedGroup && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0A0A0A] border border-white/[0.08] w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-in">
-            <h3 className="text-lg font-600 text-white mb-4">Edit Group Details</h3>
+          <div className="bg-[#0A0A0A] border border-white/[0.08] w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-in flex flex-col max-h-[90vh]">
+            <h3 className="text-lg font-600 text-white mb-4">
+              {selectedGroup.createdBy?._id === session?.user?.id ? "Edit Group Details" : "Group Details"}
+            </h3>
             
-            <div className="space-y-4">
+            <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
               <div>
                 <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Group Name</label>
                 <input
@@ -1699,6 +1710,7 @@ export default function ChatPage() {
                   placeholder="e.g. Executive Board"
                   className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
                   autoFocus
+                  disabled={selectedGroup.createdBy?._id !== session?.user?.id}
                 />
               </div>
               
@@ -1710,11 +1722,58 @@ export default function ChatPage() {
                   onChange={(e) => setEditGroupDesc(e.target.value)}
                   placeholder="What is this group for?"
                   className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
+                  disabled={selectedGroup.createdBy?._id !== session?.user?.id}
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Members</label>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar border border-white/[0.06] rounded-xl p-2 bg-white/[0.01]">
+                  {selectedGroup.createdBy?._id === session?.user?.id && contacts.length === 0 && selectedGroup.members.length === 1 ? (
+                    <p className="text-xs text-white/30 text-center py-4">No connected contacts to add.</p>
+                  ) : (
+                    (selectedGroup.createdBy?._id === session?.user?.id ? [...contacts, ...selectedGroup.members.filter(m => !contacts.some(c => c.id === m._id) && m._id !== session?.user?.id)] : selectedGroup.members).map((c: any) => {
+                      const cid = c.id || c._id;
+                      const isMember = editGroupMembers.includes(cid);
+                      const isAdmin = selectedGroup.createdBy?._id === cid;
+                      if (selectedGroup.createdBy?._id !== session?.user?.id && !isMember) return null;
+
+                      return (
+                        <button
+                          key={cid}
+                          type="button"
+                          onClick={() => selectedGroup.createdBy?._id === session?.user?.id && toggleEditGroupMember(cid)}
+                          disabled={selectedGroup.createdBy?._id !== session?.user?.id || isAdmin}
+                          className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-white/[0.04] transition-colors disabled:hover:bg-transparent"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-600 text-white">
+                              {getInitials(c.name)}
+                            </div>
+                            <div className="flex flex-col items-start">
+                              <span className="text-sm text-white/80">{c.name} {cid === session?.user?.id ? "(You)" : ""}</span>
+                              {isAdmin && <span className="text-[9px] font-700 text-indigo-400 uppercase tracking-wider">Admin</span>}
+                            </div>
+                          </div>
+                          {selectedGroup.createdBy?._id === session?.user?.id && (
+                            <div className={cn(
+                              "w-5 h-5 rounded flex items-center justify-center border transition-all",
+                              isMember
+                                ? isAdmin ? "bg-white/10 border-white/10 text-white/50" : "bg-indigo-500 border-indigo-500 text-white"
+                                : "bg-transparent border-white/[0.1] text-transparent"
+                            )}>
+                              <Check size={12} />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="mt-8 flex justify-end gap-3">
+            <div className="mt-8 flex justify-end gap-3 shrink-0">
               <button
                 onClick={() => setShowEditGroup(false)}
                 className="px-4 py-2 rounded-lg text-sm font-500 text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors"
@@ -1722,14 +1781,16 @@ export default function ChatPage() {
               >
                 Cancel
               </button>
-              <button
-                onClick={handleUpdateGroup}
-                disabled={updatingGroup || !editGroupName.trim()}
-                className="btn-gradient px-4 py-2 rounded-lg text-sm font-500 flex items-center gap-2 disabled:opacity-50"
-              >
-                {updatingGroup ? <Loader2 size={14} className="animate-spin" /> : null}
-                Save Changes
-              </button>
+              {selectedGroup.createdBy?._id === session?.user?.id && (
+                <button
+                  onClick={handleUpdateGroup}
+                  disabled={updatingGroup || !editGroupName.trim() || editGroupMembers.length < 1}
+                  className="btn-gradient px-4 py-2 rounded-lg text-sm font-500 flex items-center gap-2 disabled:opacity-50"
+                >
+                  {updatingGroup ? <Loader2 size={14} className="animate-spin" /> : null}
+                  Save Changes
+                </button>
+              )}
             </div>
           </div>
         </div>
