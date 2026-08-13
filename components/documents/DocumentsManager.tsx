@@ -199,11 +199,11 @@ export default function DocumentsManager() {
           <select
             value={meetingId}
             onChange={(e) => setMeetingId(e.target.value)}
-            className="w-full pl-3 pr-8 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/80 focus:outline-none focus:border-indigo-500/50 cursor-pointer transition-colors"
+            className="w-full pl-3 pr-8 py-2.5 rounded-lg text-sm bg-[#0f172a] border border-white/[0.08] text-white focus:outline-none focus:border-indigo-500/50 cursor-pointer transition-colors"
           >
-            <option value="">📁 General Documents (No Meeting)</option>
+            <option value="" className="bg-[#0f172a] text-white">📁 General Documents (No Meeting)</option>
             {meetings.map((m) => (
-              <option key={m._id} value={m._id}>
+              <option key={m._id} value={m._id} className="bg-[#0f172a] text-white">
                 📅 {m.title} ({new Date(m.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })})
               </option>
             ))}

@@ -133,6 +133,7 @@ export default function ChatPage() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const signalPollRef = useRef<any>(null);
 
   // Fetch accepted connections
   useEffect(() => {
@@ -144,36 +145,7 @@ export default function ChatPage() {
           const loaded: Contact[] = data.connections || [];
           setContacts(loaded);
 
-          // Auto-accept call from global toast redirect (?accept=callerId&type=...&room=... or ?acceptGroup=groupId&type=...)
-          const acceptId = searchParams?.get("accept");
-          const acceptGroupId = searchParams?.get("acceptGroup");
-          const callTypeParam = searchParams?.get("type") as "voice" | "video" | null;
-          const roomParam = searchParams?.get("room");
-
-          if (acceptId && callTypeParam && roomParam) {
-            const caller = loaded.find((c) => c.id === acceptId);
-            if (caller) {
-              setSelectedContact(caller);
-              window.history.replaceState({}, "", "/chat");
-              setTimeout(() => {
-                autoAcceptCall(caller, callTypeParam, roomParam);
-              }, 100);
-            }
-          } else if (acceptGroupId && callTypeParam) {
-            setActiveTab("groups");
-            window.history.replaceState({}, "", "/chat");
-            fetch("/api/groups")
-              .then((r) => r.json())
-              .then((data) => {
-                const groupList = data.groups || [];
-                const g = groupList.find((item: any) => item._id === acceptGroupId);
-                if (g) {
-                  setSelectedGroup(g);
-                  setGroupCall({ type: callTypeParam });
-                }
-              })
-              .catch((err) => console.error("Failed to load group for call:", err));
-          }
+          // Contacts loaded
         }
       } catch (e) {
         console.error("Failed to load contacts", e);
@@ -185,6 +157,48 @@ export default function ChatPage() {
       fetchContacts();
     }
   }, [session]);
+
+  // Handle auto-accepting 1-on-1 or group call when redirected with URL query params
+  useEffect(() => {
+    if (!session?.user) return;
+    const acceptId = searchParams?.get("accept");
+    const acceptGroupId = searchParams?.get("acceptGroup");
+    const callTypeParam = searchParams?.get("type") as "voice" | "video" | null;
+    const roomParam = searchParams?.get("room");
+    const callerNameParam = searchParams?.get("callerName");
+
+    if (acceptId && callTypeParam && roomParam) {
+      const existingCaller = contacts.find((c) => c.id === acceptId);
+      const caller: Contact = existingCaller || {
+        id: acceptId,
+        name: callerNameParam ? decodeURIComponent(callerNameParam) : "User",
+        email: "",
+        role: "board_member",
+        avatar: null,
+        status: "active",
+      };
+
+      setSelectedContact(caller);
+      window.history.replaceState({}, "", "/chat");
+      setTimeout(() => {
+        autoAcceptCall(caller, callTypeParam, roomParam);
+      }, 100);
+    } else if (acceptGroupId && callTypeParam) {
+      setActiveTab("groups");
+      window.history.replaceState({}, "", "/chat");
+      fetch("/api/groups")
+        .then((r) => r.json())
+        .then((data) => {
+          const groupList = data.groups || [];
+          const g = groupList.find((item: any) => item._id === acceptGroupId);
+          if (g) {
+            setSelectedGroup(g);
+            setGroupCall({ type: callTypeParam });
+          }
+        })
+        .catch((err) => console.error("Failed to load group for call:", err));
+    }
+  }, [searchParams, session, contacts]);
 
   // Generate unique room name based on sorted User IDs
   const callRoomName = useMemo(() => {
@@ -378,7 +392,10 @@ export default function ChatPage() {
   }
 
   function connectToSignalingRoom(room: string, stream: MediaStream) {
-    const socket = io(SIGNALING_URL);
+    const socket = io(SIGNALING_URL, {
+      transports: ["websocket", "polling"],
+      timeout: 5000,
+    });
     socketRef.current = socket;
 
     const pc = new RTCPeerConnection(pcConfig);
@@ -391,6 +408,21 @@ export default function ChatPage() {
       pc.addTrack(track, stream);
     });
 
+    async function sendHttpSignal(type: string, payload: any, toUser?: string) {
+      try {
+        await fetch("/api/chat/signal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "send",
+            room,
+            to: toUser,
+            data: { type, payload },
+          }),
+        });
+      } catch {}
+    }
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         if (peerSocketId) {
@@ -402,6 +434,7 @@ export default function ChatPage() {
         } else {
           pendingCandidates.push(event.candidate);
         }
+        sendHttpSignal("candidate", event.candidate);
       }
     };
 
@@ -420,7 +453,7 @@ export default function ChatPage() {
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
-        // Only update state — the useEffect above will bind srcObject after React renders the <video>
+        // Only update state — the useEffect will bind srcObject after React renders <video>
         setRemoteStream(event.streams[0]);
         setIsCalling(false);
       }
@@ -446,6 +479,7 @@ export default function ChatPage() {
           from: socket.id,
           description: pc.localDescription,
         });
+        sendHttpSignal("offer", pc.localDescription);
       }
     });
 
@@ -461,6 +495,7 @@ export default function ChatPage() {
         from: socket.id,
         description: pc.localDescription,
       });
+      sendHttpSignal("answer", pc.localDescription);
     });
 
     socket.on("answer", async ({ from, description }: any) => {
@@ -482,11 +517,43 @@ export default function ChatPage() {
     socket.on("user-left", () => {
       endCall();
     });
+
+    // HTTP Signaling fallback loop for environments where Socket.IO server is unreachable
+    signalPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/api/chat/signal", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "poll", room }),
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        for (const sig of data.signals || []) {
+          if (sig.from === session?.user?.id) continue;
+          if (sig.type === "offer" && pc.signalingState === "stable") {
+            await pc.setRemoteDescription(sig.data);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            sendHttpSignal("answer", pc.localDescription);
+          } else if (sig.type === "answer" && pc.signalingState === "have-local-offer") {
+            await pc.setRemoteDescription(sig.data);
+          } else if (sig.type === "candidate") {
+            try {
+              await pc.addIceCandidate(sig.data);
+            } catch {}
+          }
+        }
+      } catch {}
+    }, 1000);
   }
 
   async function endCall() {
     setIsInCall(false);
     setIsCalling(false);
+    if (signalPollRef.current) {
+      clearInterval(signalPollRef.current);
+      signalPollRef.current = null;
+    }
     setLocalStream((prev) => {
       prev?.getTracks().forEach((track) => track.stop());
       return null;

@@ -57,13 +57,13 @@ export default function StepDetails({ data, updateData, errors = {} }: StepDetai
             <select
               value={data.meetingType}
               onChange={(e) => updateData({ meetingType: e.target.value })}
-              className="w-full px-4 py-2.5 rounded-lg text-sm bg-[#0a0f1e] border border-white/[0.1] text-white focus:outline-none focus:border-indigo-500/60 transition-all"
+              className="w-full px-4 py-2.5 rounded-lg text-sm bg-[#0f172a] border border-white/[0.1] text-white focus:outline-none focus:border-indigo-500/60 transition-all"
             >
-              <option value="Board Meeting">Board Meeting</option>
-              <option value="Committee Meeting">Committee Meeting</option>
-              <option value="AGM">Annual General Meeting</option>
-              <option value="EGM">Extraordinary General Meeting</option>
-              <option value="Other">Other</option>
+              <option value="Board Meeting" className="bg-[#0f172a] text-white">Board Meeting</option>
+              <option value="Committee Meeting" className="bg-[#0f172a] text-white">Committee Meeting</option>
+              <option value="AGM" className="bg-[#0f172a] text-white">Annual General Meeting</option>
+              <option value="EGM" className="bg-[#0f172a] text-white">Extraordinary General Meeting</option>
+              <option value="Other" className="bg-[#0f172a] text-white">Other</option>
             </select>
           </div>
           <div>
@@ -119,15 +119,15 @@ export default function StepDetails({ data, updateData, errors = {} }: StepDetai
                 value={data.timezone}
                 onChange={(e) => updateData({ timezone: e.target.value })}
                 aria-invalid={!!errors.timezone}
-                className={cn("w-full pl-10 pr-4 py-2.5 rounded-lg text-sm bg-[#0a0f1e] border border-white/[0.1] text-white focus:outline-none focus:border-indigo-500/60 transition-all", errors.timezone && "border-red-500/60")}
+                className={cn("w-full pl-10 pr-4 py-2.5 rounded-lg text-sm bg-[#0f172a] border border-white/[0.1] text-white focus:outline-none focus:border-indigo-500/60 transition-all", errors.timezone && "border-red-500/60")}
               >
-                <option value="UTC">UTC</option>
-                <option value="America/New_York">Eastern Time (ET)</option>
-                <option value="America/Chicago">Central Time (CT)</option>
-                <option value="America/Denver">Mountain Time (MT)</option>
-                <option value="America/Los_Angeles">Pacific Time (PT)</option>
-                <option value="Europe/London">London (GMT/BST)</option>
-                <option value="Europe/Paris">Central Europe (CET/CEST)</option>
+                <option value="UTC" className="bg-[#0f172a] text-white">UTC</option>
+                <option value="America/New_York" className="bg-[#0f172a] text-white">Eastern Time (ET)</option>
+                <option value="America/Chicago" className="bg-[#0f172a] text-white">Central Time (CT)</option>
+                <option value="America/Denver" className="bg-[#0f172a] text-white">Mountain Time (MT)</option>
+                <option value="America/Los_Angeles" className="bg-[#0f172a] text-white">Pacific Time (PT)</option>
+                <option value="Europe/London" className="bg-[#0f172a] text-white">London (GMT/BST)</option>
+                <option value="Europe/Paris" className="bg-[#0f172a] text-white">Central Europe (CET/CEST)</option>
               </select>
               <FieldError message={errors.timezone} />
             </div>

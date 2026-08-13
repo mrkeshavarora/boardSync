@@ -222,24 +222,24 @@ export default function UsersContent() {
         <select
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          className="px-3 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
+          className="px-3 py-2.5 rounded-lg text-sm bg-[#0f172a] border border-white/[0.08] text-white focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
         >
-          <option value="all">All Roles</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="admin">Admin</option>
-          <option value="board_secretary">Board Secretary</option>
-          <option value="board_member">Board Member</option>
-          <option value="guest">Guest</option>
+          <option value="all" className="bg-[#0f172a] text-white">All Roles</option>
+          <option value="super_admin" className="bg-[#0f172a] text-white">Super Admin</option>
+          <option value="admin" className="bg-[#0f172a] text-white">Admin</option>
+          <option value="board_secretary" className="bg-[#0f172a] text-white">Board Secretary</option>
+          <option value="board_member" className="bg-[#0f172a] text-white">Board Member</option>
+          <option value="guest" className="bg-[#0f172a] text-white">Guest</option>
         </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
+          className="px-3 py-2.5 rounded-lg text-sm bg-[#0f172a] border border-white/[0.08] text-white focus:outline-none focus:border-indigo-500/50 transition-all cursor-pointer"
         >
-          <option value="all">All Status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="pending">Pending</option>
+          <option value="all" className="bg-[#0f172a] text-white">All Status</option>
+          <option value="active" className="bg-[#0f172a] text-white">Active</option>
+          <option value="inactive" className="bg-[#0f172a] text-white">Inactive</option>
+          <option value="pending" className="bg-[#0f172a] text-white">Pending</option>
         </select>
         <button
           onClick={() => setShowInviteModal(true)}
@@ -420,13 +420,13 @@ export default function UsersContent() {
                   <select
                     value={inviteForm.role}
                     onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as UserRole })}
-                    className="w-full px-3 py-2 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white/80 focus:outline-none focus:border-indigo-500/50"
+                    className="w-full px-3 py-2 bg-[#0f172a] border border-white/[0.08] rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/50"
                   >
-                    <option value="board_member">Board Member</option>
-                    <option value="board_secretary">Board Secretary</option>
-                    <option value="admin">Admin</option>
-                    <option value="super_admin">Super Admin</option>
-                    <option value="guest">Guest</option>
+                    <option value="board_member" className="bg-[#0f172a] text-white">Board Member</option>
+                    <option value="board_secretary" className="bg-[#0f172a] text-white">Board Secretary</option>
+                    <option value="admin" className="bg-[#0f172a] text-white">Admin</option>
+                    <option value="super_admin" className="bg-[#0f172a] text-white">Super Admin</option>
+                    <option value="guest" className="bg-[#0f172a] text-white">Guest</option>
                   </select>
                 </div>
                 <div>

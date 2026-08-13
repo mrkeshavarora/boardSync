@@ -20,7 +20,26 @@ interface IncomingCall {
 }
 
 // How often to poll (ms)
-const POLL_INTERVAL = 3000;
+const POLL_INTERVAL = 2000;
+
+function playRingtone() {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(440, ctx.currentTime); // A4 note
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch {}
+}
 
 export default function GlobalCallToast() {
   const { data: session } = useSession();
@@ -29,6 +48,7 @@ export default function GlobalCallToast() {
   const [dismissedId, setDismissedId] = useState<string | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const hasRungRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Initialize dismissed ID from session storage
@@ -46,8 +66,12 @@ export default function GlobalCallToast() {
       if (call && call.messageId !== dismissedId) {
         setIncomingCall(call);
         setIsVisible(true);
+        if (hasRungRef.current !== call.messageId) {
+          hasRungRef.current = call.messageId;
+          playRingtone();
+        }
       } else if (!call) {
-        // Call gone (accepted / timed out) — hide
+        // Call gone (accepted / timed out / ended) — hide
         setIsVisible(false);
         setTimeout(() => setIncomingCall(null), 300);
       }
@@ -98,7 +122,7 @@ export default function GlobalCallToast() {
     if (incomingCall.isGroup) {
       router.push(`/chat?acceptGroup=${incomingCall.groupId}&type=${incomingCall.type}`);
     } else {
-      router.push(`/chat?accept=${incomingCall.callerId}&type=${incomingCall.type}&room=${incomingCall.roomName}`);
+      router.push(`/chat?accept=${incomingCall.callerId}&type=${incomingCall.type}&room=${incomingCall.roomName}&callerName=${encodeURIComponent(incomingCall.callerName)}`);
     }
   };
 
