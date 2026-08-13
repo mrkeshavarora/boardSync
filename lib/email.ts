@@ -292,3 +292,129 @@ export async function sendMeetingInviteEmail(params: {
   });
 }
 
+/**
+ * Send a welcome email to a new user indicating their registration is pending admin approval.
+ */
+export async function sendWelcomeEmail(params: {
+  to: string;
+  userName: string;
+}): Promise<void> {
+  const { to, userName } = params;
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn("[email] SMTP not configured — skipping welcome email to", to);
+    return;
+  }
+
+  const transporter = getTransporter();
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6fb; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
+    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 40px; color: white; }
+    .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    .header p { margin: 8px 0 0; opacity: 0.85; font-size: 14px; }
+    .body { padding: 32px 40px; color: #374151; }
+    .body p { margin: 0 0 16px; line-height: 1.6; }
+    .status-badge { display: inline-block; background: #fffbeb; border: 1px solid #fef3c7; color: #d97706; padding: 6px 12px; border-radius: 9999px; font-size: 13px; font-weight: 600; margin-bottom: 20px; }
+    .footer { padding: 20px 40px; background: #f9fafb; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>👋 Welcome to BoardSync!</h1>
+      <p>Your account registration was successful</p>
+    </div>
+    <div class="body">
+      <p>Dear ${userName},</p>
+      <p>Thank you for registering an account with BoardSync. We are excited to have you on board!</p>
+      <div class="status-badge">⏳ Pending Administrator Approval</div>
+      <p>Please note that your account is currently pending. An administrator needs to review and accept your registration request before you can log in.</p>
+      <p>Once your account has been approved, you will receive another email notification confirming that you are ready to log in and start using BoardSync.</p>
+      <p>Thank you for your patience.</p>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from BoardSync. Please do not reply to this email.</p>
+      <p>© ${new Date().getFullYear()} BoardSync — Board Management Portal</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await transporter.sendMail({
+    from: `"BoardSync" <${process.env.SMTP_USER}>`,
+    to,
+    subject: "[BoardSync] Welcome to BoardSync — Registration Pending Approval",
+    html,
+  });
+}
+
+/**
+ * Send an email notifying the user that their account has been approved by the admin.
+ */
+export async function sendAccountApprovedEmail(params: {
+  to: string;
+  userName: string;
+}): Promise<void> {
+  const { to, userName } = params;
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn("[email] SMTP not configured — skipping approval email to", to);
+    return;
+  }
+
+  const transporter = getTransporter();
+  const loginUrl = `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/login`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f6fb; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,0.08); }
+    .header { background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 40px; color: white; }
+    .header h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    .header p { margin: 8px 0 0; opacity: 0.85; font-size: 14px; }
+    .body { padding: 32px 40px; color: #374151; }
+    .body p { margin: 0 0 16px; line-height: 1.6; }
+    .btn { display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; margin: 20px 0 8px; }
+    .footer { padding: 20px 40px; background: #f9fafb; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎉 Account Approved!</h1>
+      <p>Your BoardSync account is now active</p>
+    </div>
+    <div class="body">
+      <p>Dear ${userName},</p>
+      <p>We are pleased to inform you that your registration request has been reviewed and accepted by an administrator.</p>
+      <p>Your account is now active, and you are ready to log in and access your BoardSync workspace.</p>
+      <center>
+        <a href="${loginUrl}" class="btn">Log In to BoardSync</a>
+      </center>
+    </div>
+    <div class="footer">
+      <p>This is an automated notification from BoardSync. Please do not reply to this email.</p>
+      <p>© ${new Date().getFullYear()} BoardSync — Board Management Portal</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await transporter.sendMail({
+    from: `"BoardSync" <${process.env.SMTP_USER}>`,
+    to,
+    subject: "[BoardSync] Account Approved — Ready to Log In",
+    html,
+  });
+}
+

@@ -6,6 +6,7 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { sendAccountApprovedEmail } from "@/lib/email";
 
 const updateUserSchema = z.object({
   name: z.string().min(2).optional(),
@@ -71,8 +72,20 @@ export async function PUT(
     if (exists) return NextResponse.json({ error: "Email already in use" }, { status: 409 });
   }
 
+  const oldStatus = user.status;
   Object.assign(user, data);
   await user.save();
+
+  if (oldStatus === "pending" && user.status === "active") {
+    try {
+      await sendAccountApprovedEmail({
+        to: user.email,
+        userName: user.name,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send account approval email:", emailErr);
+    }
+  }
 
   return NextResponse.json({ user: { ...user.toObject(), password: undefined } });
 }

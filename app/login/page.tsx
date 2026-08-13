@@ -19,6 +19,25 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     try {
+      // Prior to sign in, check if user's account is pending or inactive
+      const checkRes = await fetch("/api/auth/check-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (checkRes.ok) {
+        const { status } = await checkRes.json();
+        if (status === "pending") {
+          setError("Your account is pending. Please wait for an admin to accept your request.");
+          setLoading(false);
+          return;
+        } else if (status === "inactive") {
+          setError("Your account has been deactivated. Contact an administrator.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await signIn("credentials", {
         email,
         password,
@@ -36,6 +55,9 @@ export default function LoginPage() {
         router.push("/dashboard");
         router.refresh();
       }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

@@ -4,6 +4,7 @@ import Connection from "@/models/Connection";
 import User from "@/models/User";
 import { auth } from "@/lib/auth";
 import mongoose from "mongoose";
+import Notification from "@/models/Notification";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -82,6 +83,17 @@ export async function POST(request: Request) {
     if (existing.fromUserId.toString() === targetUserId && existing.status === "Pending") {
       existing.status = "Accepted";
       await existing.save();
+
+      // Create in-app notification for the requester
+      await Notification.create({
+        userId: targetId,
+        type: "connection",
+        title: "Connection Request Accepted",
+        body: `${session.user.name || "Someone"} accepted your connection request.`,
+        link: "/settings?section=connections",
+        read: false,
+      });
+
       return NextResponse.json({
         connection: {
           id: targetUser._id.toString(),
@@ -112,6 +124,16 @@ export async function POST(request: Request) {
     fromUserId: currentId,
     toUserId: targetId,
     status: "Pending",
+  });
+
+  // Create in-app notification for the target user
+  await Notification.create({
+    userId: targetId,
+    type: "connection",
+    title: "Connection Request",
+    body: `${session.user.name || "Someone"} sent you a connection request.`,
+    link: "/settings?section=connections",
+    read: false,
   });
 
   return NextResponse.json({

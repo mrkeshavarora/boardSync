@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Bell, Calendar, CheckSquare, FileText, Settings, Trash2, CheckCheck, Loader2, Video } from "lucide-react";
+import { Bell, Calendar, CheckSquare, FileText, Settings, Trash2, CheckCheck, Loader2, Video, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 
-type NotifType = "meeting" | "action" | "document" | "system";
+type NotifType = "meeting" | "action" | "document" | "system" | "connection";
 
 interface Notification {
   _id: string;
@@ -22,6 +22,7 @@ const ICON_MAP: Record<NotifType, { icon: React.ElementType; color: string; bg: 
   action: { icon: CheckSquare, color: "text-emerald-400", bg: "bg-emerald-500/10" },
   document: { icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10" },
   system: { icon: Settings, color: "text-amber-400", bg: "bg-amber-500/10" },
+  connection: { icon: Users, color: "text-sky-400", bg: "bg-sky-500/10" },
 };
 
 function timeAgo(date: string) {
@@ -149,6 +150,11 @@ export default function NotificationsPanel() {
                       {n.link && n.type === "meeting" && (
                         <span className="text-xs text-indigo-400 flex items-center gap-1">
                           <Video size={11} /> Join meeting
+                        </span>
+                      )}
+                      {n.link && n.type === "connection" && (
+                        <span className="text-xs text-indigo-400 flex items-center gap-1">
+                          <Users size={11} /> View request
                         </span>
                       )}
                     </div>

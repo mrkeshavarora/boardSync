@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -36,6 +37,15 @@ export async function POST(request: Request) {
       role: "board_member", // New self-registered users get board_member role
       status: "pending", // Must be approved by an admin
     });
+
+    try {
+      await sendWelcomeEmail({
+        to: user.email,
+        userName: user.name,
+      });
+    } catch (emailErr) {
+      console.error("Failed to send welcome email:", emailErr);
+    }
 
     return NextResponse.json({
       success: true,

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 import { auth } from "@/lib/auth";
+import { sendAccountApprovedEmail } from "@/lib/email";
 
 export async function PATCH(
   request: Request,
@@ -22,14 +23,24 @@ export async function PATCH(
 
     await connectDB();
 
-    const user = await User.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true }
-    ).select("-password");
-
+    const user = await User.findById(id);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const oldStatus = user.status;
+    user.status = status;
+    await user.save();
+
+    if (oldStatus === "pending" && status === "active") {
+      try {
+        await sendAccountApprovedEmail({
+          to: user.email,
+          userName: user.name,
+        });
+      } catch (err) {
+        console.error("Failed to send approval email:", err);
+      }
     }
 
     return NextResponse.json({ success: true, user });

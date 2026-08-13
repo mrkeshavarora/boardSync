@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
 
 type SettingsSection = "profile" | "connections" | "notifications" | "security" | "appearance";
 
@@ -57,10 +58,18 @@ function FormField({ label, id, children, hint }: { label: string; id: string; c
 const inputClass = "w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-sm text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-colors";
 
 export default function SettingsPanel({ user }: { user: { name?: string | null; email?: string | null; title?: string | null; department?: string | null; bio?: string | null } }) {
+  const searchParams = useSearchParams();
   const [section, setSection] = useState<SettingsSection>("profile");
   const [showPassword, setShowPassword] = useState(false);
   const [saved, setSaved] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  useEffect(() => {
+    const sec = searchParams?.get("section");
+    if (sec && ["profile", "connections", "notifications", "security", "appearance"].includes(sec)) {
+      setSection(sec as SettingsSection);
+    }
+  }, [searchParams]);
 
   // Profile state
   const [profileName, setProfileName] = useState(user?.name ?? "");
