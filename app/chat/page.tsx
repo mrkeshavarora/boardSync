@@ -1308,29 +1308,7 @@ export default function ChatPage() {
                 </div>
               </div>
 
-              {/* Active Call Banner */}
-              {hasActiveCall && (
-                <div className="bg-gradient-to-r from-indigo-950/90 via-purple-950/80 to-slate-900/90 border-b border-indigo-500/30 px-6 py-3 flex items-center justify-between shadow-xl shrink-0 backdrop-blur-md">
-                  <div className="flex items-center gap-3">
-                    <span className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-                    </span>
-                    <div>
-                      <p className="text-xs font-700 text-white uppercase tracking-wider flex items-center gap-1.5">
-                        <Video size={13} className="text-emerald-400" /> Active Video Call
-                      </p>
-                      <p className="text-[11px] text-white/70">A group call is currently ongoing in {selectedGroup.name}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setGroupCall({ type: "video" })}
-                    className="btn-gradient px-4 py-2 rounded-xl text-xs font-700 text-white shadow-lg flex items-center gap-1.5 hover:scale-105 transition-transform"
-                  >
-                    <Video size={14} /> Rejoin Call Now
-                  </button>
-                </div>
-              )}
+              {/* Active Call Banner Removed */}
 
               {/* Group Chat Feed */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
