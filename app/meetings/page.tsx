@@ -2,8 +2,9 @@ import AppShell from "@/components/layout/AppShell";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { CalendarDays, Plus, Link as LinkIcon } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import DeleteMeetingButton from "@/components/meetings/DeleteMeetingButton";
+import JoinLinkButton from "@/components/meetings/JoinLinkButton";
 import connectDB from "@/lib/mongodb";
 import Meeting from "@/models/Meeting";
 import MeetingParticipant from "@/models/MeetingParticipant";
@@ -76,16 +77,7 @@ export default async function MeetingsPage() {
                       <span className="badge bg-indigo-500/10 text-indigo-300 border-indigo-500/20">{meeting.status}</span>
                       <div className="flex items-center gap-3 mt-1">
                         {meeting.onlineMeeting && (
-                          <a
-                            href={meeting.onlineMeeting}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200"
-                          >
-                            <LinkIcon size={12} />
-                            <span className="underline underline-offset-2">Join Link</span>
-                          </a>
+                          <JoinLinkButton href={meeting.onlineMeeting} />
                         )}
                         <DeleteMeetingButton
                           meetingId={meeting._id.toString()}
