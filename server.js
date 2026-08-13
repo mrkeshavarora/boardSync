@@ -79,23 +79,23 @@ io.on('connection', (socket) => {
   });
 
   socket.on('transcript:partial', (data) => {
-    socket.to(data.meetingId).emit('transcript:partial', data);
+    io.to(data.meetingId).emit('transcript:partial', data);
   });
 
   socket.on('transcript:final', (data) => {
-    socket.to(data.meetingId).emit('transcript:final', data);
+    io.to(data.meetingId).emit('transcript:final', data);
   });
 
   socket.on('transcript:error', (data) => {
-    socket.to(data.meetingId).emit('transcript:error', data);
+    io.to(data.meetingId).emit('transcript:error', data);
   });
 
   socket.on('transcript:started', (data) => {
-    socket.to(data.meetingId).emit('transcript:started', data);
+    io.to(data.meetingId).emit('transcript:started', data);
   });
 
   socket.on('transcript:stopped', (data) => {
-    socket.to(data.meetingId).emit('transcript:stopped', data);
+    io.to(data.meetingId).emit('transcript:stopped', data);
   });
 
   socket.on('leave-room', ({ meetingId }) => {
