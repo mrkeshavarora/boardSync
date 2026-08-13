@@ -7,6 +7,8 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import mongoose from "mongoose";
 
+import { canAccessMeeting } from "@/lib/meetingAccess";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -14,11 +16,16 @@ export async function GET(
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   
+  const meetingId = (await params).id;
+  const role = session.user.role as UserRole;
   await connectDB();
   
-  // TODO: Add permission checks (needs to verify if user is invited or admin)
-  
-  const participants = await MeetingParticipant.find({ meetingId: (await params).id })
+  const hasAccess = await canAccessMeeting(session.user.id, role, meetingId);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden — You do not have access to this meeting." }, { status: 403 });
+  }
+
+  const participants = await MeetingParticipant.find({ meetingId })
     .populate("userId", "name email avatar");
     
   return NextResponse.json({ participants });

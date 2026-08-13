@@ -11,6 +11,8 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import mongoose from "mongoose";
 
+import { getAccessibleMeetingIds, isAdmin } from "@/lib/meetingAccess";
+
 export const metadata: Metadata = { title: "Minutes" };
 export const dynamic = "force-dynamic";
 
@@ -24,27 +26,15 @@ export default async function MinutesPage({
 
   await connectDB();
   const role = session.user.role as UserRole;
-  const isBoardMember = role === "board_member" || role === "guest";
+  const userIsAdmin = isAdmin(role);
   const params = await searchParams;
 
+  const accessibleIds = await getAccessibleMeetingIds(session.user.id, role);
   let filter: any = {};
-
-  if (isBoardMember) {
-    // Board members see all minutes for meetings they participated in (even Drafts)
-    const participations = await MeetingParticipant.find({
-      userId: new mongoose.Types.ObjectId(session.user.id),
-    }).select("meetingId").lean();
-
-    const participatedMeetingIds = participations.map((p: any) => p.meetingId);
-
-    filter = {
-      meetingId: { $in: participatedMeetingIds },
-    };
-    
-    if (params.status) {
-      filter.status = params.status;
-    }
-  } else if (params.status) {
+  if (accessibleIds !== null) {
+    filter.meetingId = { $in: accessibleIds };
+  }
+  if (params.status) {
     filter.status = params.status;
   }
 
@@ -69,8 +59,8 @@ export default async function MinutesPage({
           <div>
             <h1 className="text-2xl font-700 text-white tracking-tight">Minutes of Meeting</h1>
             <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-              {isBoardMember
-                ? "Official published records for meetings you attended."
+              {!userIsAdmin
+                ? "Official records for meetings you attended."
                 : "Manage drafts, reviews, and published meeting records."}
             </p>
           </div>
@@ -89,8 +79,8 @@ export default async function MinutesPage({
           </div>
         </div>
 
-        {/* Stats (admins/secretaries only) */}
-        {!isBoardMember && (
+        {/* Stats (admins only) */}
+        {userIsAdmin && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <StatCard title="Total Minutes" value={total}     icon={BookOpen}     color="text-indigo-400" bg="bg-indigo-500/10" border="border-indigo-500/20" />
             <StatCard title="Drafts"        value={drafts}    icon={FileText}     color="text-gray-400"   bg="bg-gray-500/10"   border="border-gray-500/20" />
@@ -126,7 +116,7 @@ export default async function MinutesPage({
               </div>
               <h3 className="text-lg font-600 text-white mb-2">No minutes found</h3>
               <p className="text-sm max-w-sm" style={{ color: "var(--text-muted)" }}>
-                {isBoardMember
+                {!userIsAdmin
                   ? "No official minutes have been published for your meetings yet."
                   : "Generate minutes from a completed meeting to see them here."}
               </p>

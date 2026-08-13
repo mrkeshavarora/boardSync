@@ -7,6 +7,8 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import mongoose from "mongoose";
 
+import { canAccessMeeting } from "@/lib/meetingAccess";
+
 type Params = { params: Promise<{ id: string }> };
 
 // GET /api/minutes/[id] — fetch a single minutes document
@@ -24,17 +26,12 @@ export async function GET(request: Request, { params }: Params) {
 
   if (!minutes) return NextResponse.json({ error: "Minutes not found" }, { status: 404 });
 
-  // Board members / guests can only see minutes if they were a participant
   const role = session.user.role as UserRole;
-  if (role === "board_member" || role === "guest") {
-    // Verify the user was a participant in this meeting
-    const meetingId = (minutes.meetingId as any)?._id ?? minutes.meetingId;
-    const isParticipant = await MeetingParticipant.exists({
-      meetingId,
-      userId: new mongoose.Types.ObjectId(session.user.id),
-    });
-    if (!isParticipant) {
-      return NextResponse.json({ error: "Forbidden — you were not a participant in this meeting." }, { status: 403 });
+  const meetingIdStr = (minutes.meetingId as any)?._id?.toString() ?? minutes.meetingId?.toString();
+  if (meetingIdStr) {
+    const hasAccess = await canAccessMeeting(session.user.id, role, meetingIdStr);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Forbidden — You do not have access to minutes for this meeting." }, { status: 403 });
     }
   }
 

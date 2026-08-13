@@ -12,6 +12,8 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import Link from "next/link";
 
+import { getAccessibleMeetingIds } from "@/lib/meetingAccess";
+
 export const metadata: Metadata = { title: "Meetings" };
 
 export default async function MeetingsPage() {
@@ -20,22 +22,18 @@ export default async function MeetingsPage() {
     if (!session) redirect("/login");
 
     await connectDB();
-    const canReadAll = hasPermission(session.user.role as UserRole, "meetings:read");
     const canDelete = hasPermission(session.user.role as UserRole, "meetings:delete");
 
-    let meetings = [];
-    if (canReadAll) {
-      meetings = await Meeting.find({}).sort({ createdAt: -1 }).limit(50).populate("organizerId", "name email");
-    } else {
-      const participantRecords = await MeetingParticipant.find({ userId: session.user.id }).select("meetingId");
-      const meetingIds = participantRecords.map((p) => p.meetingId);
-      meetings = await Meeting.find({
-        $or: [{ organizerId: session.user.id }, { _id: { $in: meetingIds } }],
-      })
-        .sort({ createdAt: -1 })
-        .limit(50)
-        .populate("organizerId", "name email");
+    const accessibleIds = await getAccessibleMeetingIds(session.user.id, session.user.role as UserRole);
+    const query: any = {};
+    if (accessibleIds !== null) {
+      query._id = { $in: accessibleIds };
     }
+
+    const meetings = await Meeting.find(query)
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate("organizerId", "name email");
 
     return (
       <AppShell title="Meetings">

@@ -91,43 +91,145 @@ export default function MeetingRoomPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Speech Recognition / STT Loop using audio chunking & backend OpenAI Whisper
+  // Speech Recognition / STT Loop using Web Speech API + Whisper Backup
   const chunkIntervalRef = useRef<any>(null);
   const activeRecordersRef = useRef<MediaRecorder[]>([]);
+  const speechRecRef = useRef<any>(null);
 
+  // 1. Web Speech API (Browser Native Real-Time STT)
   useEffect(() => {
-    if (!socketConnected || !session?.user) return;
+    if (!session?.user) return;
 
     if (isMuted) {
       setIsSttListening(false);
       setSttStatusText("Muted");
       setSttStatusColor("text-red-400");
+      if (speechRecRef.current) {
+        try { speechRecRef.current.stop(); } catch {}
+      }
       return;
     }
 
-    setIsSttListening(true);
-    setSttStatusText("Live transcription");
-    setSttStatusColor("text-emerald-400");
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      console.warn("STT: Web Speech API is not supported in this browser.");
+      setSttStatusText("Speech API Not Supported (Use Chrome/Edge)");
+      setSttStatusColor("text-amber-400");
+    } else {
+      try {
+        if (speechRecRef.current) {
+          try { speechRecRef.current.stop(); } catch {}
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = "en-US";
+
+        recognition.onstart = () => {
+          setIsSttListening(true);
+          setSttStatusText("Live transcription");
+          setSttStatusColor("text-emerald-400");
+        };
+
+        recognition.onresult = async (event: any) => {
+          let finalTranscript = "";
+          let interimTranscript = "";
+
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript;
+            } else {
+              interimTranscript += event.results[i][0].transcript;
+            }
+          }
+
+          if (interimTranscript.trim()) {
+            const partialData = {
+              meetingId,
+              speakerId: session.user.id,
+              speakerName: session.user.name || "Participant",
+              text: interimTranscript.trim(),
+              timestamp: new Date().toISOString(),
+              isFinal: false,
+            };
+
+            window.dispatchEvent(new CustomEvent("local-transcript", { detail: partialData }));
+
+            if (socketRef.current) {
+              socketRef.current.emit("transcript:partial", partialData);
+            }
+          }
+
+          const trimmed = finalTranscript.trim();
+          if (trimmed.length > 0) {
+            const timestamp = new Date().toISOString();
+            const segment = {
+              meetingId,
+              speakerId: session.user.id,
+              speakerName: session.user.name || "Participant",
+              text: trimmed,
+              timestamp,
+              isFinal: true,
+            };
+
+            window.dispatchEvent(new CustomEvent("local-transcript", { detail: segment }));
+
+            if (socketRef.current) {
+              socketRef.current.emit("transcript:final", segment);
+            }
+
+            // Save segment to MongoDB
+            fetch(`/api/meetings/${meetingId}/transcript`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(segment),
+            }).catch((err) => console.error("Failed to save transcript segment:", err));
+          }
+        };
+
+        recognition.onerror = (err: any) => {
+          console.warn("Web Speech recognition error:", err.error);
+          if (err.error === "no-speech") return;
+          setSttStatusText(`Speech status: ${err.error}`);
+        };
+
+        recognition.onend = () => {
+          setIsSttListening(false);
+          // Restart if still active and not muted
+          if (speechRecRef.current && !isMuted) {
+            try { speechRecRef.current.start(); } catch {}
+          }
+        };
+
+        speechRecRef.current = recognition;
+        recognition.start();
+      } catch (err) {
+        console.warn("Could not start Web Speech Recognition:", err);
+      }
+    }
+
+    return () => {
+      if (speechRecRef.current) {
+        try { speechRecRef.current.abort(); } catch {}
+      }
+    };
+  }, [isMuted, meetingId, session]);
+
+  // 2. Secondary OpenAI Whisper Audio Chunking Recorder
+  useEffect(() => {
+    if (!session?.user || isMuted) return;
 
     const recordNextChunk = () => {
-      if (!cameraStreamRef.current) {
-        console.log("STT: cameraStreamRef.current is null, waiting...");
-        return;
-      }
+      if (!cameraStreamRef.current) return;
       const audioTrack = cameraStreamRef.current.getAudioTracks()[0];
-      if (!audioTrack) {
-        console.warn("STT: No audio track found in stream!");
-        return;
-      }
-      if (!audioTrack.enabled) {
-        console.log("STT: Audio track is muted/disabled, skipping chunk.");
-        return;
-      }
+      if (!audioTrack || !audioTrack.enabled) return;
 
       const audioStream = new MediaStream([audioTrack]);
       const chunks: Blob[] = [];
 
-      // Determine dynamic mimeType and filename extension
       let recorderOptions: any = {};
       let extension = "webm";
       let mimeType = "audio/webm";
@@ -136,48 +238,25 @@ export default function MeetingRoomPage() {
         if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
           recorderOptions = { mimeType: "audio/webm;codecs=opus" };
           mimeType = "audio/webm;codecs=opus";
-          extension = "webm";
         } else if (MediaRecorder.isTypeSupported("audio/webm")) {
           recorderOptions = { mimeType: "audio/webm" };
           mimeType = "audio/webm";
-          extension = "webm";
-        } else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
-          recorderOptions = { mimeType: "audio/ogg;codecs=opus" };
-          mimeType = "audio/ogg;codecs=opus";
-          extension = "ogg";
-        } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
-          recorderOptions = { mimeType: "audio/ogg" };
-          mimeType = "audio/ogg";
-          extension = "ogg";
-        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
-          recorderOptions = { mimeType: "audio/mp4" };
-          mimeType = "audio/mp4";
-          extension = "mp4";
         }
       }
-
-      console.log(`STT: Recorder config selected: MIME="${mimeType}", Ext="${extension}"`);
 
       try {
         const recorder = new MediaRecorder(audioStream, recorderOptions);
         activeRecordersRef.current.push(recorder);
 
         recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) {
-            chunks.push(e.data);
-          }
+          if (e.data.size > 0) chunks.push(e.data);
         };
 
         recorder.onstop = async () => {
           activeRecordersRef.current = activeRecordersRef.current.filter((r) => r !== recorder);
-          if (chunks.length === 0) {
-            console.warn("STT: No audio data captured in this chunk.");
-            return;
-          }
+          if (chunks.length === 0) return;
           const blob = new Blob(chunks, { type: mimeType });
-          console.log(`STT: Chunk captured successfully. Blob size: ${blob.size} bytes. Uploading...`);
 
-          // Send chunk to backend API
           const formData = new FormData();
           formData.append("audio", blob, `chunk.${extension}`);
 
@@ -189,7 +268,6 @@ export default function MeetingRoomPage() {
 
             if (res.ok) {
               const data = await res.json();
-              console.log("STT: Chunk transcribed text:", data.text);
               if (data.text && data.text.trim()) {
                 const timestamp = new Date().toISOString();
                 const segment = {
@@ -201,65 +279,44 @@ export default function MeetingRoomPage() {
                   isFinal: true,
                 };
 
+                window.dispatchEvent(new CustomEvent("local-transcript", { detail: segment }));
+
                 if (socketRef.current) {
                   socketRef.current.emit("transcript:final", segment);
                 }
 
-                // Incremental save to MongoDB
                 await fetch(`/api/meetings/${meetingId}/transcript`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(segment),
                 });
               }
-            } else {
-              const errText = await res.text();
-              console.error(`STT: Chunk transcription API failed. Status: ${res.status}, Error: ${errText}`);
             }
-          } catch (err) {
-            console.error("STT: Fetch to chunk transcription API failed:", err);
-          }
+          } catch {}
         };
 
         recorder.start();
-        console.log("STT: MediaRecorder started recording chunk...");
-
-        // Stop the chunk recording after 4.5 seconds
         setTimeout(() => {
           if (recorder.state !== "inactive") {
-            try {
-              recorder.stop();
-              console.log("STT: MediaRecorder stopped recording chunk.");
-            } catch (stopErr) {
-              console.error("STT: Failed to stop MediaRecorder:", stopErr);
-            }
+            try { recorder.stop(); } catch {}
           }
-        }, 4500);
-
-      } catch (err) {
-        console.error("STT: Failed to start MediaRecorder for transcription chunk:", err);
-      }
+        }, 5000);
+      } catch {}
     };
 
-    // Trigger chunking every 5 seconds
-    recordNextChunk();
-    const interval = setInterval(recordNextChunk, 5000);
+    const interval = setInterval(recordNextChunk, 6000);
     chunkIntervalRef.current = interval;
 
     return () => {
-      if (chunkIntervalRef.current) {
-        clearInterval(chunkIntervalRef.current);
-      }
+      if (chunkIntervalRef.current) clearInterval(chunkIntervalRef.current);
       activeRecordersRef.current.forEach((r) => {
         if (r.state !== "inactive") {
-          try {
-            r.stop();
-          } catch {}
+          try { r.stop(); } catch {}
         }
       });
       activeRecordersRef.current = [];
     };
-  }, [socketConnected, isMuted, meetingId, session]);
+  }, [isMuted, meetingId, session]);
 
   // WebRTC & Signalling Setup
   useEffect(() => {

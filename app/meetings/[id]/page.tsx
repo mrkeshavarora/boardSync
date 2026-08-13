@@ -21,6 +21,8 @@ import GenerateMinutesBtn from "@/components/minutes/GenerateMinutesBtn";
 import SendInviteBtn from "@/components/meetings/SendInviteBtn";
 import RejoinMeetingBtn from "@/components/meetings/RejoinMeetingBtn";
 
+import { canAccessMeeting } from "@/lib/meetingAccess";
+
 export const metadata: Metadata = { title: "Meeting Details" };
 
 export default async function MeetingDetailsPage(
@@ -32,7 +34,9 @@ export default async function MeetingDetailsPage(
 
   await connectDB();
   const role = session.user.role as UserRole;
-  if (!hasPermission(role, "meetings:read") && !hasPermission(role, "meetings:read:invited")) {
+  
+  const hasAccess = await canAccessMeeting(session.user.id, role, params.id);
+  if (!hasAccess) {
     redirect("/meetings");
   }
 

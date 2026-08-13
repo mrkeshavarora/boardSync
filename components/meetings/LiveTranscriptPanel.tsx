@@ -69,10 +69,8 @@ export default function LiveTranscriptPanel({
     fetchExistingTranscript();
   }, [meetingId]);
 
-  // Listen for socket events
+  // Listen for socket and local window events
   useEffect(() => {
-    if (!socket) return;
-
     // Handle partial transcript segment
     const handlePartial = (data: TranscriptItem) => {
       if (data.meetingId !== meetingId) return;
@@ -101,13 +99,30 @@ export default function LiveTranscriptPanel({
       setFinalTranscripts((prev) => [...prev, data]);
     };
 
-    // Handle transcription status events
-    socket.on("transcript:partial", handlePartial);
-    socket.on("transcript:final", handleFinal);
+    // Handle local window custom event (fallback when socket is offline or local STT active)
+    const handleLocal = (e: any) => {
+      const data = e.detail;
+      if (!data) return;
+      if (data.isFinal) {
+        handleFinal(data);
+      } else {
+        handlePartial(data);
+      }
+    };
+
+    window.addEventListener("local-transcript", handleLocal);
+
+    if (socket) {
+      socket.on("transcript:partial", handlePartial);
+      socket.on("transcript:final", handleFinal);
+    }
 
     return () => {
-      socket.off("transcript:partial", handlePartial);
-      socket.off("transcript:final", handleFinal);
+      window.removeEventListener("local-transcript", handleLocal);
+      if (socket) {
+        socket.off("transcript:partial", handlePartial);
+        socket.off("transcript:final", handleFinal);
+      }
     };
   }, [socket, meetingId]);
 

@@ -12,6 +12,8 @@ import MeetingParticipant from "@/models/MeetingParticipant";
 import { hasPermission } from "@/lib/permissions";
 import mongoose from "mongoose";
 
+import { getAccessibleMeetingIds } from "@/lib/meetingAccess";
+
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function DashboardPage() {
@@ -25,6 +27,15 @@ export default async function DashboardPage() {
   const now = new Date();
   const canReadAllActions = hasPermission(role, "actions:read:all");
 
+  const accessibleIds = await getAccessibleMeetingIds(session.user.id, role);
+  const meetingQuery: any = {
+    status: { $in: ["Scheduled", "In Progress"] },
+    date: { $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
+  };
+  if (accessibleIds !== null) {
+    meetingQuery._id = { $in: accessibleIds };
+  }
+
   // Fetch all dashboard data in parallel
   const [
     upcomingMeetings,
@@ -35,10 +46,7 @@ export default async function DashboardPage() {
     pendingRsvpCount,
   ] = await Promise.all([
     // Upcoming & in-progress meetings (next 5, sorted by date)
-    Meeting.find({
-      status: { $in: ["Scheduled", "In Progress"] },
-      date: { $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
-    })
+    Meeting.find(meetingQuery)
       .sort({ date: 1 })
       .limit(5)
       .populate("organizerId", "name")

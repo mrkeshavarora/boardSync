@@ -6,6 +6,8 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import { updateMeetingSchema } from "@/validations/meeting";
 
+import { canAccessMeeting } from "@/lib/meetingAccess";
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -18,8 +20,15 @@ export async function GET(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const meetingId = (await params).id;
   await connectDB();
-  const meeting = await Meeting.findById((await params).id).populate("organizerId", "name email");
+
+  const hasAccess = await canAccessMeeting(session.user.id, role, meetingId);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden — You do not have access to this meeting." }, { status: 403 });
+  }
+
+  const meeting = await Meeting.findById(meetingId).populate("organizerId", "name email");
   if (!meeting) return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
 
   return NextResponse.json({ meeting });
@@ -31,8 +40,18 @@ export async function PUT(
 ) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role as UserRole, "meetings:update")) {
+  
+  const role = session.user.role as UserRole;
+  if (!hasPermission(role, "meetings:update")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const meetingId = (await params).id;
+  await connectDB();
+
+  const hasAccess = await canAccessMeeting(session.user.id, role, meetingId);
+  if (!hasAccess) {
+    return NextResponse.json({ error: "Forbidden — You do not have access to this meeting." }, { status: 403 });
   }
 
   const body = await request.json();
@@ -42,8 +61,7 @@ export async function PUT(
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  await connectDB();
-  const meeting = await Meeting.findByIdAndUpdate((await params).id, parsed.data, { new: true });
+  const meeting = await Meeting.findByIdAndUpdate(meetingId, parsed.data, { new: true });
   
   if (!meeting) return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
 
