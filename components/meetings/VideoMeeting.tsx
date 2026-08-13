@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import { Mic, MicOff, Video, VideoOff, Share2 } from "lucide-react";
+import LiveCaptionsPanel from "@/components/meetings/LiveCaptionsPanel";
 
 const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
@@ -164,6 +165,16 @@ export default function VideoMeeting({ meetingId, onClose }: { meetingId: string
           <p className="text-sm text-white/60">You</p>
           <div className="relative w-full rounded-md overflow-hidden bg-black">
             <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-auto rounded-md bg-black" />
+
+            {/* Live Captions Panel Overlay on Left */}
+            {socket && (
+              <LiveCaptionsPanel
+                socket={socket}
+                meetingId={meetingId}
+                senderName="Participant"
+                isMuted={isMuted}
+              />
+            )}
 
             {/* Overlay for camera off or screen sharing */}
             {(isCameraOff || isSharing) && (

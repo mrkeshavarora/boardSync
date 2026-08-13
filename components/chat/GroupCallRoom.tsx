@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import io, { Socket } from "socket.io-client";
 import { Mic, MicOff, Video, VideoOff, PhoneOff, Users, LogOut } from "lucide-react";
+import LiveCaptionsPanel from "@/components/meetings/LiveCaptionsPanel";
 import { cn, getInitials } from "@/lib/utils";
 
 const SIGNALING_URL =
@@ -352,6 +353,14 @@ export default function GroupCallRoom({
           ))}
         </div>
       </div>
+
+      {/* Live Captions Panel (Left Side Overlay) */}
+      <LiveCaptionsPanel
+        socket={socketRef.current}
+        meetingId={roomName}
+        senderName={currentUser.name}
+        isMuted={isMuted}
+      />
 
       {/* Controls bar */}
       <div className="shrink-0 py-4 sm:py-5 px-4 sm:px-6 bg-black/80 backdrop-blur-md flex items-center justify-center gap-4 sm:gap-5 border-t border-white/[0.06] z-20">

@@ -74,6 +74,10 @@ io.on('connection', (socket) => {
     io.to(to).emit('ice-candidate', { from, candidate });
   });
 
+  socket.on('speech-caption', ({ meetingId, senderName, text }) => {
+    socket.to(meetingId).emit('speech-caption', { senderName, text, timestamp: new Date().toISOString() });
+  });
+
   socket.on('leave-room', ({ meetingId }) => {
     socket.leave(meetingId);
     if (rooms.has(meetingId)) {
