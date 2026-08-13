@@ -159,6 +159,26 @@ export default function LiveTranscriptPanel({
         ref={scrollRef}
         className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-gradient-to-b from-[#080d1a] to-[#040811]"
       >
+        {statusText.includes("not-allowed") && (
+          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs space-y-1">
+            <p className="font-600">Microphone Permission Blocked</p>
+            <p className="text-[11px] text-red-300/80">Click the lock/camera icon in your address bar and set Microphone to <strong>Allow</strong>, then refresh.</p>
+          </div>
+        )}
+
+        {statusText.includes("network") && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-1">
+            <p className="font-600">Speech Network Blocked (Brave / Privacy Shield)</p>
+            <p className="text-[11px] text-amber-300/80">If using Brave browser, open <code>brave://settings/privacy</code> and turn on <em>Use Google Services for Speech Recognition</em>.</p>
+          </div>
+        )}
+
+        {statusText.includes("Not Supported") && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs space-y-1">
+            <p className="font-600">Browser Not Supported</p>
+            <p className="text-[11px] text-amber-300/80">Web Speech recognition requires Google Chrome, Microsoft Edge, or Safari.</p>
+          </div>
+        )}
         {finalTranscripts.length === 0 && Object.keys(activePartials).length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/30 space-y-3">
             <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
