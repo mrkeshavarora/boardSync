@@ -1344,35 +1344,10 @@ export default function ChatPage() {
                     <p className="text-sm">Say hello to the group! No messages yet.</p>
                   </div>
                 ) : (
-                  groupMessages.map((msg) => {
-                    const isSelf = msg.senderId._id === session?.user?.id;
-                    
-                    if (msg.message.startsWith("[GROUP_CALL_INVITE]:")) {
-                      const type = (msg.message.split(":")[1] || "video") as "voice" | "video";
-                      return (
-                        <div key={msg._id} className="flex justify-center my-3">
-                          <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 max-w-sm w-full text-center space-y-3 backdrop-blur-sm shadow-xl">
-                            <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 mx-auto">
-                              {type === "video" ? <Video size={18} /> : <Phone size={18} />}
-                            </div>
-                            <div>
-                              <p className="text-xs font-700 text-white">
-                                {isSelf ? "You started a group call" : `${msg.senderId.name} started a group call`}
-                              </p>
-                              <p className="text-[10px] text-white/40 mt-0.5">
-                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => setGroupCall({ type })}
-                              className="w-full btn-gradient py-2.5 rounded-xl text-xs font-700 text-white flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-all"
-                            >
-                              <Video size={14} /> Join {type === "video" ? "Video" : "Voice"} Call Now
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    }
+                  groupMessages
+                    .filter(msg => !msg.message.startsWith("[GROUP_CALL_INVITE]:") && !msg.message.startsWith("[GROUP_CALL_ENDED]:"))
+                    .map((msg) => {
+                      const isSelf = msg.senderId._id === session?.user?.id;
                     
                     return (
                       <div
