@@ -110,9 +110,19 @@ export default function MeetingRoomPage() {
     setSttStatusColor("text-emerald-400");
 
     const recordNextChunk = () => {
-      if (!cameraStreamRef.current) return;
+      if (!cameraStreamRef.current) {
+        console.log("STT: cameraStreamRef.current is null, waiting...");
+        return;
+      }
       const audioTrack = cameraStreamRef.current.getAudioTracks()[0];
-      if (!audioTrack || !audioTrack.enabled) return;
+      if (!audioTrack) {
+        console.warn("STT: No audio track found in stream!");
+        return;
+      }
+      if (!audioTrack.enabled) {
+        console.log("STT: Audio track is muted/disabled, skipping chunk.");
+        return;
+      }
 
       const audioStream = new MediaStream([audioTrack]);
       const chunks: Blob[] = [];
@@ -146,18 +156,26 @@ export default function MeetingRoomPage() {
         }
       }
 
+      console.log(`STT: Recorder config selected: MIME="${mimeType}", Ext="${extension}"`);
+
       try {
         const recorder = new MediaRecorder(audioStream, recorderOptions);
         activeRecordersRef.current.push(recorder);
 
         recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunks.push(e.data);
+          if (e.data.size > 0) {
+            chunks.push(e.data);
+          }
         };
 
         recorder.onstop = async () => {
           activeRecordersRef.current = activeRecordersRef.current.filter((r) => r !== recorder);
-          if (chunks.length === 0) return;
+          if (chunks.length === 0) {
+            console.warn("STT: No audio data captured in this chunk.");
+            return;
+          }
           const blob = new Blob(chunks, { type: mimeType });
+          console.log(`STT: Chunk captured successfully. Blob size: ${blob.size} bytes. Uploading...`);
 
           // Send chunk to backend API
           const formData = new FormData();
@@ -171,6 +189,7 @@ export default function MeetingRoomPage() {
 
             if (res.ok) {
               const data = await res.json();
+              console.log("STT: Chunk transcribed text:", data.text);
               if (data.text && data.text.trim()) {
                 const timestamp = new Date().toISOString();
                 const segment = {
@@ -193,25 +212,32 @@ export default function MeetingRoomPage() {
                   body: JSON.stringify(segment),
                 });
               }
+            } else {
+              const errText = await res.text();
+              console.error(`STT: Chunk transcription API failed. Status: ${res.status}, Error: ${errText}`);
             }
           } catch (err) {
-            console.error("Chunk transcription error:", err);
+            console.error("STT: Fetch to chunk transcription API failed:", err);
           }
         };
 
         recorder.start();
+        console.log("STT: MediaRecorder started recording chunk...");
 
         // Stop the chunk recording after 4.5 seconds
         setTimeout(() => {
           if (recorder.state !== "inactive") {
             try {
               recorder.stop();
-            } catch {}
+              console.log("STT: MediaRecorder stopped recording chunk.");
+            } catch (stopErr) {
+              console.error("STT: Failed to stop MediaRecorder:", stopErr);
+            }
           }
         }, 4500);
 
       } catch (err) {
-        console.error("Failed to start MediaRecorder for transcription chunk:", err);
+        console.error("STT: Failed to start MediaRecorder for transcription chunk:", err);
       }
     };
 
