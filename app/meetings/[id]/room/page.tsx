@@ -91,133 +91,118 @@ export default function MeetingRoomPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Speech Recognition / STT Loop
-  const recognitionRef = useRef<any>(null);
+  // Speech Recognition / STT Loop using audio chunking & backend OpenAI Whisper
+  const chunkIntervalRef = useRef<any>(null);
+  const activeRecordersRef = useRef<MediaRecorder[]>([]);
 
   useEffect(() => {
     if (!socketConnected || !session?.user) return;
 
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setSttStatusText("Transcription not supported");
+    if (isMuted) {
+      setIsSttListening(false);
+      setSttStatusText("Muted");
       setSttStatusColor("text-red-400");
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
+    setIsSttListening(true);
+    setSttStatusText("Live transcription");
+    setSttStatusColor("text-emerald-400");
 
-    recognition.onstart = () => {
-      setIsSttListening(true);
-      setSttStatusText("Live transcription");
-      setSttStatusColor("text-emerald-400");
-      if (socketRef.current) {
-        socketRef.current.emit("transcript:started", {
-          meetingId,
-          speakerId: session.user.id,
-          speakerName: session.user.name || "Participant"
-        });
-      }
-    };
+    const recordNextChunk = () => {
+      if (!cameraStreamRef.current) return;
+      const audioTrack = cameraStreamRef.current.getAudioTracks()[0];
+      if (!audioTrack || !audioTrack.enabled) return;
 
-    recognition.onresult = async (event: any) => {
-      let interimTranscript = "";
-      let finalTranscript = "";
+      const audioStream = new MediaStream([audioTrack]);
+      const chunks: Blob[] = [];
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
-      }
+      try {
+        const recorder = new MediaRecorder(audioStream, { mimeType: "audio/webm" });
+        activeRecordersRef.current.push(recorder);
 
-      const timestamp = new Date().toISOString();
-
-      if (interimTranscript.trim() && socketRef.current) {
-        socketRef.current.emit("transcript:partial", {
-          meetingId,
-          speakerId: session.user.id,
-          speakerName: session.user.name || "Participant",
-          text: interimTranscript.trim(),
-          timestamp,
-          isFinal: false
-        });
-      }
-
-      if (finalTranscript.trim()) {
-        const segment = {
-          meetingId,
-          speakerId: session.user.id,
-          speakerName: session.user.name || "Participant",
-          text: finalTranscript.trim(),
-          timestamp,
-          isFinal: true
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) chunks.push(e.data);
         };
 
-        if (socketRef.current) {
-          socketRef.current.emit("transcript:final", segment);
-        }
+        recorder.onstop = async () => {
+          activeRecordersRef.current = activeRecordersRef.current.filter((r) => r !== recorder);
+          if (chunks.length === 0) return;
+          const blob = new Blob(chunks, { type: "audio/webm" });
 
-        // Save segment incrementally to DB
-        try {
-          await fetch(`/api/meetings/${meetingId}/transcript`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(segment)
-          });
-        } catch (err) {
-          console.error("Failed to save transcript to DB:", err);
-        }
-      }
-    };
+          // Send chunk to backend API
+          const formData = new FormData();
+          formData.append("audio", blob, "chunk.webm");
 
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error === "not-allowed") {
-        setSttStatusText("Mic permission denied");
-        setSttStatusColor("text-red-400");
-      } else {
-        setSttStatusText("Transcription error");
-        setSttStatusColor("text-amber-400");
-      }
-    };
+          try {
+            const res = await fetch(`/api/meetings/${meetingId}/transcript/chunk`, {
+              method: "POST",
+              body: formData,
+            });
 
-    recognition.onend = () => {
-      setIsSttListening(false);
-      if (socketRef.current) {
-        socketRef.current.emit("transcript:stopped", {
-          meetingId,
-          speakerId: session.user.id,
-          speakerName: session.user.name || "Participant"
-        });
-      }
-      // Auto-restart if we are not muted
-      if (recognitionRef.current && !isMuted) {
-        try {
-          recognitionRef.current.start();
-        } catch {}
-      }
-    };
+            if (res.ok) {
+              const data = await res.json();
+              if (data.text && data.text.trim()) {
+                const timestamp = new Date().toISOString();
+                const segment = {
+                  meetingId,
+                  speakerId: session.user.id,
+                  speakerName: session.user.name || "Participant",
+                  text: data.text.trim(),
+                  timestamp,
+                  isFinal: true,
+                };
 
-    if (!isMuted) {
-      try {
-        recognition.start();
+                if (socketRef.current) {
+                  socketRef.current.emit("transcript:final", segment);
+                }
+
+                // Incremental save to MongoDB
+                await fetch(`/api/meetings/${meetingId}/transcript`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(segment),
+                });
+              }
+            }
+          } catch (err) {
+            console.error("Chunk transcription error:", err);
+          }
+        };
+
+        recorder.start();
+
+        // Stop the chunk recording after 4.5 seconds
+        setTimeout(() => {
+          if (recorder.state !== "inactive") {
+            try {
+              recorder.stop();
+            } catch {}
+          }
+        }, 4500);
+
       } catch (err) {
-        console.error("Failed to start speech recognition:", err);
+        console.error("Failed to start MediaRecorder for transcription chunk:", err);
       }
-    }
+    };
+
+    // Trigger chunking every 5 seconds
+    recordNextChunk();
+    const interval = setInterval(recordNextChunk, 5000);
+    chunkIntervalRef.current = interval;
 
     return () => {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {}
+      if (chunkIntervalRef.current) {
+        clearInterval(chunkIntervalRef.current);
       }
+      activeRecordersRef.current.forEach((r) => {
+        if (r.state !== "inactive") {
+          try {
+            r.stop();
+          } catch {}
+        }
+      });
+      activeRecordersRef.current = [];
     };
   }, [socketConnected, isMuted, meetingId, session]);
 
