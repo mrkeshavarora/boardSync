@@ -8,7 +8,7 @@ import {
   MessageSquare, Phone, Video, Send, Mic, MicOff, VideoOff,
   Video as VideoIcon, X, Search, Loader2, UserCheck, Shield, PhoneOff,
   PhoneCall, Check, PhoneForwarded, ArrowLeft, Trash2, AlertTriangle,
-  UserPlus, UserX, Users, Clock
+  UserPlus, UserX, Users, Clock, Edit2
 } from "lucide-react";
 import io from "socket.io-client";
 import { cn, getInitials } from "@/lib/utils";
@@ -127,6 +127,10 @@ export default function ChatPage() {
   const [selectedGroupMembers, setSelectedGroupMembers] = useState<string[]>([]);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupCall, setGroupCall] = useState<{ type: "voice" | "video" } | null>(null);
+  const [showEditGroup, setShowEditGroup] = useState(false);
+  const [editGroupName, setEditGroupName] = useState("");
+  const [editGroupDesc, setEditGroupDesc] = useState("");
+  const [updatingGroup, setUpdatingGroup] = useState(false);
 
   const socketRef = useRef<any>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -796,6 +800,39 @@ export default function ChatPage() {
     );
   }
 
+  function openEditGroupModal() {
+    if (!selectedGroup) return;
+    setEditGroupName(selectedGroup.name);
+    setEditGroupDesc(selectedGroup.description || "");
+    setShowEditGroup(true);
+  }
+
+  async function handleUpdateGroup() {
+    if (!selectedGroup || !editGroupName.trim()) return;
+    setUpdatingGroup(true);
+    try {
+      const res = await fetch(`/api/groups/${selectedGroup._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editGroupName.trim(),
+          description: editGroupDesc.trim() || "",
+        }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        const updated = d.group;
+        setSelectedGroup(updated);
+        setGroups((prev) => prev.map((g) => (g._id === updated._id ? updated : g)));
+        setShowEditGroup(false);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUpdatingGroup(false);
+    }
+  }
+
   async function startGroupCall(type: "voice" | "video") {
     if (!selectedGroup) return;
     // Notify others
@@ -1208,12 +1245,21 @@ export default function ChatPage() {
                   >
                     <ArrowLeft size={16} />
                   </button>
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-700 text-white">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-700 text-white shrink-0">
                     {selectedGroup.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="text-sm md:text-base font-600 text-white tracking-tight">{selectedGroup.name}</h3>
-                    <p className="text-xs text-white/40">{selectedGroup.members.length} members</p>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm md:text-base font-600 text-white tracking-tight">{selectedGroup.name}</h3>
+                      <button
+                        onClick={openEditGroupModal}
+                        className="text-white/40 hover:text-indigo-400 p-1 rounded-md transition-colors"
+                        title="Edit Group Name"
+                      >
+                        <Edit2 size={13} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-white/40">{selectedGroup.members.length} members {selectedGroup.description ? `· ${selectedGroup.description}` : ""}</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
@@ -1234,6 +1280,34 @@ export default function ChatPage() {
                 </div>
               </div>
 
+              {/* Active Call Banner */}
+              {groupMessages.some(
+                (m) =>
+                  m.message.startsWith("[GROUP_CALL_INVITE]:") &&
+                  Date.now() - new Date(m.createdAt).getTime() < 30 * 60 * 1000
+              ) && (
+                <div className="bg-gradient-to-r from-indigo-950/90 via-purple-950/80 to-slate-900/90 border-b border-indigo-500/30 px-6 py-3 flex items-center justify-between shadow-xl shrink-0 backdrop-blur-md">
+                  <div className="flex items-center gap-3">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <div>
+                      <p className="text-xs font-700 text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <Video size={13} className="text-emerald-400" /> Active Video Call
+                      </p>
+                      <p className="text-[11px] text-white/70">A group call is currently ongoing in {selectedGroup.name}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setGroupCall({ type: "video" })}
+                    className="btn-gradient px-4 py-2 rounded-xl text-xs font-700 text-white shadow-lg flex items-center gap-1.5 hover:scale-105 transition-transform"
+                  >
+                    <Video size={14} /> Rejoin Call Now
+                  </button>
+                </div>
+              )}
+
               {/* Group Chat Feed */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {loadingGroupMessages ? (
@@ -1250,13 +1324,28 @@ export default function ChatPage() {
                     const isSelf = msg.senderId._id === session?.user?.id;
                     
                     if (msg.message.startsWith("[GROUP_CALL_INVITE]:")) {
-                      const type = msg.message.split(":")[1];
+                      const type = (msg.message.split(":")[1] || "video") as "voice" | "video";
                       return (
-                        <div key={msg._id} className="flex justify-center my-2">
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-500 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                            <PhoneCall size={12} />
-                            {isSelf ? `You started a group ${type} call` : `${msg.senderId.name} started a group ${type} call`}
-                          </span>
+                        <div key={msg._id} className="flex justify-center my-3">
+                          <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 max-w-sm w-full text-center space-y-3 backdrop-blur-sm shadow-xl">
+                            <div className="w-10 h-10 rounded-full bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 mx-auto">
+                              {type === "video" ? <Video size={18} /> : <Phone size={18} />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-700 text-white">
+                                {isSelf ? "You started a group call" : `${msg.senderId.name} started a group call`}
+                              </p>
+                              <p className="text-[10px] text-white/40 mt-0.5">
+                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => setGroupCall({ type })}
+                              className="w-full btn-gradient py-2.5 rounded-xl text-xs font-700 text-white flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] transition-all"
+                            >
+                              <Video size={14} /> Join {type === "video" ? "Video" : "Voice"} Call Now
+                            </button>
+                          </div>
                         </div>
                       );
                     }
@@ -1577,6 +1666,58 @@ export default function ChatPage() {
               >
                 {creatingGroup ? <Loader2 size={14} className="animate-spin" /> : null}
                 Create Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Edit Group Modal ── */}
+      {showEditGroup && selectedGroup && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0A0A0A] border border-white/[0.08] w-full max-w-md rounded-2xl p-6 shadow-2xl relative overflow-hidden animate-slide-in">
+            <h3 className="text-lg font-600 text-white mb-4">Edit Group Details</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Group Name</label>
+                <input
+                  type="text"
+                  value={editGroupName}
+                  onChange={(e) => setEditGroupName(e.target.value)}
+                  placeholder="e.g. Executive Board"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-xs font-500 text-white/50 mb-1.5 uppercase tracking-wider">Description (optional)</label>
+                <input
+                  type="text"
+                  value={editGroupDesc}
+                  onChange={(e) => setEditGroupDesc(e.target.value)}
+                  placeholder="What is this group for?"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                onClick={() => setShowEditGroup(false)}
+                className="px-4 py-2 rounded-lg text-sm font-500 text-white/60 hover:text-white hover:bg-white/[0.05] transition-colors"
+                disabled={updatingGroup}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdateGroup}
+                disabled={updatingGroup || !editGroupName.trim()}
+                className="btn-gradient px-4 py-2 rounded-lg text-sm font-500 flex items-center gap-2 disabled:opacity-50"
+              >
+                {updatingGroup ? <Loader2 size={14} className="animate-spin" /> : null}
+                Save Changes
               </button>
             </div>
           </div>
