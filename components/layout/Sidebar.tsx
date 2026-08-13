@@ -77,10 +77,8 @@ export default function Sidebar({
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/[0.06] shrink-0">
         <Link href="/dashboard" className="flex items-center gap-3 min-w-0" onClick={() => setMobileOpen(false)}>
           {/* Logo when expanded */}
-          <div className={cn("items-center gap-2", collapsed ? "lg:hidden flex" : "flex")}>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "var(--gradient-brand)" }}>
-              <Shield className="w-4 h-4 text-white" />
-            </div>
+          <div className={cn("items-center gap-2.5", collapsed ? "lg:hidden flex" : "flex")}>
+            <img src="/favicon.png" alt="BoardSync" className="w-8 h-8 rounded-lg object-cover border border-white/10 shadow-md shadow-indigo-500/20" />
             <div className="flex flex-col min-w-0">
               <span className="text-sm font-700 text-white truncate leading-tight">BoardSync</span>
               <span className="text-[10px] text-white/30 truncate">Management Portal</span>
@@ -88,8 +86,8 @@ export default function Sidebar({
           </div>
 
           {/* Logo when collapsed */}
-          <div className={cn("w-8 h-8 rounded-lg items-center justify-center bg-indigo-600", collapsed ? "lg:flex hidden" : "hidden")}>
-            <Shield className="w-4 h-4 text-white" />
+          <div className={cn("w-8 h-8 rounded-lg items-center justify-center overflow-hidden border border-white/10 shadow-md shadow-indigo-500/20", collapsed ? "lg:flex hidden" : "hidden")}>
+            <img src="/favicon.png" alt="BoardSync" className="w-full h-full object-cover" />
           </div>
         </Link>
 
