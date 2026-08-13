@@ -69,7 +69,7 @@ interface GroupMessage {
   createdAt: string;
 }
 
-const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "https://boardsync-signaling.onrender.com";
+const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
 const pcConfig: RTCConfiguration = {
   iceServers: [
@@ -144,21 +144,35 @@ export default function ChatPage() {
           const loaded: Contact[] = data.connections || [];
           setContacts(loaded);
 
-          // Auto-accept call from global toast redirect (?accept=callerId&type=...&room=...)
+          // Auto-accept call from global toast redirect (?accept=callerId&type=...&room=... or ?acceptGroup=groupId&type=...)
           const acceptId = searchParams?.get("accept");
+          const acceptGroupId = searchParams?.get("acceptGroup");
           const callTypeParam = searchParams?.get("type") as "voice" | "video" | null;
           const roomParam = searchParams?.get("room");
+
           if (acceptId && callTypeParam && roomParam) {
             const caller = loaded.find((c) => c.id === acceptId);
             if (caller) {
               setSelectedContact(caller);
-              // Clear URL params so it doesn't re-trigger on refresh
               window.history.replaceState({}, "", "/chat");
-              // Wait for state to settle then start call
               setTimeout(() => {
                 autoAcceptCall(caller, callTypeParam, roomParam);
               }, 100);
             }
+          } else if (acceptGroupId && callTypeParam) {
+            setActiveTab("groups");
+            window.history.replaceState({}, "", "/chat");
+            fetch("/api/groups")
+              .then((r) => r.json())
+              .then((data) => {
+                const groupList = data.groups || [];
+                const g = groupList.find((item: any) => item._id === acceptGroupId);
+                if (g) {
+                  setSelectedGroup(g);
+                  setGroupCall({ type: callTypeParam });
+                }
+              })
+              .catch((err) => console.error("Failed to load group for call:", err));
           }
         }
       } catch (e) {

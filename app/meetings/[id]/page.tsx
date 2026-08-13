@@ -17,6 +17,7 @@ import StartMeetingBtn from "@/components/meetings/StartMeetingBtn";
 import DeleteMeetingBtn from "@/components/meetings/DeleteMeetingBtn";
 import RSVPAction from "@/components/meetings/RSVPAction";
 import GenerateMinutesBtn from "@/components/minutes/GenerateMinutesBtn";
+import SendInviteBtn from "@/components/meetings/SendInviteBtn";
 
 export const metadata: Metadata = { title: "Meeting Details" };
 
@@ -47,6 +48,9 @@ export default async function MeetingDetailsPage(
   }
 
   const organizer = meeting.organizerId as any;
+
+  const sentCount = participants.filter((p) => p.invitationStatus === "Sent").length;
+  const hasBeenSent = participants.some((p) => p.invitationStatus === "Sent");
 
   // Build map of user ID -> RSVP status
   const rsvpMap: Record<string, "Pending" | "Accepted" | "Tentative" | "Declined"> = {};
@@ -110,7 +114,16 @@ export default async function MeetingDetailsPage(
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 min-w-[220px]">
+            <div className="flex flex-col gap-3 min-w-[240px]">
+              {/* Send Meeting Invite button — for organizer or admin */}
+              {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:update")) && (
+                <SendInviteBtn
+                  meetingId={params.id}
+                  initialSentCount={sentCount}
+                  totalParticipants={participants.length}
+                  hasBeenSentBefore={hasBeenSent}
+                />
+              )}
               {/* Start Meeting button — only for organizer */}
               {organizer?._id?.toString() === session.user.id && (
                 <StartMeetingBtn meetingId={params.id} currentStatus={meeting.status} />
@@ -297,19 +310,28 @@ export default async function MeetingDetailsPage(
                               <p className="text-xs text-white/40 truncate">{p.role}</p>
                             </div>
                           </div>
-                          <span
-                            className={
-                              status === "Accepted"
-                                ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0"
-                                : status === "Tentative"
-                                ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0"
-                                : status === "Declined"
-                                ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-red-500/10 text-red-300 border border-red-500/20 shrink-0"
-                                : "text-[10px] font-600 px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10 shrink-0"
-                            }
-                          >
-                            {status === "Declined" ? "Cannot Attend" : status === "Accepted" ? "Attending" : status}
-                          </span>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <span
+                              className={
+                                status === "Accepted"
+                                  ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                                  : status === "Tentative"
+                                  ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                                  : status === "Declined"
+                                  ? "text-[10px] font-600 px-2 py-0.5 rounded-full bg-red-500/10 text-red-300 border border-red-500/20"
+                                  : "text-[10px] font-600 px-2 py-0.5 rounded-full bg-white/5 text-white/40 border border-white/10"
+                              }
+                            >
+                              {status === "Declined" ? "Cannot Attend" : status === "Accepted" ? "Attending" : status}
+                            </span>
+                            <span className="text-[9px] font-500 text-white/35">
+                              {p.invitationStatus === "Sent"
+                                ? "✉️ Invite Sent"
+                                : p.invitationStatus === "Failed"
+                                ? "⚠️ Invite Failed"
+                                : "⏳ Not Sent"}
+                            </span>
+                          </div>
                         </div>
                       );
                     })}

@@ -185,6 +185,16 @@ export default function MeetingRoomPage() {
         if (localVideoRef.current && localStream.getVideoTracks().length > 0) {
           localVideoRef.current.srcObject = localStream;
         }
+
+        // Attach tracks to any peer connections created while media was initializing
+        Object.values(pcs.current).forEach((pc) => {
+          localStream.getTracks().forEach((track) => {
+            const senders = pc.getSenders();
+            if (!senders.some((s) => s.track === track)) {
+              pc.addTrack(track, localStream);
+            }
+          });
+        });
       }
 
       // Join room once media setup is resolved
@@ -197,6 +207,10 @@ export default function MeetingRoomPage() {
     startMedia();
 
     function createPeerConnection(peerId: string) {
+      if (pcs.current[peerId]) {
+        return pcs.current[peerId];
+      }
+
       const pc = new RTCPeerConnection(pcConfig);
       pcs.current[peerId] = pc;
 
@@ -220,7 +234,10 @@ export default function MeetingRoomPage() {
       // Add local audio/video tracks to peer connection
       if (cameraStreamRef.current) {
         cameraStreamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, cameraStreamRef.current!);
+          const senders = pc.getSenders();
+          if (!senders.some((s) => s.track === track)) {
+            pc.addTrack(track, cameraStreamRef.current!);
+          }
         });
       }
 

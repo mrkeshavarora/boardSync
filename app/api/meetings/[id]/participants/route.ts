@@ -43,8 +43,7 @@ export async function POST(
     meetingId: (await params).id,
     userId,
     role,
-    invitationStatus: "Sent",
-    invitedAt: new Date(),
+    invitationStatus: "Pending",
   });
 
   await RSVP.create({

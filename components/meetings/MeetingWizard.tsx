@@ -286,7 +286,7 @@ export default function MeetingWizard() {
         );
       }
 
-      router.push("/meetings");
+      router.push(`/meetings/${meetingId}`);
       router.refresh();
     } catch (error) {
       setErrors({ form: (error as Error).message || "Unable to create meeting. Please try again." });

@@ -6,7 +6,7 @@ import { Mic, MicOff, Video, VideoOff, PhoneOff, Users } from "lucide-react";
 import { cn, getInitials } from "@/lib/utils";
 
 const SIGNALING_URL =
-  process.env.NEXT_PUBLIC_SIGNALING_URL || "https://boardsync-signaling.onrender.com";
+  process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
 const pcConfig: RTCConfiguration = {
   iceServers: [
