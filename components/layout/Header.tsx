@@ -88,7 +88,10 @@ export default function Header({
         >
           <Menu size={18} />
         </button>
-        <h1 className="text-base sm:text-lg font-600 text-white truncate">{title}</h1>
+        <div className="flex items-center gap-2.5">
+          <img src="/favicon.png" alt="BoardSync" className="w-6 h-6 rounded-lg object-cover border border-white/10 shadow-sm" />
+          <h1 className="text-base sm:text-lg font-600 text-white truncate">{title}</h1>
+        </div>
       </div>
 
       {/* Right side items */}

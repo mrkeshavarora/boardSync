@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   description:
     "A comprehensive board meeting management system for scheduling, minutes, actions, and documents.",
   keywords: ["board meetings", "minutes", "governance", "action items"],
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
 };
 
 export default async function RootLayout({
@@ -22,6 +27,8 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/favicon.png" sizes="any" />
+        <link rel="apple-touch-icon" href="/favicon.png" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
