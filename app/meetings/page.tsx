@@ -63,7 +63,11 @@ export default async function MeetingsPage() {
               <Link href={`/meetings/${meeting._id.toString()}`} key={meeting._id.toString()} className="block rounded-3xl border border-white/[0.06] p-6 bg-white/[0.02] hover:bg-white/[0.04] hover:border-indigo-500/30 transition-all cursor-pointer">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white/50">{new Date(meeting.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</p>
+                    <p suppressHydrationWarning className="text-sm text-white/50">
+                      {meeting.date && !isNaN(new Date(meeting.date).getTime())
+                        ? new Date(meeting.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                        : "No Date"}
+                    </p>
                     <h3 className="text-xl font-700 text-white truncate">{meeting.title}</h3>
                     <p className="text-sm text-white/40 mt-2 line-clamp-2">{meeting.description ?? "No description provided."}</p>
                   </div>
