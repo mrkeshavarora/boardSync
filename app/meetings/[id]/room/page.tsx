@@ -117,8 +117,37 @@ export default function MeetingRoomPage() {
       const audioStream = new MediaStream([audioTrack]);
       const chunks: Blob[] = [];
 
+      // Determine dynamic mimeType and filename extension
+      let recorderOptions: any = {};
+      let extension = "webm";
+      let mimeType = "audio/webm";
+
+      if (typeof MediaRecorder !== "undefined") {
+        if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
+          recorderOptions = { mimeType: "audio/webm;codecs=opus" };
+          mimeType = "audio/webm;codecs=opus";
+          extension = "webm";
+        } else if (MediaRecorder.isTypeSupported("audio/webm")) {
+          recorderOptions = { mimeType: "audio/webm" };
+          mimeType = "audio/webm";
+          extension = "webm";
+        } else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
+          recorderOptions = { mimeType: "audio/ogg;codecs=opus" };
+          mimeType = "audio/ogg;codecs=opus";
+          extension = "ogg";
+        } else if (MediaRecorder.isTypeSupported("audio/ogg")) {
+          recorderOptions = { mimeType: "audio/ogg" };
+          mimeType = "audio/ogg";
+          extension = "ogg";
+        } else if (MediaRecorder.isTypeSupported("audio/mp4")) {
+          recorderOptions = { mimeType: "audio/mp4" };
+          mimeType = "audio/mp4";
+          extension = "mp4";
+        }
+      }
+
       try {
-        const recorder = new MediaRecorder(audioStream, { mimeType: "audio/webm" });
+        const recorder = new MediaRecorder(audioStream, recorderOptions);
         activeRecordersRef.current.push(recorder);
 
         recorder.ondataavailable = (e) => {
@@ -128,11 +157,11 @@ export default function MeetingRoomPage() {
         recorder.onstop = async () => {
           activeRecordersRef.current = activeRecordersRef.current.filter((r) => r !== recorder);
           if (chunks.length === 0) return;
-          const blob = new Blob(chunks, { type: "audio/webm" });
+          const blob = new Blob(chunks, { type: mimeType });
 
           // Send chunk to backend API
           const formData = new FormData();
-          formData.append("audio", blob, "chunk.webm");
+          formData.append("audio", blob, `chunk.${extension}`);
 
           try {
             const res = await fetch(`/api/meetings/${meetingId}/transcript/chunk`, {

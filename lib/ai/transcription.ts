@@ -26,12 +26,13 @@ function getClient(): OpenAI {
  */
 export async function transcribeAudio(
   audioBuffer: Buffer,
-  filename: string = "recording.webm"
+  filename: string = "recording.webm",
+  mimeType: string = "audio/webm"
 ): Promise<string> {
   const client = getClient();
 
   // OpenAI SDK expects a File-like object or stream. We create one from the buffer.
-  const file = new File([new Uint8Array(audioBuffer)], filename, { type: "audio/webm" });
+  const file = new File([new Uint8Array(audioBuffer)], filename, { type: mimeType });
 
   const transcription = await client.audio.transcriptions.create({
     model: "whisper-1",

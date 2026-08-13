@@ -19,11 +19,14 @@ export async function POST(
       return NextResponse.json({ error: "No audio file provided" }, { status: 400 });
     }
 
+    const filename = audioFile.name || "chunk.webm";
+    const mimeType = audioFile.type || "audio/webm";
+
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = Buffer.from(arrayBuffer);
 
-    // Call existing Whisper transcription
-    const text = await transcribeAudio(audioBuffer, "chunk.webm");
+    // Call existing Whisper transcription with dynamic filename and mimeType
+    const text = await transcribeAudio(audioBuffer, filename, mimeType);
 
     return NextResponse.json({ text: text || "" });
   } catch (err: any) {
