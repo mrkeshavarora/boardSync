@@ -78,6 +78,14 @@ io.on('connection', (socket) => {
     socket.to(meetingId).emit('speech-caption', { senderName, text, timestamp: new Date().toISOString() });
   });
 
+  socket.on('speaking', ({ meetingId, isSpeaking }) => {
+    socket.to(meetingId).emit('user-speaking', { peerId: socket.id, isSpeaking });
+  });
+
+  socket.on('host-control', ({ meetingId, targetPeerId, action }) => {
+    socket.to(meetingId).emit('host-control', { targetPeerId, action });
+  });
+
   socket.on('transcript:partial', (data) => {
     io.to(data.meetingId).emit('transcript:partial', data);
   });

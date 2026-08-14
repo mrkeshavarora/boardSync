@@ -59,6 +59,8 @@ export default function MeetingRoomPage() {
   const [sttStatusColor, setSttStatusColor] = useState("text-emerald-400");
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const [showGenerateMinutesModal, setShowGenerateMinutesModal] = useState(false);
+  const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
+  const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
@@ -382,6 +384,155 @@ export default function MeetingRoomPage() {
     };
   }, [isMuted, meetingId, session]);
 
+  // Real-time local speaking detection using Web Audio API
+  useEffect(() => {
+    if (isMuted || !cameraStreamRef.current) {
+      setIsLocalSpeaking(false);
+      if (socketRef.current) {
+        socketRef.current.emit("speaking", { meetingId, isSpeaking: false });
+      }
+      return;
+    }
+
+    const audioTracks = cameraStreamRef.current.getAudioTracks();
+    if (audioTracks.length === 0 || !audioTracks[0].enabled) {
+      setIsLocalSpeaking(false);
+      if (socketRef.current) {
+        socketRef.current.emit("speaking", { meetingId, isSpeaking: false });
+      }
+      return;
+    }
+
+    let audioCtx: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let animId: number;
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContextClass) {
+        audioCtx = new AudioContextClass();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.3;
+
+        const audioStream = new MediaStream([audioTracks[0]]);
+        source = audioCtx.createMediaStreamSource(audioStream);
+        source.connect(analyser);
+
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        const checkAudio = () => {
+          if (!analyser) return;
+          analyser.getByteFrequencyData(dataArray as any);
+
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+          }
+          const avg = sum / dataArray.length;
+          const isSpeakingNow = avg > 14;
+
+          setIsLocalSpeaking((prev) => {
+            if (prev !== isSpeakingNow) {
+              if (socketRef.current) {
+                socketRef.current.emit("speaking", { meetingId, isSpeaking: isSpeakingNow });
+              }
+              return isSpeakingNow;
+            }
+            return prev;
+          });
+
+          animId = requestAnimationFrame(checkAudio);
+        };
+
+        checkAudio();
+      }
+    } catch (e) {
+      console.warn("Local audio analyzer error", e);
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+      try {
+        source?.disconnect();
+        analyser?.disconnect();
+        audioCtx?.close();
+      } catch {}
+    };
+  }, [isMuted, cameraStreamRef.current, meetingId]);
+
+  // Real-time remote peers speaking detection via local audio analysis
+  useEffect(() => {
+    if (remoteStreams.length === 0) {
+      setSpeakingPeers({});
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctxs: AudioContext[] = [];
+    let animId: number;
+    const analyzers: { peerId: string; analyser: AnalyserNode; dataArray: any }[] = [];
+
+    remoteStreams.forEach(({ peerId, stream }) => {
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length > 0 && audioTracks[0].enabled) {
+        try {
+          const audioCtx = new AudioContextClass();
+          ctxs.push(audioCtx);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.3;
+          const source = audioCtx.createMediaStreamSource(stream);
+          source.connect(analyser);
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          analyzers.push({ peerId, analyser, dataArray });
+        } catch (e) {
+          console.warn("Remote audio analyzer error for peer:", peerId, e);
+        }
+      }
+    });
+
+    const checkRemoteAudios = () => {
+      const updates: Record<string, boolean> = {};
+      analyzers.forEach(({ peerId, analyser, dataArray }) => {
+        analyser.getByteFrequencyData(dataArray as any);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        updates[peerId] = avg > 12;
+      });
+
+      setSpeakingPeers((prev) => {
+        let changed = false;
+        for (const k in updates) {
+          if (prev[k] !== updates[k]) {
+            changed = true;
+            break;
+          }
+        }
+        return changed ? { ...prev, ...updates } : prev;
+      });
+
+      animId = requestAnimationFrame(checkRemoteAudios);
+    };
+
+    if (analyzers.length > 0) {
+      checkRemoteAudios();
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+      ctxs.forEach((ctx) => {
+        try { ctx.close(); } catch {}
+      });
+    };
+  }, [remoteStreams]);
+
   // WebRTC & Signalling Setup
   useEffect(() => {
     if (!meeting || !session?.user) return;
@@ -394,6 +545,10 @@ export default function MeetingRoomPage() {
     socket.on("connect", () => {
       console.log("Connected to signaling server:", socket.id);
       setSocketConnected(true);
+    });
+
+    socket.on("user-speaking", ({ peerId, isSpeaking }: { peerId: string; isSpeaking: boolean }) => {
+      setSpeakingPeers((prev) => ({ ...prev, [peerId]: isSpeaking }));
     });
 
     socket.on("host-control", ({ targetPeerId, action }: { targetPeerId: string; action: string }) => {
@@ -849,7 +1004,14 @@ export default function MeetingRoomPage() {
             "grid-cols-2 sm:grid-cols-3 max-w-5xl"
           )}>
             {/* Local Video Card */}
-            <div className="relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border border-white/[0.08] flex items-center justify-center shadow-2xl group">
+            <div
+              className={cn(
+                "relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl group transition-all duration-300",
+                isLocalSpeaking
+                  ? "ring-2 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-emerald-500/50"
+                  : "border-white/[0.08]"
+              )}
+            >
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -888,54 +1050,90 @@ export default function MeetingRoomPage() {
                 </div>
               )}
               
-              {/* Participant Name Badge */}
-              <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium">
-                {session?.user?.name || "You"} (You)
+              {/* Participant Name Badge & Speaking Indicator */}
+              <div
+                className={cn(
+                  "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200",
+                  isLocalSpeaking
+                    ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
+                    : "bg-black/60 border border-white/10 text-white"
+                )}
+              >
+                {isLocalSpeaking && (
+                  <span className="flex items-center gap-0.5" title="Speaking">
+                    <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                    <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                    <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                  </span>
+                )}
+                <span>{session?.user?.name || "You"} (You)</span>
               </div>
             </div>
 
             {/* Remote Streams Cards */}
-            {remoteStreams.map(({ peerId, name, stream }) => (
-              <div 
-                key={peerId}
-                className="relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border border-white/[0.08] flex items-center justify-center shadow-2xl animate-fade-in group"
-              >
-                <video
-                  autoPlay
-                  playsInline
-                  ref={(el) => {
-                    if (el) {
-                      el.srcObject = stream;
-                      remoteVideoRefs.current[peerId] = el;
-                    }
-                  }}
-                  className="w-full h-full object-cover"
-                />
-                
-                {/* Action Buttons: Mute & Picture-in-Picture */}
-                <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-                  <button
-                    onClick={() => handleMuteUserMic(peerId)}
-                    className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all"
-                    title={`Mute ${name}'s microphone`}
-                  >
-                    <MicOff size={15} />
-                  </button>
-                  <button
-                    onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
-                    className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all"
-                    title={`Picture-in-Picture (${name})`}
-                  >
-                    <PictureInPicture2 size={16} />
-                  </button>
-                </div>
+            {remoteStreams.map(({ peerId, name, stream }) => {
+              const isSpeaking = !!speakingPeers[peerId];
+              return (
+                <div 
+                  key={peerId}
+                  className={cn(
+                    "relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl animate-fade-in group transition-all duration-300",
+                    isSpeaking
+                      ? "ring-2 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-emerald-500/50"
+                      : "border-white/[0.08]"
+                  )}
+                >
+                  <video
+                    autoPlay
+                    playsInline
+                    ref={(el) => {
+                      if (el) {
+                        el.srcObject = stream;
+                        remoteVideoRefs.current[peerId] = el;
+                      }
+                    }}
+                    className="w-full h-full object-cover"
+                  />
+                  
+                  {/* Action Buttons: Mute & Picture-in-Picture */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                    <button
+                      onClick={() => handleMuteUserMic(peerId)}
+                      className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all"
+                      title={`Mute ${name}'s microphone`}
+                    >
+                      <MicOff size={15} />
+                    </button>
+                    <button
+                      onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
+                      className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all"
+                      title={`Picture-in-Picture (${name})`}
+                    >
+                      <PictureInPicture2 size={16} />
+                    </button>
+                  </div>
 
-                {/* Participant Name Badge */}
-                <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium">
-                  {name}
+                  {/* Participant Name Badge & Speaking Indicator */}
+                  <div
+                    className={cn(
+                      "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200",
+                      isSpeaking
+                        ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
+                        : "bg-black/60 border border-white/10 text-white"
+                    )}
+                  >
+                    {isSpeaking && (
+                      <span className="flex items-center gap-0.5" title="Speaking">
+                        <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                        <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                        <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                      </span>
+                    )}
+                    <span>{name}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Loading overlay until WebRTC is ready */}
@@ -979,7 +1177,14 @@ export default function MeetingRoomPage() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-500 text-white truncate">{session?.user?.name} (You)</p>
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
+                  {isLocalSpeaking && (
+                    <span className="flex items-center gap-0.5 mr-1" title="Speaking">
+                      <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                      <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                      <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                    </span>
+                  )}
                   {isMuted ? <MicOff size={12} className="text-red-400" /> : <Mic size={12} className="text-emerald-400" />}
                   {isCameraOff ? <VideoOff size={12} className="text-red-400" /> : <Video size={12} className="text-emerald-400" />}
                 </div>
@@ -993,6 +1198,13 @@ export default function MeetingRoomPage() {
                       {getInitials(name)}
                     </div>
                     <p className="text-sm font-500 text-white truncate">{name}</p>
+                    {speakingPeers[peerId] && (
+                      <span className="flex items-center gap-0.5 shrink-0" title="Speaking">
+                        <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                        <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                        <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">

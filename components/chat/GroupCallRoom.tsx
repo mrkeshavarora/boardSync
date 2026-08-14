@@ -43,6 +43,7 @@ export default function GroupCallRoom({
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [connected, setConnected] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -51,6 +52,61 @@ export default function GroupCallRoom({
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
 
   const roomName = `group-call-${groupId}`;
+
+  // Local speaking detection
+  useEffect(() => {
+    if (isMuted || !localStream) {
+      setIsLocalSpeaking(false);
+      return;
+    }
+    const audioTracks = localStream.getAudioTracks();
+    if (audioTracks.length === 0 || !audioTracks[0].enabled) {
+      setIsLocalSpeaking(false);
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    let audioCtx: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let animId: number;
+
+    try {
+      audioCtx = new AudioContextClass();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.3;
+      source = audioCtx.createMediaStreamSource(localStream);
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const checkAudio = () => {
+        if (!analyser) return;
+        analyser.getByteFrequencyData(dataArray as any);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        setIsLocalSpeaking(avg > 14);
+        animId = requestAnimationFrame(checkAudio);
+      };
+      checkAudio();
+    } catch (e) {
+      console.warn("GroupCall local audio analyzer error", e);
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+      try {
+        source?.disconnect();
+        analyser?.disconnect();
+        audioCtx?.close();
+      } catch {}
+    };
+  }, [isMuted, localStream]);
 
   function triggerToast(msg: string) {
     setToastMessage(msg);
@@ -304,7 +360,14 @@ export default function GroupCallRoom({
           )}
         >
           {/* Self video tile */}
-          <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-white/[0.1] shadow-2xl aspect-video w-full group">
+          <div
+            className={cn(
+              "relative rounded-2xl overflow-hidden bg-slate-900 border shadow-2xl aspect-video w-full group transition-all duration-300",
+              isLocalSpeaking
+                ? "ring-2 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-emerald-500/50"
+                : "border-white/[0.1]"
+            )}
+          >
             {callType === "video" ? (
               <>
                 <video
@@ -335,8 +398,23 @@ export default function GroupCallRoom({
               </div>
             )}
             <div className="absolute bottom-3 left-3 flex items-center gap-2">
-              <span className="text-xs font-600 text-white bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              <span
+                className={cn(
+                  "text-xs font-600 px-2.5 py-1 rounded-lg border backdrop-blur-md flex items-center gap-1.5 transition-all duration-200",
+                  isLocalSpeaking
+                    ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
+                    : "bg-black/70 border-white/10 text-white"
+                )}
+              >
+                {isLocalSpeaking ? (
+                  <span className="flex items-center gap-0.5" title="Speaking">
+                    <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                    <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                    <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                  </span>
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                )}
                 You ({currentUser.name})
               </span>
               {isMuted && (
@@ -413,6 +491,7 @@ function RemoteTile({
   callType: "voice" | "video";
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     if (videoRef.current && participant.stream) {
@@ -420,8 +499,70 @@ function RemoteTile({
     }
   }, [participant.stream]);
 
+  // Speaking detection for remote participant
+  useEffect(() => {
+    if (!participant.stream) {
+      setIsSpeaking(false);
+      return;
+    }
+    const audioTracks = participant.stream.getAudioTracks();
+    if (audioTracks.length === 0 || !audioTracks[0].enabled) {
+      setIsSpeaking(false);
+      return;
+    }
+
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    let audioCtx: AudioContext | null = null;
+    let analyser: AnalyserNode | null = null;
+    let source: MediaStreamAudioSourceNode | null = null;
+    let animId: number;
+
+    try {
+      audioCtx = new AudioContextClass();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.3;
+      source = audioCtx.createMediaStreamSource(participant.stream);
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      const checkAudio = () => {
+        if (!analyser) return;
+        analyser.getByteFrequencyData(dataArray as any);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        const avg = sum / dataArray.length;
+        setIsSpeaking(avg > 12);
+        animId = requestAnimationFrame(checkAudio);
+      };
+      checkAudio();
+    } catch (e) {
+      console.warn("Group call remote audio analyzer error", e);
+    }
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+      try {
+        source?.disconnect();
+        analyser?.disconnect();
+        audioCtx?.close();
+      } catch {}
+    };
+  }, [participant.stream]);
+
   return (
-    <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-white/[0.1] shadow-2xl aspect-video w-full group">
+    <div
+      className={cn(
+        "relative rounded-2xl overflow-hidden bg-slate-900 border shadow-2xl aspect-video w-full group transition-all duration-300",
+        isSpeaking
+          ? "ring-2 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-emerald-500/50"
+          : "border-white/[0.1]"
+      )}
+    >
       {callType === "video" && participant.stream ? (
         <video
           ref={(el) => {
@@ -443,8 +584,23 @@ function RemoteTile({
         </div>
       )}
       <div className="absolute bottom-3 left-3 flex items-center gap-2">
-        <span className="text-xs font-600 text-white bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+        <span
+          className={cn(
+            "text-xs font-600 px-2.5 py-1 rounded-lg border backdrop-blur-md flex items-center gap-1.5 transition-all duration-200",
+            isSpeaking
+              ? "bg-emerald-500/30 border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
+              : "bg-black/70 border-white/10 text-white"
+          )}
+        >
+          {isSpeaking ? (
+            <span className="flex items-center gap-0.5" title="Speaking">
+              <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+              <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+              <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+            </span>
+          ) : (
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          )}
           {participant.name}
         </span>
       </div>
