@@ -912,14 +912,23 @@ export default function MeetingRoomPage() {
                   className="w-full h-full object-cover"
                 />
                 
-                {/* Picture in Picture Button */}
-                <button
-                  onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
-                  className="absolute top-3 right-3 p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all z-10"
-                  title={`Picture-in-Picture (${name})`}
-                >
-                  <PictureInPicture2 size={16} />
-                </button>
+                {/* Action Buttons: Mute & Picture-in-Picture */}
+                <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
+                  <button
+                    onClick={() => handleMuteUserMic(peerId)}
+                    className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all"
+                    title={`Mute ${name}'s microphone`}
+                  >
+                    <MicOff size={15} />
+                  </button>
+                  <button
+                    onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
+                    className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all"
+                    title={`Picture-in-Picture (${name})`}
+                  >
+                    <PictureInPicture2 size={16} />
+                  </button>
+                </div>
 
                 {/* Participant Name Badge */}
                 <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium">
@@ -951,7 +960,7 @@ export default function MeetingRoomPage() {
           >
             <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="text-sm font-600 text-white">Participants ({totalParticipants})</h3>
-              {isOrganizer && remoteStreams.length > 0 && (
+              {remoteStreams.length > 0 && (
                 <button
                   onClick={handleMuteAll}
                   className="px-2.5 py-1 rounded-md text-[11px] font-600 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors flex items-center gap-1"
@@ -986,31 +995,33 @@ export default function MeetingRoomPage() {
                     <p className="text-sm font-500 text-white truncate">{name}</p>
                   </div>
 
-                  {isOrganizer && (
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleMuteUserMic(peerId)}
-                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
-                        title={`Mute ${name}'s microphone`}
-                      >
-                        <MicOff size={13} />
-                      </button>
-                      <button
-                        onClick={() => handleMuteUserCamera(peerId)}
-                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
-                        title={`Turn off ${name}'s camera`}
-                      >
-                        <VideoOff size={13} />
-                      </button>
-                      <button
-                        onClick={() => handleKickUser(peerId)}
-                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
-                        title={`Remove ${name} from meeting`}
-                      >
-                        <UserX size={13} />
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleMuteUserMic(peerId)}
+                      className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
+                      title={`Mute ${name}'s microphone`}
+                    >
+                      <MicOff size={13} />
+                    </button>
+                    {isOrganizer && (
+                      <>
+                        <button
+                          onClick={() => handleMuteUserCamera(peerId)}
+                          className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
+                          title={`Turn off ${name}'s camera`}
+                        >
+                          <VideoOff size={13} />
+                        </button>
+                        <button
+                          onClick={() => handleKickUser(peerId)}
+                          className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
+                          title={`Remove ${name} from meeting`}
+                        >
+                          <UserX size={13} />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1046,7 +1057,7 @@ export default function MeetingRoomPage() {
           )}
         >
           {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-          <span className="hidden sm:inline">{isMuted ? "Unmute" : "Mute"}</span>
+          <span>{isMuted ? "Unmute" : "Mute"}</span>
         </button>
 
         {/* Camera Toggle */}
