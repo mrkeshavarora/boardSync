@@ -24,11 +24,10 @@ export async function POST(
 
   const organizer = meeting.organizerId as any;
   const isOrganizer = organizer?._id?.toString() === session.user.id;
-  const canUpdate = hasPermission(session.user.role as UserRole, "meetings:update");
 
-  if (!isOrganizer && !canUpdate) {
+  if (!isOrganizer) {
     return NextResponse.json(
-      { error: "Forbidden — only the meeting organizer or admins can send invites." },
+      { error: "Forbidden — only the person who created the meeting can send invites." },
       { status: 403 }
     );
   }

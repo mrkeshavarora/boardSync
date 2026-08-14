@@ -129,8 +129,8 @@ export default async function MeetingDetailsPage(
             </div>
 
             <div className="flex flex-col gap-3 min-w-[240px]">
-              {/* Send Meeting Invite button — for organizer or admin */}
-              {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:update")) && (
+              {/* Send Meeting Invite button — only seen by who created the meeting */}
+              {isOrganizer && (
                 <SendInviteBtn
                   meetingId={params.id}
                   initialSentCount={sentCount}
