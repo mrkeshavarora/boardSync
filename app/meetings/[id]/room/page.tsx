@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2, Circle, Download, Sparkles
+  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2, Circle, Download, Sparkles,
+  PictureInPicture2, UserX, VolumeX
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -62,12 +63,73 @@ export default function MeetingRoomPage() {
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const pcs = useRef<Record<string, RTCPeerConnection>>({});
   const [remoteStreams, setRemoteStreams] = useState<PeerStream[]>([]);
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
+  // Picture-in-Picture Toggle
+  const togglePiP = async (videoEl: HTMLVideoElement | null) => {
+    if (!videoEl) return;
+    try {
+      if (document.pictureInPictureElement === videoEl) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled) {
+        await videoEl.requestPictureInPicture();
+      } else {
+        alert("Picture-in-Picture is not supported in this browser.");
+      }
+    } catch (err) {
+      console.error("Picture-in-Picture error:", err);
+    }
+  };
+
+  // Host Controls
+  const sendHostControl = (action: "mute-mic" | "mute-camera" | "kick", targetPeerId: string = "*") => {
+    if (socketRef.current) {
+      socketRef.current.emit("host-control", {
+        meetingId,
+        targetPeerId,
+        action,
+      });
+    }
+
+    fetch("/api/chat/signal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "send",
+        room: `meeting-${meetingId}`,
+        to: "*",
+        data: {
+          type: "host-control",
+          payload: { action, targetPeerId },
+        },
+      }),
+    }).catch(() => {});
+  };
+
+  const handleMuteAll = () => {
+    if (!confirm("Mute microphones for all participants?")) return;
+    sendHostControl("mute-mic", "*");
+  };
+
+  const handleMuteUserMic = (peerId: string) => {
+    sendHostControl("mute-mic", peerId);
+  };
+
+  const handleMuteUserCamera = (peerId: string) => {
+    sendHostControl("mute-camera", peerId);
+  };
+
+  const handleKickUser = (peerId: string) => {
+    const peerName = participantNames[peerId] || "Participant";
+    if (!confirm(`Are you sure you want to remove ${peerName} from the meeting?`)) return;
+    sendHostControl("kick", peerId);
+  };
 
   // Fetch meeting info
   useEffect(() => {
@@ -332,6 +394,27 @@ export default function MeetingRoomPage() {
     socket.on("connect", () => {
       console.log("Connected to signaling server:", socket.id);
       setSocketConnected(true);
+    });
+
+    socket.on("host-control", ({ targetPeerId, action }: { targetPeerId: string; action: string }) => {
+      const myId = socket.id;
+      const isTarget = targetPeerId === "*" || targetPeerId === myId;
+      if (!isTarget) return;
+
+      if (action === "mute-mic") {
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = false));
+        }
+        setIsMuted(true);
+      } else if (action === "mute-camera") {
+        if (cameraStreamRef.current) {
+          cameraStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = false));
+        }
+        setIsCameraOff(true);
+      } else if (action === "kick") {
+        alert("You were removed from the meeting by the organizer.");
+        handleLeave();
+      }
     });
 
     socket.on("current-participants", ({ participants }: { participants: string[] }) => {
@@ -759,11 +842,14 @@ export default function MeetingRoomPage() {
         {/* Streams Container */}
         <div className="flex-1 relative bg-black p-2 sm:p-4 flex items-center justify-center overflow-y-auto">
           <div className={cn(
-            "grid gap-3 sm:gap-4 w-full h-full max-h-[80vh] items-center justify-center",
-            totalParticipants === 1 ? "grid-cols-1 max-w-4xl" : "grid-cols-1 md:grid-cols-2 max-w-6xl"
+            "grid gap-3 sm:gap-4 w-full max-h-[85vh] overflow-y-auto items-center justify-center p-2",
+            totalParticipants === 1 ? "grid-cols-1 max-w-sm sm:max-w-md" :
+            totalParticipants === 2 ? "grid-cols-1 sm:grid-cols-2 max-w-2xl" :
+            totalParticipants <= 4 ? "grid-cols-2 max-w-3xl" :
+            "grid-cols-2 sm:grid-cols-3 max-w-5xl"
           )}>
             {/* Local Video Card */}
-            <div className="relative w-full h-full bg-[#0d1222] rounded-2xl overflow-hidden border border-white/[0.08] flex items-center justify-center aspect-video shadow-2xl">
+            <div className="relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border border-white/[0.08] flex items-center justify-center shadow-2xl group">
               <video
                 ref={localVideoRef}
                 autoPlay
@@ -772,6 +858,15 @@ export default function MeetingRoomPage() {
                 className={cn("w-full h-full object-cover scale-x-[-1]", (isCameraOff) && "hidden")}
               />
               
+              {/* Picture in Picture Button */}
+              <button
+                onClick={() => togglePiP(localVideoRef.current)}
+                className="absolute top-3 right-3 p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all z-10"
+                title="Picture-in-Picture"
+              >
+                <PictureInPicture2 size={16} />
+              </button>
+
               {/* Camera Off / Screen Share Overlay */}
               {(isCameraOff || isScreenSharing) && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 text-white p-4">
@@ -803,17 +898,29 @@ export default function MeetingRoomPage() {
             {remoteStreams.map(({ peerId, name, stream }) => (
               <div 
                 key={peerId}
-                className="relative w-full h-full bg-[#0d1222] rounded-2xl overflow-hidden border border-white/[0.08] flex items-center justify-center aspect-video shadow-2xl animate-fade-in"
+                className="relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border border-white/[0.08] flex items-center justify-center shadow-2xl animate-fade-in group"
               >
                 <video
                   autoPlay
                   playsInline
                   ref={(el) => {
-                    if (el) el.srcObject = stream;
+                    if (el) {
+                      el.srcObject = stream;
+                      remoteVideoRefs.current[peerId] = el;
+                    }
                   }}
                   className="w-full h-full object-cover"
                 />
                 
+                {/* Picture in Picture Button */}
+                <button
+                  onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
+                  className="absolute top-3 right-3 p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all z-10"
+                  title={`Picture-in-Picture (${name})`}
+                >
+                  <PictureInPicture2 size={16} />
+                </button>
+
                 {/* Participant Name Badge */}
                 <div className="absolute bottom-4 left-4 px-3 py-1.5 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white text-xs font-medium">
                   {name}
@@ -842,8 +949,17 @@ export default function MeetingRoomPage() {
             className="w-72 border-l border-white/[0.06] flex flex-col shrink-0 animate-fade-in absolute right-0 top-0 bottom-0 z-20 lg:relative lg:z-0 h-full shadow-2xl"
             style={{ background: "#080d1a" }}
           >
-            <div className="px-5 py-4 border-b border-white/[0.06]">
-              <h3 className="text-sm font-600 text-white">Participants</h3>
+            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
+              <h3 className="text-sm font-600 text-white">Participants ({totalParticipants})</h3>
+              {isOrganizer && remoteStreams.length > 0 && (
+                <button
+                  onClick={handleMuteAll}
+                  className="px-2.5 py-1 rounded-md text-[11px] font-600 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors flex items-center gap-1"
+                  title="Mute all participants"
+                >
+                  <VolumeX size={12} /> Mute All
+                </button>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {/* Show current user */}
@@ -862,13 +978,39 @@ export default function MeetingRoomPage() {
 
               {/* Show other participants */}
               {remoteStreams.map(({ peerId, name }) => (
-                <div key={peerId} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.03]">
-                  <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
-                    {getInitials(name)}
-                  </div>
-                  <div className="flex-1 min-w-0">
+                <div key={peerId} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-white/[0.03] group">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
+                      {getInitials(name)}
+                    </div>
                     <p className="text-sm font-500 text-white truncate">{name}</p>
                   </div>
+
+                  {isOrganizer && (
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleMuteUserMic(peerId)}
+                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
+                        title={`Mute ${name}'s microphone`}
+                      >
+                        <MicOff size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleMuteUserCamera(peerId)}
+                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
+                        title={`Turn off ${name}'s camera`}
+                      >
+                        <VideoOff size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleKickUser(peerId)}
+                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
+                        title={`Remove ${name} from meeting`}
+                      >
+                        <UserX size={13} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

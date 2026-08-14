@@ -7,7 +7,7 @@ interface SignalMessage {
   room: string;
   to: string;
   from: string;
-  type: "offer" | "answer" | "candidate" | "join" | "leave";
+  type: "offer" | "answer" | "candidate" | "join" | "leave" | "host-control";
   data: any;
   createdAt: number;
 }
