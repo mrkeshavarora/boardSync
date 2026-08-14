@@ -6,6 +6,7 @@ export interface IAgendaItem extends Document {
   description?: string;
   order: number;
   presenterId?: mongoose.Types.ObjectId;
+  presenterName?: string;
   estimatedDuration?: number; // in minutes
   priority?: "Low" | "Medium" | "High";
   status: "Pending" | "In Progress" | "Completed" | "Skipped";
@@ -21,6 +22,7 @@ const AgendaItemSchema = new Schema<IAgendaItem>(
     description: { type: String },
     order: { type: Number, required: true },
     presenterId: { type: Schema.Types.ObjectId, ref: "User" },
+    presenterName: { type: String },
     estimatedDuration: { type: Number },
     priority: { type: String, enum: ["Low", "Medium", "High"] },
     status: {

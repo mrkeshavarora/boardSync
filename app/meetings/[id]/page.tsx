@@ -20,6 +20,8 @@ import RSVPAction from "@/components/meetings/RSVPAction";
 import GenerateMinutesBtn from "@/components/minutes/GenerateMinutesBtn";
 import SendInviteBtn from "@/components/meetings/SendInviteBtn";
 import RejoinMeetingBtn from "@/components/meetings/RejoinMeetingBtn";
+import AddAgendaModal from "@/components/meetings/AddAgendaModal";
+import AddParticipantModal from "@/components/meetings/AddParticipantModal";
 
 import { canAccessMeeting } from "@/lib/meetingAccess";
 
@@ -55,6 +57,11 @@ export default async function MeetingDetailsPage(
   }
 
   const organizer = meeting.organizerId as any;
+  const isOrganizer = organizer?._id?.toString() === session.user.id;
+  const canManage = isOrganizer || hasPermission(role, "meetings:update");
+  const existingUserIds = participants
+    .map((p) => (p.userId ? ((p.userId as any)._id ? (p.userId as any)._id.toString() : p.userId.toString()) : null))
+    .filter(Boolean) as string[];
 
   const sentCount = participants.filter((p) => p.invitationStatus === "Sent").length;
   const hasBeenSent = participants.some((p) => p.invitationStatus === "Sent");
@@ -204,39 +211,52 @@ export default async function MeetingDetailsPage(
             
             {/* Agenda */}
             <div className="rounded-2xl border border-white/[0.06] bg-[#0A0A0A] overflow-hidden">
-              <div className="px-6 py-5 border-b border-white/[0.06] flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                  <List size={16} />
+              <div className="px-6 py-5 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+                    <List size={16} />
+                  </div>
+                  <h2 className="text-lg font-600 text-white">Agenda</h2>
                 </div>
-                <h2 className="text-lg font-600 text-white">Agenda</h2>
+                {canManage && <AddAgendaModal meetingId={params.id} />}
               </div>
               <div className="p-6">
                 {agenda.length === 0 ? (
-                  <p className="text-sm text-white/40 text-center py-8">No agenda items added yet.</p>
+                  <div className="text-center py-8 space-y-3">
+                    <p className="text-sm text-white/40">No agenda items added yet.</p>
+                    {canManage && (
+                      <div className="flex justify-center">
+                        <AddAgendaModal meetingId={params.id} />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-4">
-                    {agenda.map((item, index) => (
-                      <div key={item._id.toString()} className="flex gap-4 group">
-                        <div className="flex flex-col items-center">
-                          <div className="w-7 h-7 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-xs font-600 text-white/60 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 group-hover:border-indigo-500/20 transition-colors shrink-0">
-                            {index + 1}
+                    {agenda.map((item, index) => {
+                      const presenterName = (item.presenterId as any)?.name || item.presenterName;
+                      return (
+                        <div key={item._id.toString()} className="flex gap-4 group">
+                          <div className="flex flex-col items-center">
+                            <div className="w-7 h-7 rounded-full bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-xs font-600 text-white/60 group-hover:bg-indigo-500/10 group-hover:text-indigo-400 group-hover:border-indigo-500/20 transition-colors shrink-0">
+                              {index + 1}
+                            </div>
+                            {index < agenda.length - 1 && <div className="w-px h-full bg-white/[0.06] mt-2" />}
                           </div>
-                          {index < agenda.length - 1 && <div className="w-px h-full bg-white/[0.06] mt-2" />}
-                        </div>
-                        <div className="pb-4">
-                          <h3 className="text-base font-600 text-white">{item.title}</h3>
-                          {item.description && <p className="text-sm text-white/50 mt-1">{item.description}</p>}
-                          <div className="flex flex-wrap gap-3 mt-3">
-                            {item.estimatedDuration && (
-                              <span className="text-xs text-white/40 flex items-center gap-1.5"><Clock size={12} /> {item.estimatedDuration} mins</span>
-                            )}
-                            {(item.presenterId as any)?.name && (
-                              <span className="text-xs text-indigo-300/70 flex items-center gap-1.5"><Users size={12} /> {(item.presenterId as any).name}</span>
-                            )}
+                          <div className="pb-4 flex-1">
+                            <h3 className="text-base font-600 text-white">{item.title}</h3>
+                            {item.description && <p className="text-sm text-white/50 mt-1">{item.description}</p>}
+                            <div className="flex flex-wrap gap-3 mt-3">
+                              {item.estimatedDuration && (
+                                <span className="text-xs text-white/40 flex items-center gap-1.5"><Clock size={12} /> {item.estimatedDuration} mins</span>
+                              )}
+                              {presenterName && (
+                                <span className="text-xs text-indigo-300/70 flex items-center gap-1.5"><Users size={12} /> {presenterName}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -307,11 +327,29 @@ export default async function MeetingDetailsPage(
                   </div>
                   <h2 className="text-lg font-600 text-white">Participants</h2>
                 </div>
-                <span className="badge bg-white/[0.05] text-white/60">{participants.length}</span>
+                <div className="flex items-center gap-2">
+                  <span className="badge bg-white/[0.05] text-white/60">{participants.length}</span>
+                  {canManage && (
+                    <AddParticipantModal
+                      meetingId={params.id}
+                      existingParticipantUserIds={existingUserIds}
+                    />
+                  )}
+                </div>
               </div>
               <div className="p-4">
                 {participants.length === 0 ? (
-                  <p className="text-sm text-white/40 text-center py-6">No participants invited.</p>
+                  <div className="text-center py-6 space-y-3">
+                    <p className="text-sm text-white/40">No participants invited.</p>
+                    {canManage && (
+                      <div className="flex justify-center">
+                        <AddParticipantModal
+                          meetingId={params.id}
+                          existingParticipantUserIds={existingUserIds}
+                        />
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
                     {participants.map((p) => {

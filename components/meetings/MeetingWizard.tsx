@@ -378,6 +378,7 @@ export default function MeetingWizard() {
               description: item.description,
               estimatedDuration: item.duration,
               presenterId: item.presenter || undefined,
+              presenterName: item.presenter || undefined,
               order: index + 1,
             }),
           })

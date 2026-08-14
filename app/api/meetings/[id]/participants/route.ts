@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import MeetingParticipant from "@/models/MeetingParticipant";
+import Meeting from "@/models/Meeting";
 import RSVP from "@/models/RSVP";
 import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
-import mongoose from "mongoose";
-
 import { canAccessMeeting } from "@/lib/meetingAccess";
 
 export async function GET(
@@ -26,7 +25,7 @@ export async function GET(
   }
 
   const participants = await MeetingParticipant.find({ meetingId })
-    .populate("userId", "name email avatar");
+    .populate("userId", "name email avatar role");
     
   return NextResponse.json({ participants });
 }
@@ -37,27 +36,61 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!hasPermission(session.user.role as UserRole, "meetings:update")) {
+
+  const meetingId = (await params).id;
+  await connectDB();
+
+  const meeting = await Meeting.findById(meetingId);
+  if (!meeting) {
+    return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+  }
+
+  const isOrganizer = meeting.organizerId?.toString() === session.user.id;
+  const canUpdate = isOrganizer || hasPermission(session.user.role as UserRole, "meetings:update");
+  if (!canUpdate) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const { userId, role } = await request.json();
+  const body = await request.json();
+  // Support both single object { userId, role } or batch array [{ userId, role }]
+  const items: Array<{ userId: string; role?: string }> = Array.isArray(body)
+    ? body
+    : [body];
 
-  await connectDB();
-  
-  // Create participant and pending RSVP
-  const participant = await MeetingParticipant.create({
-    meetingId: (await params).id,
-    userId,
-    role,
-    invitationStatus: "Pending",
-  });
+  const addedParticipants = [];
 
-  await RSVP.create({
-    meetingId: (await params).id,
-    userId,
-    status: "Pending",
-  });
+  for (const item of items) {
+    if (!item.userId) continue;
 
-  return NextResponse.json({ participant }, { status: 201 });
+    // Check if participant already exists
+    const existing = await MeetingParticipant.findOne({
+      meetingId,
+      userId: item.userId,
+    });
+
+    if (existing) {
+      addedParticipants.push(existing);
+      continue;
+    }
+
+    const participant = await MeetingParticipant.create({
+      meetingId,
+      userId: item.userId,
+      role: item.role || "Attendee",
+      invitationStatus: "Pending",
+    });
+
+    await RSVP.findOneAndUpdate(
+      { meetingId, userId: item.userId },
+      { meetingId, userId: item.userId, status: "Pending" },
+      { upsert: true }
+    );
+
+    addedParticipants.push(participant);
+  }
+
+  return NextResponse.json(
+    { participants: addedParticipants, count: addedParticipants.length },
+    { status: 201 }
+  );
 }
