@@ -74,10 +74,10 @@ export default async function DashboardPage() {
       .populate("assignedTo", "name")
       .lean(),
 
-    // Total board members (active users with a board role)
+    // Total board members (active users)
     User.countDocuments({
       status: "active",
-      role: { $in: ["super_admin", "admin", "board_secretary", "board_member"] },
+      role: { $in: ["super_admin", "board_member"] },
     }),
 
     // Pending RSVPs for the current user on upcoming meetings

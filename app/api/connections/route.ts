@@ -6,6 +6,8 @@ import { auth } from "@/lib/auth";
 import mongoose from "mongoose";
 import Notification from "@/models/Notification";
 
+import ChatMessage from "@/models/ChatMessage";
+
 export async function GET(request: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,18 +23,56 @@ export async function GET(request: Request) {
   };
   if (status) query.status = status;
 
-  const connections = await Connection.find(query)
-    .populate("fromUserId", "name email role avatar")
-    .populate("toUserId", "name email role avatar");
+  const [connections, latestMessages] = await Promise.all([
+    Connection.find(query)
+      .populate("fromUserId", "name email role avatar")
+      .populate("toUserId", "name email role avatar"),
+    ChatMessage.aggregate([
+      {
+        $match: {
+          $or: [{ senderId: userObjectId }, { receiverId: userObjectId }],
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: {
+            $cond: [
+              { $eq: ["$senderId", userObjectId] },
+              "$receiverId",
+              "$senderId",
+            ],
+          },
+          lastMessage: { $first: "$message" },
+          lastMessageAt: { $first: "$createdAt" },
+        },
+      },
+    ]),
+  ]);
+
+  const messageMap = new Map<string, { lastMessage: string; lastMessageAt: string }>();
+  for (const item of latestMessages) {
+    if (item._id) {
+      messageMap.set(item._id.toString(), {
+        lastMessage: item.lastMessage,
+        lastMessageAt: item.lastMessageAt ? new Date(item.lastMessageAt).toISOString() : "",
+      });
+    }
+  }
 
   const mapped = connections.map((connection) => {
     const fromUser = connection.fromUserId as any;
     const toUser = connection.toUserId as any;
-    const isOutgoing = fromUser._id.toString() === session.user.id;
+    if (!fromUser || !toUser) return null;
+
+    const isOutgoing = fromUser._id?.toString() === session.user.id;
     const otherUser = isOutgoing ? toUser : fromUser;
+    const otherUserId = otherUser._id ? otherUser._id.toString() : otherUser.toString();
+
+    const msgInfo = messageMap.get(otherUserId);
 
     return {
-      id: otherUser._id.toString(),
+      id: otherUserId,
       name: otherUser.name,
       email: otherUser.email,
       role: otherUser.role,
@@ -40,7 +80,16 @@ export async function GET(request: Request) {
       status: connection.status,
       direction: isOutgoing ? "outgoing" : "incoming",
       connectionId: connection._id.toString(),
+      lastMessage: msgInfo?.lastMessage ?? null,
+      lastMessageAt: msgInfo?.lastMessageAt || connection.updatedAt.toISOString(),
     };
+  }).filter(Boolean);
+
+  // Sort connections by lastMessageAt descending (most recently messaged first)
+  mapped.sort((a: any, b: any) => {
+    const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+    const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+    return timeB - timeA;
   });
 
   return NextResponse.json({ connections: mapped });

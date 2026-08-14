@@ -36,7 +36,7 @@ export default function GenerateMinutesModal({
   const [errorMsg, setErrorMsg] = useState("");
   const [minutesId, setMinutesId] = useState("");
   const [manualTranscript, setManualTranscript] = useState("");
-  const [mode, setMode] = useState<"record" | "upload" | "transcript">("record");
+  const [mode, setMode] = useState<"ai" | "record" | "upload" | "transcript">("ai");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -75,6 +75,28 @@ export default function GenerateMinutesModal({
   // --- Submit ---
   const handleGenerate = async () => {
     setErrorMsg("");
+
+    if (mode === "ai") {
+      setStep("generating");
+      try {
+        const res = await fetch(`/api/meetings/${meetingId}/generate-ai-minutes`, {
+          method: "POST",
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          setErrorMsg(data.error || "AI generation failed. Ensure live transcript or recording is available.");
+          setStep("error");
+          return;
+        }
+        setStep("done");
+        setMinutesId(data.meeting?._id || meetingId);
+      } catch {
+        setErrorMsg("Network error during AI minutes generation.");
+        setStep("error");
+      }
+      return;
+    }
+
     const formData = new FormData();
 
     if (mode === "record" && recordedBlob) {
@@ -151,22 +173,37 @@ export default function GenerateMinutesModal({
           {/* Mode tabs */}
           {(step === "idle" || step === "recording") && !isProcessing && (
             <>
-              <div className="flex gap-2 p-1 rounded-xl" style={{ background: "var(--bg-secondary)" }}>
-                {(["record", "upload", "transcript"] as const).map((m) => (
+              <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: "var(--bg-secondary)" }}>
+                {(["ai", "record", "upload", "transcript"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setMode(m)}
-                    className="flex-1 py-2 px-3 rounded-lg text-xs font-600 transition-all"
+                    className="flex-1 py-2 px-2.5 rounded-lg text-xs font-600 transition-all truncate"
                     style={
                       mode === m
                         ? { background: "var(--bg-card)", color: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }
                         : { color: "var(--text-muted)" }
                     }
                   >
-                    {m === "record" ? "🎙 Record" : m === "upload" ? "📁 Upload File" : "📝 Paste Transcript"}
+                    {m === "ai" ? "✨ Live AI" : m === "record" ? "🎙 Record" : m === "upload" ? "📁 Upload" : "📝 Text"}
                   </button>
                 ))}
               </div>
+
+              {/* AI Live Transcript Mode */}
+              {mode === "ai" && (
+                <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-center space-y-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                    <Sparkles size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-700 text-white">Generate from Live Meeting Transcript</h4>
+                    <p className="text-xs text-white/50 mt-1 max-w-sm">
+                      Uses real-time live captions and transcript segments captured during this meeting to produce an AI-summarized Minutes draft.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Record mode */}
               {mode === "record" && (

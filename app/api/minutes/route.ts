@@ -18,8 +18,8 @@ export async function GET(request: Request) {
 
   let filter: Record<string, any> = {};
 
-  // Board members and guests can only see Published minutes
-  if (role === "board_member" || role === "guest") {
+  // Board members can only see Published minutes
+  if (role === "board_member") {
     filter.status = "Published";
   } else if (status) {
     filter.status = status;

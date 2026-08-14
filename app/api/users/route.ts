@@ -11,7 +11,7 @@ const createUserSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(8).optional(),
-  role: z.enum(["super_admin", "admin", "board_secretary", "board_member", "guest"]),
+  role: z.enum(["super_admin", "board_member"]),
   department: z.string().optional(),
   title: z.string().optional(),
   phone: z.string().optional(),

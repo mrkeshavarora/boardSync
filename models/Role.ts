@@ -16,7 +16,7 @@ const RoleSchema = new Schema<IRole>(
       required: true,
       unique: true,
       trim: true,
-      enum: ["super_admin", "admin", "board_secretary", "board_member", "guest"],
+      enum: ["super_admin", "board_member"],
     },
     permissions: [{ type: String }],
     description: { type: String },

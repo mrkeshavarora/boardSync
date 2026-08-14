@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils";
 import io from "socket.io-client";
 import LiveTranscriptPanel from "@/components/meetings/LiveTranscriptPanel";
+import GenerateMinutesModal from "@/components/minutes/GenerateMinutesModal";
 
 const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
@@ -56,6 +57,7 @@ export default function MeetingRoomPage() {
   const [sttStatusText, setSttStatusText] = useState("Live transcription");
   const [sttStatusColor, setSttStatusColor] = useState("text-emerald-400");
   const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
+  const [showGenerateMinutesModal, setShowGenerateMinutesModal] = useState(false);
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
@@ -965,6 +967,25 @@ export default function MeetingRoomPage() {
             <Circle size={18} className={isRecording ? "text-red-400" : ""} />
             <span className="hidden sm:inline">{isRecording ? "Stop Record" : "Record"}</span>
           </button>
+        )}
+
+        {/* Generate MoM */}
+        <button
+          id="generate-mom-btn"
+          onClick={() => setShowGenerateMinutesModal(true)}
+          className="flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30"
+          title="Generate Meeting Minutes"
+        >
+          <Sparkles size={18} className="text-indigo-400" />
+          <span className="hidden sm:inline">Generate MoM</span>
+        </button>
+
+        {showGenerateMinutesModal && (
+          <GenerateMinutesModal
+            meetingId={meetingId}
+            meetingTitle={meeting?.title || "Live Meeting"}
+            onClose={() => setShowGenerateMinutesModal(false)}
+          />
         )}
 
         {/* Divider */}

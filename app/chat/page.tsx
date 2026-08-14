@@ -22,6 +22,8 @@ interface Contact {
   role: string;
   avatar: string | null;
   status: string;
+  lastMessage?: string | null;
+  lastMessageAt?: string | null;
 }
 
 interface UserResult {
@@ -140,8 +142,9 @@ export default function ChatPage() {
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const signalPollRef = useRef<any>(null);
 
-  // Fetch accepted connections
+  // Fetch accepted connections periodically so contact list order stays updated in real-time
   useEffect(() => {
+    let interval: any;
     async function fetchContacts() {
       try {
         const res = await fetch("/api/connections?status=Accepted");
@@ -149,8 +152,6 @@ export default function ChatPage() {
           const data = await res.json();
           const loaded: Contact[] = data.connections || [];
           setContacts(loaded);
-
-          // Contacts loaded
         }
       } catch (e) {
         console.error("Failed to load contacts", e);
@@ -158,9 +159,15 @@ export default function ChatPage() {
         setLoadingContacts(false);
       }
     }
+
     if (session?.user) {
       fetchContacts();
+      interval = setInterval(fetchContacts, 3000);
     }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [session]);
 
   // Handle auto-accepting 1-on-1 or group call when redirected with URL query params
@@ -292,15 +299,23 @@ export default function ChatPage() {
     setNewMessage("");
 
     // Optimistic update
+    const nowIso = new Date().toISOString();
     const tempId = Math.random().toString();
     const tempMsg: Message = {
       _id: tempId,
       senderId: session.user.id,
       receiverId: selectedContact.id,
       message: text,
-      createdAt: new Date().toISOString(),
+      createdAt: nowIso,
     };
     setMessages((prev) => [...prev, tempMsg]);
+    setContacts((prev) =>
+      prev.map((c) =>
+        c.id === selectedContact.id
+          ? { ...c, lastMessage: text, lastMessageAt: nowIso }
+          : c
+      )
+    );
 
     try {
       const res = await fetch("/api/chat", {
@@ -611,11 +626,18 @@ export default function ChatPage() {
     }
   }
 
-  // Filter contacts by query
+  // Filter contacts by query and sort by most recent message timestamp
   const filteredContacts = useMemo(() => {
-    return contacts.filter((c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const q = searchQuery.toLowerCase().trim();
+    return [...contacts]
+      .filter((c) =>
+        !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q)
+      )
+      .sort((a, b) => {
+        const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+        const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+        return timeB - timeA;
+      });
   }, [contacts, searchQuery]);
 
   // Fetch ALL connection statuses (for People tab badge)
@@ -932,31 +954,59 @@ export default function ChatPage() {
                     </button>
                   </div>
                 ) : (
-                  filteredContacts.map((contact) => (
-                    <button
-                      key={contact.id}
-                      onClick={() => setSelectedContact(contact)}
-                      className={cn(
-                        "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
-                        selectedContact?.id === contact.id
-                          ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
-                          : "border border-transparent hover:bg-white/[0.03] text-white/70 hover:text-white"
-                      )}
-                    >
-                      <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0 relative">
-                        {contact.avatar ? (
-                          <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                          getInitials(contact.name)
+                  filteredContacts.map((contact) => {
+                    const isSelected = selectedContact?.id === contact.id;
+                    const formatTime = (iso?: string | null) => {
+                      if (!iso) return "";
+                      const date = new Date(iso);
+                      if (isNaN(date.getTime())) return "";
+                      const now = new Date();
+                      const isToday = date.toDateString() === now.toDateString();
+                      if (isToday) {
+                        return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                      }
+                      return date.toLocaleDateString([], { month: "short", day: "numeric" });
+                    };
+
+                    const timeStr = formatTime(contact.lastMessageAt);
+                    const isCallInvite = contact.lastMessage?.startsWith("[CALL_");
+                    const previewText = isCallInvite
+                      ? "📞 Call"
+                      : contact.lastMessage || contact.role.replace(/_/g, " ");
+
+                    return (
+                      <button
+                        key={contact.id}
+                        onClick={() => setSelectedContact(contact)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
+                          isSelected
+                            ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                            : "border border-transparent hover:bg-white/[0.03] text-white/70 hover:text-white"
                         )}
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1e293b]" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-600 truncate">{contact.name}</p>
-                        <p className="text-xs text-white/40 truncate uppercase">{contact.role.replace(/_/g, " ")}</p>
-                      </div>
-                    </button>
-                  ))
+                      >
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0 relative">
+                          {contact.avatar ? (
+                            <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            getInitials(contact.name)
+                          )}
+                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1e293b]" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <p className="text-sm font-600 truncate text-white">{contact.name}</p>
+                            {timeStr && (
+                              <span className="text-[10px] font-500 text-white/40 shrink-0">{timeStr}</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-white/40 truncate">
+                            {previewText}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             </>

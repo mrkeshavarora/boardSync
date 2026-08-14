@@ -7,7 +7,7 @@ import { UserRole } from "@/models/User";
  * Checks if a user role is an administrative role.
  */
 export function isAdmin(role: UserRole): boolean {
-  return role === "super_admin" || role === "admin";
+  return role === "super_admin";
 }
 
 /**

@@ -226,10 +226,7 @@ export default function UsersContent() {
         >
           <option value="all" className="bg-[#0f172a] text-white">All Roles</option>
           <option value="super_admin" className="bg-[#0f172a] text-white">Super Admin</option>
-          <option value="admin" className="bg-[#0f172a] text-white">Admin</option>
-          <option value="board_secretary" className="bg-[#0f172a] text-white">Board Secretary</option>
           <option value="board_member" className="bg-[#0f172a] text-white">Board Member</option>
-          <option value="guest" className="bg-[#0f172a] text-white">Guest</option>
         </select>
         <select
           value={statusFilter}
@@ -423,10 +420,7 @@ export default function UsersContent() {
                     className="w-full px-3 py-2 bg-[#0f172a] border border-white/[0.08] rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/50"
                   >
                     <option value="board_member" className="bg-[#0f172a] text-white">Board Member</option>
-                    <option value="board_secretary" className="bg-[#0f172a] text-white">Board Secretary</option>
-                    <option value="admin" className="bg-[#0f172a] text-white">Admin</option>
                     <option value="super_admin" className="bg-[#0f172a] text-white">Super Admin</option>
-                    <option value="guest" className="bg-[#0f172a] text-white">Guest</option>
                   </select>
                 </div>
                 <div>

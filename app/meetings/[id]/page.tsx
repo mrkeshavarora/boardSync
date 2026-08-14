@@ -161,13 +161,8 @@ export default async function MeetingDetailsPage(
                 </Link>
               ) : (
                 <>
-                  {meeting.status === "Completed" && hasPermission(role, "minutes:generate") && (
+                  {hasPermission(role, "minutes:generate") && (
                     <GenerateMinutesBtn meetingId={params.id} meetingTitle={meeting.title} />
-                  )}
-                  {meeting.status === "Completed" && !hasPermission(role, "minutes:generate") && (
-                    <div className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 text-sm bg-white/5 border border-white/10 text-white/50 text-center">
-                      <Clock size={16} /> Pending MoM Generation
-                    </div>
                   )}
                 </>
               )}

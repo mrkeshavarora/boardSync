@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type UserRole = "super_admin" | "admin" | "board_secretary" | "board_member" | "guest";
+export type UserRole = "super_admin" | "board_member";
 export type UserStatus = "active" | "inactive" | "pending";
 
 export interface IUser extends Document {
@@ -28,7 +28,7 @@ const UserSchema = new Schema<IUser>(
     password: { type: String, select: false },
     role: {
       type: String,
-      enum: ["super_admin", "admin", "board_secretary", "board_member", "guest"],
+      enum: ["super_admin", "board_member"],
       default: "board_member",
     },
     status: {
