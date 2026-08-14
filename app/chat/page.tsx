@@ -8,11 +8,12 @@ import {
   MessageSquare, Phone, Video, Send, Mic, MicOff, VideoOff,
   Video as VideoIcon, X, Search, Loader2, UserCheck, Shield, PhoneOff,
   PhoneCall, Check, PhoneForwarded, ArrowLeft, Trash2, AlertTriangle,
-  UserPlus, UserX, Users, Clock, Edit2
+  UserPlus, UserX, Users, Clock, Edit2, Smile
 } from "lucide-react";
 import io from "socket.io-client";
 import { cn, getInitials } from "@/lib/utils";
 import GroupCallRoom from "@/components/chat/GroupCallRoom";
+import EmojiPicker from "@/components/chat/EmojiPicker";
 import { Plus } from "lucide-react";
 
 interface Contact {
@@ -44,6 +45,7 @@ interface Message {
   senderId: string;
   receiverId: string;
   message: string;
+  isEdited?: boolean;
   createdAt: string;
 }
 
@@ -68,6 +70,7 @@ interface GroupMessage {
   groupId: string;
   senderId: GroupMember;
   message: string;
+  isEdited?: boolean;
   createdAt: string;
 }
 
@@ -92,6 +95,12 @@ export default function ChatPage() {
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingMessages, setDeletingMessages] = useState(false);
+
+  // Edit message & Emoji states
+  const [editingMessage, setEditingMessage] = useState<{ id: string; type: "direct" | "group"; text: string } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showGroupEmojiPicker, setShowGroupEmojiPicker] = useState(false);
 
   // People Search / Connection Request
   const [activeTab, setActiveTab] = useState<"chats" | "people" | "groups">("chats");
@@ -334,6 +343,63 @@ export default function ChatPage() {
     } catch (e) {
       console.error(e);
       setMessages((prev) => prev.filter((m) => m._id !== tempId));
+    }
+  }
+
+  // Handle Save Edited Message (1-on-1 or Group)
+  async function handleSaveEdit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!editingMessage || !editingMessage.text.trim() || savingEdit) return;
+
+    const { id, type, text } = editingMessage;
+    const updatedText = text.trim();
+    setSavingEdit(true);
+
+    try {
+      if (type === "direct") {
+        const res = await fetch("/api/chat", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messageId: id,
+            message: updatedText,
+          }),
+        });
+
+        if (res.ok) {
+          setMessages((prev) =>
+            prev.map((m) => (m._id === id ? { ...m, message: updatedText, isEdited: true } : m))
+          );
+          setEditingMessage(null);
+        } else {
+          const err = await res.json();
+          alert(err.error || "Failed to update message");
+        }
+      } else if (type === "group" && selectedGroup) {
+        const res = await fetch(`/api/groups/${selectedGroup._id}/messages`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messageId: id,
+            message: updatedText,
+          }),
+        });
+
+        if (res.ok) {
+          setGroupMessages((prev) =>
+            prev.map((m) => (m._id === id ? { ...m, message: updatedText, isEdited: true } : m))
+          );
+          setEditingMessage(null);
+        } else {
+          const err = await res.json();
+          alert(err.error || "Failed to update group message");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to edit message:", err);
+      alert("Something went wrong updating the message.");
+    } finally {
+      setSavingEdit(false);
     }
   }
 
@@ -1259,23 +1325,41 @@ export default function ChatPage() {
                       <div
                         key={msg._id}
                         className={cn(
-                          "flex max-w-[70%] flex-col space-y-1.5",
+                          "flex max-w-[70%] flex-col space-y-1 group relative",
                           isSelf ? "ml-auto items-end" : "mr-auto items-start"
                         )}
                       >
-                        <div
-                          className={cn(
-                            "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
-                            isSelf
-                              ? "bg-indigo-500 text-white rounded-br-none"
-                              : "bg-white/[0.04] border border-white/[0.06] text-white/90 rounded-bl-none"
+                        <div className="flex items-center gap-1">
+                          {isSelf && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingMessage({ id: msg._id, type: "direct", text: msg.message });
+                                setShowEmojiPicker(false);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/40 hover:text-indigo-300 hover:bg-white/[0.08] transition-all shrink-0"
+                              title="Edit message"
+                            >
+                              <Edit2 size={12} />
+                            </button>
                           )}
-                        >
-                          {msg.message}
+                          <div
+                            className={cn(
+                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
+                              isSelf
+                                ? "bg-indigo-500 text-white rounded-br-none"
+                                : "bg-white/[0.04] border border-white/[0.06] text-white/90 rounded-bl-none"
+                            )}
+                          >
+                            {msg.message}
+                          </div>
                         </div>
-                        <span className="text-[9px] text-white/35">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-[9px] text-white/35 px-1">
+                          <span>
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {msg.isEdited && <span className="italic text-white/40">(edited)</span>}
+                        </div>
                       </div>
                     );
                   })
@@ -1284,22 +1368,107 @@ export default function ChatPage() {
               </div>
 
               {/* Input panel */}
-              <form onSubmit={handleSendMessage} className="p-4 border-t border-white/[0.06] flex items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Type a message..."
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/80 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
-                />
-                <button
-                  type="submit"
-                  disabled={!newMessage.trim()}
-                  className="btn-gradient w-11 h-11 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-50"
+              <div className="relative border-t border-white/[0.06]">
+                {/* Editing Message Banner */}
+                {editingMessage && editingMessage.type === "direct" && (
+                  <div className="px-4 py-2 bg-indigo-500/10 border-b border-indigo-500/20 flex items-center justify-between text-xs text-indigo-300">
+                    <div className="flex items-center gap-2 truncate">
+                      <Edit2 size={13} className="shrink-0 text-indigo-400" />
+                      <span className="font-600">Editing Message:</span>
+                      <span className="text-white/60 truncate italic max-w-md">{editingMessage.text}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingMessage(null)}
+                      className="text-white/40 hover:text-white p-1 rounded-md"
+                      title="Cancel edit (Esc)"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Emoji Picker Popover */}
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full left-4 mb-2 z-50">
+                    <EmojiPicker
+                      onSelect={(emoji) => {
+                        if (editingMessage && editingMessage.type === "direct") {
+                          setEditingMessage({ ...editingMessage, text: editingMessage.text + emoji });
+                        } else {
+                          setNewMessage((prev) => prev + emoji);
+                        }
+                      }}
+                      onClose={() => setShowEmojiPicker(false)}
+                    />
+                  </div>
+                )}
+
+                <form
+                  onSubmit={editingMessage && editingMessage.type === "direct" ? handleSaveEdit : handleSendMessage}
+                  className="p-4 flex items-center gap-2"
                 >
-                  <Send size={15} />
-                </button>
-              </form>
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojiPicker((prev) => !prev)}
+                    className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center transition-all shrink-0",
+                      showEmojiPicker
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                        : "bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08]"
+                    )}
+                    title="Add Emoji"
+                  >
+                    <Smile size={18} />
+                  </button>
+
+                  <input
+                    type="text"
+                    placeholder={editingMessage && editingMessage.type === "direct" ? "Edit message..." : "Type a message..."}
+                    value={editingMessage && editingMessage.type === "direct" ? editingMessage.text : newMessage}
+                    onChange={(e) => {
+                      if (editingMessage && editingMessage.type === "direct") {
+                        setEditingMessage({ ...editingMessage, text: e.target.value });
+                      } else {
+                        setNewMessage(e.target.value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && editingMessage) setEditingMessage(null);
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/80 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
+                  />
+
+                  {editingMessage && editingMessage.type === "direct" ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEditingMessage(null)}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white"
+                        title="Cancel"
+                      >
+                        <X size={15} />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!editingMessage.text.trim() || savingEdit}
+                        className="btn-gradient w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-50"
+                        title="Save changes"
+                      >
+                        {savingEdit ? <Loader2 size={15} className="animate-spin" /> : <Check size={16} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={!newMessage.trim()}
+                      className="btn-gradient w-11 h-11 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-50"
+                    >
+                      <Send size={15} />
+                    </button>
+                  )}
+                </form>
+              </div>
             </>
           ) : selectedGroup ? (
             <>
@@ -1381,7 +1550,7 @@ export default function ChatPage() {
                       <div
                         key={msg._id}
                         className={cn(
-                          "flex max-w-[70%] flex-col space-y-1.5",
+                          "flex max-w-[70%] flex-col space-y-1 group relative",
                           isSelf ? "ml-auto items-end" : "mr-auto items-start"
                         )}
                       >
@@ -1390,19 +1559,37 @@ export default function ChatPage() {
                             <span className="text-[10px] font-600 text-indigo-300/70">{msg.senderId.name}</span>
                           </div>
                         )}
-                        <div
-                          className={cn(
-                            "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
-                            isSelf
-                              ? "bg-indigo-500 text-white rounded-br-none"
-                              : "bg-white/[0.04] border border-white/[0.06] text-white/90 rounded-bl-none"
+                        <div className="flex items-center gap-1">
+                          {isSelf && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingMessage({ id: msg._id, type: "group", text: msg.message });
+                                setShowGroupEmojiPicker(false);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-white/40 hover:text-indigo-300 hover:bg-white/[0.08] transition-all shrink-0"
+                              title="Edit group message"
+                            >
+                              <Edit2 size={12} />
+                            </button>
                           )}
-                        >
-                          {msg.message}
+                          <div
+                            className={cn(
+                              "px-4 py-2.5 rounded-2xl text-sm leading-relaxed",
+                              isSelf
+                                ? "bg-indigo-500 text-white rounded-br-none"
+                                : "bg-white/[0.04] border border-white/[0.06] text-white/90 rounded-bl-none"
+                            )}
+                          >
+                            {msg.message}
+                          </div>
                         </div>
-                        <span className="text-[9px] text-white/35">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-[9px] text-white/35 px-1">
+                          <span>
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {msg.isEdited && <span className="italic text-white/40">(edited)</span>}
+                        </div>
                       </div>
                     );
                   })
@@ -1411,22 +1598,107 @@ export default function ChatPage() {
               </div>
 
               {/* Group Input panel */}
-              <form onSubmit={handleSendGroupMessage} className="p-4 border-t border-white/[0.06] flex items-center gap-3">
-                <input
-                  type="text"
-                  placeholder="Type a message to the group..."
-                  value={newGroupMessage}
-                  onChange={(e) => setNewGroupMessage(e.target.value)}
-                  className="flex-1 px-4 py-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/80 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
-                />
-                <button
-                  type="submit"
-                  disabled={!newGroupMessage.trim()}
-                  className="btn-gradient w-11 h-11 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-50"
+              <div className="relative border-t border-white/[0.06]">
+                {/* Editing Message Banner */}
+                {editingMessage && editingMessage.type === "group" && (
+                  <div className="px-4 py-2 bg-indigo-500/10 border-b border-indigo-500/20 flex items-center justify-between text-xs text-indigo-300">
+                    <div className="flex items-center gap-2 truncate">
+                      <Edit2 size={13} className="shrink-0 text-indigo-400" />
+                      <span className="font-600">Editing Message:</span>
+                      <span className="text-white/60 truncate italic max-w-md">{editingMessage.text}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingMessage(null)}
+                      className="text-white/40 hover:text-white p-1 rounded-md"
+                      title="Cancel edit (Esc)"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Group Emoji Picker Popover */}
+                {showGroupEmojiPicker && (
+                  <div className="absolute bottom-full left-4 mb-2 z-50">
+                    <EmojiPicker
+                      onSelect={(emoji) => {
+                        if (editingMessage && editingMessage.type === "group") {
+                          setEditingMessage({ ...editingMessage, text: editingMessage.text + emoji });
+                        } else {
+                          setNewGroupMessage((prev) => prev + emoji);
+                        }
+                      }}
+                      onClose={() => setShowGroupEmojiPicker(false)}
+                    />
+                  </div>
+                )}
+
+                <form
+                  onSubmit={editingMessage && editingMessage.type === "group" ? handleSaveEdit : handleSendGroupMessage}
+                  className="p-4 flex items-center gap-2"
                 >
-                  <Send size={15} />
-                </button>
-              </form>
+                  <button
+                    type="button"
+                    onClick={() => setShowGroupEmojiPicker((prev) => !prev)}
+                    className={cn(
+                      "w-10 h-10 rounded-lg flex items-center justify-center transition-all shrink-0",
+                      showGroupEmojiPicker
+                        ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                        : "bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08]"
+                    )}
+                    title="Add Emoji"
+                  >
+                    <Smile size={18} />
+                  </button>
+
+                  <input
+                    type="text"
+                    placeholder={editingMessage && editingMessage.type === "group" ? "Edit message..." : "Type a message to the group..."}
+                    value={editingMessage && editingMessage.type === "group" ? editingMessage.text : newGroupMessage}
+                    onChange={(e) => {
+                      if (editingMessage && editingMessage.type === "group") {
+                        setEditingMessage({ ...editingMessage, text: e.target.value });
+                      } else {
+                        setNewGroupMessage(e.target.value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && editingMessage) setEditingMessage(null);
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/80 placeholder-white/20 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all"
+                  />
+
+                  {editingMessage && editingMessage.type === "group" ? (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setEditingMessage(null)}
+                        className="w-10 h-10 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white"
+                        title="Cancel"
+                      >
+                        <X size={15} />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!editingMessage.text.trim() || savingEdit}
+                        className="btn-gradient w-10 h-10 rounded-lg flex items-center justify-center disabled:opacity-50"
+                        title="Save changes"
+                      >
+                        {savingEdit ? <Loader2 size={15} className="animate-spin" /> : <Check size={16} />}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={!newGroupMessage.trim()}
+                      className="btn-gradient w-11 h-11 rounded-lg flex items-center justify-center shrink-0 disabled:opacity-50"
+                    >
+                      <Send size={15} />
+                    </button>
+                  )}
+                </form>
+              </div>
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 text-white/30">

@@ -68,3 +68,44 @@ export async function POST(
 
   return NextResponse.json({ message: populated }, { status: 201 });
 }
+
+// PUT /api/groups/[id]/messages — edit user's own sent group message
+export async function PUT(
+  request: Request,
+  props: { params: Promise<{ id: string }> }
+) {
+  const { id } = await props.params;
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await request.json();
+  const { messageId, message } = body;
+  if (!messageId || !message?.trim()) {
+    return NextResponse.json({ error: "Message ID and updated content are required." }, { status: 400 });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(messageId)) {
+    return NextResponse.json({ error: "Invalid message ID." }, { status: 400 });
+  }
+
+  await connectDB();
+
+  // Find message and ensure current user is the author and belongs to this group
+  const groupMsg = await GroupMessage.findOne({
+    _id: new mongoose.Types.ObjectId(messageId),
+    groupId: new mongoose.Types.ObjectId(id),
+    senderId: new mongoose.Types.ObjectId(session.user.id),
+  });
+
+  if (!groupMsg) {
+    return NextResponse.json({ error: "Group message not found or you are not authorized to edit it." }, { status: 404 });
+  }
+
+  groupMsg.message = message.trim();
+  groupMsg.isEdited = true;
+  await groupMsg.save();
+
+  const populated = await groupMsg.populate("senderId", "name avatar role");
+
+  return NextResponse.json({ success: true, message: populated });
+}

@@ -4,6 +4,7 @@ export interface IGroupMessage extends Document {
   groupId: mongoose.Types.ObjectId;
   senderId: mongoose.Types.ObjectId;
   message: string;
+  isEdited?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -13,6 +14,7 @@ const GroupMessageSchema = new Schema<IGroupMessage>(
     groupId: { type: Schema.Types.ObjectId, ref: "Group", required: true },
     senderId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     message: { type: String, required: true },
+    isEdited: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
