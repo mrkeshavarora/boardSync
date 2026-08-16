@@ -59,9 +59,10 @@ io.on('connection', (socket) => {
     socket.emit('current-participants', { participants });
   });
 
-  socket.on('offer', ({ to, from, description }) => {
+  socket.on('offer', ({ to, from, description, userName }) => {
     console.log(`Offer from ${from} to ${to}`);
-    io.to(to).emit('offer', { from, description });
+    // Forward userName so the receiving peer can display the sender's name
+    io.to(to).emit('offer', { from, description, userName });
   });
 
   socket.on('answer', ({ to, from, description }) => {
@@ -87,11 +88,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('transcript:partial', (data) => {
-    io.to(data.meetingId).emit('transcript:partial', data);
+    // Broadcast to everyone ELSE in the room — sender already shows it via local-transcript event
+    socket.to(data.meetingId).emit('transcript:partial', data);
   });
 
   socket.on('transcript:final', (data) => {
-    io.to(data.meetingId).emit('transcript:final', data);
+    // Broadcast to everyone ELSE in the room — sender already shows it via local-transcript event
+    socket.to(data.meetingId).emit('transcript:final', data);
   });
 
   socket.on('transcript:error', (data) => {
