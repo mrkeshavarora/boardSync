@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, X, Clock, User as UserIcon, List, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -19,6 +19,16 @@ export default function AddAgendaModal({ meetingId, onAdded }: AddAgendaModalPro
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("15");
   const [presenter, setPresenter] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isOpen]);
 
   const handleOpen = () => {
     setTitle("");

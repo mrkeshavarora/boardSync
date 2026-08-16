@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Mic, MicOff, Square, Upload, Loader2, CheckCircle2, XCircle,
@@ -39,6 +39,15 @@ export default function GenerateMinutesModal({
   const [mode, setMode] = useState<"ai" | "record" | "upload" | "transcript">("ai");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Prevent background scrolling while modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, []);
 
   // --- Recording ---
   const startRecording = async () => {
@@ -142,7 +151,7 @@ export default function GenerateMinutesModal({
   const isProcessing = ["uploading", "transcribing", "generating"].includes(step);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
       <div
         className="w-full max-w-lg rounded-2xl border animate-fade-in"
         style={{ background: "var(--bg-card)", borderColor: "var(--border-default)" }}
