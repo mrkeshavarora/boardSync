@@ -54,15 +54,6 @@ export async function PATCH(request: Request, { params }: Params) {
   const minutes = await Minutes.findById(id);
   if (!minutes) return NextResponse.json({ error: "Minutes not found" }, { status: 404 });
 
-  const role = session.user.role as UserRole;
-  const meetingIdStr = minutes.meetingId?.toString();
-  if (meetingIdStr) {
-    const hasAccess = await canAccessMeeting(session.user.id, role, meetingIdStr);
-    if (!hasAccess) {
-      return NextResponse.json({ error: "Forbidden — You do not have access to minutes for this meeting." }, { status: 403 });
-    }
-  }
-
   // Cannot edit approved/published minutes
   if (minutes.status === "Published" || minutes.status === "Archived") {
     return NextResponse.json({ error: "Cannot edit minutes that are Published or Archived." }, { status: 409 });

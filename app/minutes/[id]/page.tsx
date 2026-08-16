@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   ChevronLeft, FileText, CheckCircle2, AlertTriangle,
-  Save, Loader2, Send, Edit3, Gavel, Lightbulb, Target, ChevronDown, MessageSquare,
+  Save, Loader2, Send, Edit3, Gavel, Lightbulb, Target,
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import MinutesPDFDownload from "@/components/minutes/MinutesPDFDownload";
@@ -27,7 +27,6 @@ export default function MinutesDetailPage({
   const [isEditing, setIsEditing] = useState(false);
   const [editedData, setEditedData] = useState<any>({});
   const [errorMsg, setErrorMsg] = useState("");
-  const [showTranscript, setShowTranscript] = useState(false);
 
   useEffect(() => {
     fetchMinutes();
@@ -593,26 +592,6 @@ export default function MinutesDetailPage({
               )}
             </Section>
           </div>
-
-          {/* Live Speech & Transcript Log */}
-          {minutes.transcript && (
-            <Section title="Live Speech & Transcript Log" icon={<MessageSquare size={18} className="text-cyan-400" />}>
-              <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border-subtle)", background: "rgba(255,255,255,0.01)" }}>
-                <button
-                  onClick={() => setShowTranscript(!showTranscript)}
-                  className="w-full px-4 py-3 flex items-center justify-between text-xs font-600 text-white/70 hover:text-white hover:bg-white/[0.02] transition-colors"
-                >
-                  <span>{showTranscript ? "Hide Full Meeting Speech Transcript" : "View Full Meeting Speech Transcript"}</span>
-                  <ChevronDown size={16} className={`transition-transform duration-200 ${showTranscript ? "rotate-180" : ""}`} />
-                </button>
-                {showTranscript && (
-                  <div className="p-4 border-t text-xs font-mono text-white/80 whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto" style={{ borderColor: "var(--border-subtle)", background: "rgba(0,0,0,0.2)" }}>
-                    {minutes.transcript}
-                  </div>
-                )}
-              </div>
-            </Section>
-          )}
 
         </div>
       </div>
