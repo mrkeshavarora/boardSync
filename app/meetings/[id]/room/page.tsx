@@ -160,24 +160,21 @@ export default function MeetingRoomPage() {
     return () => clearInterval(t);
   }, []);
 
-  // Speech Recognition / STT Loop using Web Speech API + Whisper Backup
+  // Speech Recognition / STT Loop using Web Speech API
+  // Single stable instance — never recreated on mute/unmute to avoid re-init delay.
   const chunkIntervalRef = useRef<any>(null);
   const activeRecordersRef = useRef<MediaRecorder[]>([]);
   const speechRecRef = useRef<any>(null);
+  const isMutedRef = useRef(isMuted); // always-current ref to avoid stale closures in onend
 
-  // 1. Web Speech API (Browser Native Real-Time STT)
+  // Keep isMutedRef in sync without recreating the recognition instance
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
+
+  // 1. Web Speech API — initialised ONCE per meeting session
   useEffect(() => {
     if (!session?.user) return;
-
-    if (isMuted) {
-      setIsSttListening(false);
-      setSttStatusText("Muted");
-      setSttStatusColor("text-red-400");
-      if (speechRecRef.current) {
-        try { speechRecRef.current.stop(); } catch {}
-      }
-      return;
-    }
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -186,109 +183,140 @@ export default function MeetingRoomPage() {
       console.warn("STT: Web Speech API is not supported in this browser.");
       setSttStatusText("Speech API Not Supported (Use Chrome/Edge)");
       setSttStatusColor("text-amber-400");
-    } else {
-      try {
-        if (speechRecRef.current) {
-          try { speechRecRef.current.stop(); } catch {}
+      return;
+    }
+
+    // Abort any previous instance
+    if (speechRecRef.current) {
+      try { speechRecRef.current.abort(); } catch {}
+      speechRecRef.current = null;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognition.maxAlternatives = 1; // no need for multiple alternatives — reduces overhead
+
+    recognition.onstart = () => {
+      setIsSttListening(true);
+      setSttStatusText("Live transcription");
+      setSttStatusColor("text-emerald-400");
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      // Only iterate new results since last event (event.resultIndex)
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
         }
-
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onstart = () => {
-          setIsSttListening(true);
-          setSttStatusText("Live transcription");
-          setSttStatusColor("text-emerald-400");
-        };
-
-        recognition.onresult = async (event: any) => {
-          let finalTranscript = "";
-          let interimTranscript = "";
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript;
-            } else {
-              interimTranscript += event.results[i][0].transcript;
-            }
-          }
-
-          if (interimTranscript.trim()) {
-            const partialData = {
-              meetingId,
-              speakerId: session.user.id,
-              speakerName: session.user.name || "Participant",
-              text: interimTranscript.trim(),
-              timestamp: new Date().toISOString(),
-              isFinal: false,
-            };
-
-            window.dispatchEvent(new CustomEvent("local-transcript", { detail: partialData }));
-
-            if (socketRef.current) {
-              socketRef.current.emit("transcript:partial", partialData);
-            }
-          }
-
-          const trimmed = finalTranscript.trim();
-          if (trimmed.length > 0) {
-            const timestamp = new Date().toISOString();
-            const segment = {
-              meetingId,
-              speakerId: session.user.id,
-              speakerName: session.user.name || "Participant",
-              text: trimmed,
-              timestamp,
-              isFinal: true,
-            };
-
-            window.dispatchEvent(new CustomEvent("local-transcript", { detail: segment }));
-
-            if (socketRef.current) {
-              socketRef.current.emit("transcript:final", segment);
-            }
-
-            // Save segment to MongoDB
-            fetch(`/api/meetings/${meetingId}/transcript`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(segment),
-            }).catch((err) => console.error("Failed to save transcript segment:", err));
-          }
-        };
-
-        recognition.onerror = (err: any) => {
-          console.warn("Web Speech recognition error:", err.error);
-          if (err.error === "no-speech") return;
-          setSttStatusText(`Speech status: ${err.error}`);
-        };
-
-        recognition.onend = () => {
-          setIsSttListening(false);
-          // Restart if still active and not muted
-          if (speechRecRef.current && !isMuted) {
-            try { speechRecRef.current.start(); } catch {}
-          }
-        };
-
-        speechRecRef.current = recognition;
-        recognition.start();
-      } catch (err) {
-        console.warn("Could not start Web Speech Recognition:", err);
       }
+
+      // ── Interim: show word-by-word as user speaks ──
+      if (interimTranscript.trim()) {
+        const partialData = {
+          meetingId,
+          speakerId: session.user.id,
+          speakerName: session.user.name || "Participant",
+          text: interimTranscript.trim(),
+          timestamp: new Date().toISOString(),
+          isFinal: false,
+        };
+        // Show instantly in local panel
+        window.dispatchEvent(new CustomEvent("local-transcript", { detail: partialData }));
+        // Broadcast to other participants
+        if (socketRef.current?.connected) {
+          socketRef.current.emit("transcript:partial", partialData);
+        }
+      }
+
+      // ── Final: commit confirmed sentence ──
+      const trimmed = finalTranscript.trim();
+      if (trimmed.length > 0) {
+        const timestamp = new Date().toISOString();
+        const segment = {
+          meetingId,
+          speakerId: session.user.id,
+          speakerName: session.user.name || "Participant",
+          text: trimmed,
+          timestamp,
+          isFinal: true,
+        };
+        window.dispatchEvent(new CustomEvent("local-transcript", { detail: segment }));
+        if (socketRef.current?.connected) {
+          socketRef.current.emit("transcript:final", segment);
+        }
+        // Save to DB in the background (non-blocking)
+        fetch(`/api/meetings/${meetingId}/transcript`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(segment),
+        }).catch(() => {});
+      }
+    };
+
+    recognition.onerror = (err: any) => {
+      // "no-speech" is normal silence — don't surface it as an error
+      if (err.error === "no-speech" || err.error === "aborted") return;
+      console.warn("Web Speech recognition error:", err.error);
+      setSttStatusText(`Speech: ${err.error}`);
+    };
+
+    recognition.onend = () => {
+      setIsSttListening(false);
+      // Immediately restart if not muted — zero delay keeps transcription gapless
+      if (!isMutedRef.current && speechRecRef.current) {
+        try { speechRecRef.current.start(); } catch {}
+      }
+    };
+
+    speechRecRef.current = recognition;
+
+    // Start only if not muted
+    if (!isMutedRef.current) {
+      try { recognition.start(); } catch {}
     }
 
     return () => {
       if (speechRecRef.current) {
         try { speechRecRef.current.abort(); } catch {}
+        speechRecRef.current = null;
       }
     };
-  }, [isMuted, meetingId, session]);
+  // Only re-initialize when session or meetingId changes — NOT on isMuted toggle
+  }, [meetingId, session]);
 
-  // 2. Secondary OpenAI Whisper Audio Chunking Recorder
+  // 2. Handle mute/unmute by starting/stopping the existing recognition instance
+  //    without destroying and recreating it (which caused the startup delay).
   useEffect(() => {
+    if (!speechRecRef.current) return;
+    if (isMuted) {
+      // Stop gracefully — onend will NOT restart because isMutedRef.current is true
+      try { speechRecRef.current.stop(); } catch {}
+      setIsSttListening(false);
+      setSttStatusText("Muted");
+      setSttStatusColor("text-red-400");
+    } else {
+      // Resume — start the same instance
+      try { speechRecRef.current.start(); } catch {}
+    }
+  }, [isMuted]);
+
+  // 3. Whisper chunk recorder — only used as a FALLBACK when Web Speech API
+  //    is NOT available (Firefox, some mobile browsers).
+  //    When Web Speech API is running, skip to avoid 6–11 second delayed duplicates.
+  useEffect(() => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    // Web Speech API available → Whisper fallback not needed
+    if (SpeechRecognition) return;
     if (!session?.user || isMuted) return;
 
     const recordNextChunk = () => {
@@ -298,7 +326,6 @@ export default function MeetingRoomPage() {
 
       const audioStream = new MediaStream([audioTrack]);
       const chunks: Blob[] = [];
-
       let recorderOptions: any = {};
       let extension = "webm";
       let mimeType = "audio/webm";
@@ -316,44 +343,32 @@ export default function MeetingRoomPage() {
       try {
         const recorder = new MediaRecorder(audioStream, recorderOptions);
         activeRecordersRef.current.push(recorder);
-
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) chunks.push(e.data);
-        };
-
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
         recorder.onstop = async () => {
           activeRecordersRef.current = activeRecordersRef.current.filter((r) => r !== recorder);
           if (chunks.length === 0) return;
           const blob = new Blob(chunks, { type: mimeType });
-
           const formData = new FormData();
           formData.append("audio", blob, `chunk.${extension}`);
-
           try {
             const res = await fetch(`/api/meetings/${meetingId}/transcript/chunk`, {
-              method: "POST",
-              body: formData,
+              method: "POST", body: formData,
             });
-
             if (res.ok) {
               const data = await res.json();
-              if (data.text && data.text.trim()) {
-                const timestamp = new Date().toISOString();
+              if (data.text?.trim()) {
                 const segment = {
                   meetingId,
                   speakerId: session.user.id,
                   speakerName: session.user.name || "Participant",
                   text: data.text.trim(),
-                  timestamp,
+                  timestamp: new Date().toISOString(),
                   isFinal: true,
                 };
-
                 window.dispatchEvent(new CustomEvent("local-transcript", { detail: segment }));
-
-                if (socketRef.current) {
+                if (socketRef.current?.connected) {
                   socketRef.current.emit("transcript:final", segment);
                 }
-
                 await fetch(`/api/meetings/${meetingId}/transcript`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -363,12 +378,9 @@ export default function MeetingRoomPage() {
             }
           } catch {}
         };
-
         recorder.start();
         setTimeout(() => {
-          if (recorder.state !== "inactive") {
-            try { recorder.stop(); } catch {}
-          }
+          if (recorder.state !== "inactive") { try { recorder.stop(); } catch {} }
         }, 5000);
       } catch {}
     };
@@ -379,9 +391,7 @@ export default function MeetingRoomPage() {
     return () => {
       if (chunkIntervalRef.current) clearInterval(chunkIntervalRef.current);
       activeRecordersRef.current.forEach((r) => {
-        if (r.state !== "inactive") {
-          try { r.stop(); } catch {}
-        }
+        if (r.state !== "inactive") { try { r.stop(); } catch {} }
       });
       activeRecordersRef.current = [];
     };
