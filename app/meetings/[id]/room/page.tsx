@@ -1155,7 +1155,7 @@ export default function MeetingRoomPage() {
                 autoPlay
                 playsInline
                 muted
-                className={cn("w-full h-full object-cover scale-x-[-1]", (isCameraOff) && "hidden")}
+                className={cn("w-full h-full object-contain scale-x-[-1]", (isCameraOff) && "hidden")}
               />
               
               {/* Picture in Picture Button */}
@@ -1233,7 +1233,7 @@ export default function MeetingRoomPage() {
                         remoteVideoRefs.current[peerId] = el;
                       }
                     }}
-                    className={cn("w-full h-full object-cover", !hasVideo && "hidden")}
+                    className={cn("w-full h-full object-contain", !hasVideo && "hidden")}
                   />
                   
                   {/* Remote Camera Off Avatar Fallback */}

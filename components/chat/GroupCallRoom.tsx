@@ -378,7 +378,7 @@ export default function GroupCallRoom({
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain scale-x-[-1]"
                 />
                 {isCameraOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
@@ -571,7 +571,7 @@ function RemoteTile({
           }}
           autoPlay
           playsInline
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">

@@ -1923,7 +1923,7 @@ export default function ChatPage() {
                     }}
                     autoPlay
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-contain mx-auto bg-black"
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white/40">
@@ -1933,7 +1933,7 @@ export default function ChatPage() {
                 )}
 
                 {/* Local PIP — floating corner overlay */}
-                <div className="absolute bottom-4 right-4 w-28 h-20 sm:w-36 sm:h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10">
+                <div className="absolute bottom-4 right-4 w-28 h-20 sm:w-36 sm:h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10 flex items-center justify-center">
                   <video
                     ref={(el) => {
                       localVideoRef.current = el;
@@ -1942,7 +1942,7 @@ export default function ChatPage() {
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-black scale-x-[-1]"
                   />
                   <div className="absolute bottom-1 left-2 text-[9px] text-white/60 font-500">You</div>
                 </div>
