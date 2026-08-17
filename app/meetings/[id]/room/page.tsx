@@ -112,7 +112,7 @@ export default function MeetingRoomPage() {
           payload: { action, targetPeerId },
         },
       }),
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const handleMuteAll = () => {
@@ -192,7 +192,7 @@ export default function MeetingRoomPage() {
 
     // Abort and clean up any previous instance
     if (speechRecRef.current) {
-      try { speechRecRef.current.abort(); } catch {}
+      try { speechRecRef.current.abort(); } catch { }
       speechRecRef.current = null;
     }
     if (restartTimerRef.current) {
@@ -287,7 +287,7 @@ export default function MeetingRoomPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(segment),
-        }).catch(() => {});
+        }).catch(() => { });
       }
     };
 
@@ -333,7 +333,7 @@ export default function MeetingRoomPage() {
         restartTimerRef.current = null;
       }
       if (speechRecRef.current) {
-        try { speechRecRef.current.abort(); } catch {}
+        try { speechRecRef.current.abort(); } catch { }
         speechRecRef.current = null;
       }
     };
@@ -349,7 +349,7 @@ export default function MeetingRoomPage() {
         restartTimerRef.current = null;
       }
       if (isRecognizingRef.current) {
-        try { speechRecRef.current.stop(); } catch {}
+        try { speechRecRef.current.stop(); } catch { }
       }
       setIsSttListening(false);
       setSttStatusText("Muted");
@@ -363,7 +363,7 @@ export default function MeetingRoomPage() {
         restartTimerRef.current = setTimeout(() => {
           restartTimerRef.current = null;
           if (speechRecRef.current && !isRecognizingRef.current && !isMutedRef.current) {
-            try { speechRecRef.current.start(); } catch {}
+            try { speechRecRef.current.start(); } catch { }
           }
         }, 100);
       }
@@ -438,13 +438,13 @@ export default function MeetingRoomPage() {
                 });
               }
             }
-          } catch {}
+          } catch { }
         };
         recorder.start();
         setTimeout(() => {
-          if (recorder.state !== "inactive") { try { recorder.stop(); } catch {} }
+          if (recorder.state !== "inactive") { try { recorder.stop(); } catch { } }
         }, 5000);
-      } catch {}
+      } catch { }
     };
 
     const interval = setInterval(recordNextChunk, 6000);
@@ -453,7 +453,7 @@ export default function MeetingRoomPage() {
     return () => {
       if (chunkIntervalRef.current) clearInterval(chunkIntervalRef.current);
       activeRecordersRef.current.forEach((r) => {
-        if (r.state !== "inactive") { try { r.stop(); } catch {} }
+        if (r.state !== "inactive") { try { r.stop(); } catch { } }
       });
       activeRecordersRef.current = [];
     };
@@ -533,7 +533,7 @@ export default function MeetingRoomPage() {
         source?.disconnect();
         analyser?.disconnect();
         audioCtx?.close();
-      } catch {}
+      } catch { }
     };
   }, [isMuted, cameraStreamRef.current, meetingId]);
 
@@ -603,7 +603,7 @@ export default function MeetingRoomPage() {
     return () => {
       if (animId) cancelAnimationFrame(animId);
       ctxs.forEach((ctx) => {
-        try { ctx.close(); } catch {}
+        try { ctx.close(); } catch { }
       });
     };
   }, [remoteStreams]);
@@ -737,7 +737,7 @@ export default function MeetingRoomPage() {
 
     async function startMedia() {
       let localStream: MediaStream | null = null;
-      
+
       try {
         // Try getting both Video and Audio with Echo Cancellation
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -790,9 +790,9 @@ export default function MeetingRoomPage() {
       }
 
       // Join room once media setup is resolved
-      socket.emit("join-room", { 
-        meetingId, 
-        user: { name: session?.user?.name || "Guest" } 
+      socket.emit("join-room", {
+        meetingId,
+        user: { name: session?.user?.name || "Guest" }
       });
     }
 
@@ -855,9 +855,9 @@ export default function MeetingRoomPage() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         if (socketRef.current) {
-          socketRef.current.emit("offer", { 
-            to: peerId, 
-            from: socketRef.current.id, 
+          socketRef.current.emit("offer", {
+            to: peerId,
+            from: socketRef.current.id,
             description: pc.localDescription,
             userName: session?.user?.name || "Guest"
           });
@@ -1137,9 +1137,9 @@ export default function MeetingRoomPage() {
           <div className={cn(
             "grid gap-4 w-full max-h-[85vh] overflow-y-auto items-center justify-center p-2",
             totalParticipants === 1 ? "grid-cols-1 max-w-3xl" :
-            totalParticipants === 2 ? "grid-cols-1 md:grid-cols-2 max-w-5xl" :
-            totalParticipants <= 4 ? "grid-cols-1 sm:grid-cols-2 max-w-5xl" :
-            "grid-cols-2 sm:grid-cols-3 max-w-6xl"
+              totalParticipants === 2 ? "grid-cols-1 md:grid-cols-2 max-w-5xl" :
+                totalParticipants <= 4 ? "grid-cols-1 sm:grid-cols-2 max-w-5xl" :
+                  "grid-cols-2 sm:grid-cols-3 max-w-6xl"
           )}>
             {/* Local Video Card */}
             <div
@@ -1155,9 +1155,9 @@ export default function MeetingRoomPage() {
                 autoPlay
                 playsInline
                 muted
-                className={cn("w-full h-full object-contain scale-x-[-1]", (isCameraOff) && "hidden")}
+                className={cn("w-full h-full object-cover scale-x-[-1]", (isCameraOff) && "hidden")}
               />
-              
+
               {/* Picture in Picture Button */}
               <button
                 onClick={() => togglePiP(localVideoRef.current)}
@@ -1187,7 +1187,7 @@ export default function MeetingRoomPage() {
                   )}
                 </div>
               )}
-              
+
               {/* Participant Name Badge & Speaking Indicator */}
               <div
                 className={cn(
@@ -1215,7 +1215,7 @@ export default function MeetingRoomPage() {
               const hasVideo = stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks().some(t => t.enabled);
 
               return (
-                <div 
+                <div
                   key={peerId}
                   className={cn(
                     "relative w-full aspect-video bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl animate-fade-in group transition-all duration-300",
@@ -1233,9 +1233,9 @@ export default function MeetingRoomPage() {
                         remoteVideoRefs.current[peerId] = el;
                       }
                     }}
-                    className={cn("w-full h-full object-contain", !hasVideo && "hidden")}
+                    className={cn("w-full h-full object-cover", !hasVideo && "hidden")}
                   />
-                  
+
                   {/* Remote Camera Off Avatar Fallback */}
                   {!hasVideo && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f1d] text-white p-4">

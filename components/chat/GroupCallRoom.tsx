@@ -104,7 +104,7 @@ export default function GroupCallRoom({
         source?.disconnect();
         analyser?.disconnect();
         audioCtx?.close();
-      } catch {}
+      } catch { }
     };
   }, [isMuted, localStream]);
 
@@ -148,7 +148,7 @@ export default function GroupCallRoom({
     const pending = pendingCandidatesRef.current.get(remoteId) ?? [];
     const pc = pcsRef.current.get(remoteId);
     if (pc) {
-      pending.forEach((c) => pc.addIceCandidate(c).catch(() => {}));
+      pending.forEach((c) => pc.addIceCandidate(c).catch(() => { }));
     }
     pendingCandidatesRef.current.delete(remoteId);
   }
@@ -257,7 +257,7 @@ export default function GroupCallRoom({
       socket.on("ice-candidate", async ({ from, candidate }: any) => {
         const pc = pcsRef.current.get(from);
         if (pc && pc.remoteDescription) {
-          await pc.addIceCandidate(candidate).catch(() => {});
+          await pc.addIceCandidate(candidate).catch(() => { });
         } else {
           const pending = pendingCandidatesRef.current.get(from) ?? [];
           pending.push(candidate);
@@ -378,7 +378,7 @@ export default function GroupCallRoom({
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-contain scale-x-[-1]"
+                  className="w-full h-full object-cover"
                 />
                 {isCameraOff && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
@@ -550,7 +550,7 @@ function RemoteTile({
         source?.disconnect();
         analyser?.disconnect();
         audioCtx?.close();
-      } catch {}
+      } catch { }
     };
   }, [participant.stream]);
 
@@ -571,7 +571,7 @@ function RemoteTile({
           }}
           autoPlay
           playsInline
-          className="w-full h-full object-contain"
+          className="w-full h-full object-cover"
         />
       ) : (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900">
