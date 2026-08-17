@@ -110,6 +110,10 @@ io.on('connection', (socket) => {
     socket.to(data.meetingId).emit('transcript:stopped', data);
   });
 
+  socket.on('call-ended', ({ meetingId }) => {
+    socket.to(meetingId).emit('call-ended', { socketId: socket.id });
+  });
+
   socket.on('leave-room', ({ meetingId }) => {
     socket.leave(meetingId);
     if (rooms.has(meetingId)) {

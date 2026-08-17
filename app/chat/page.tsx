@@ -611,7 +611,35 @@ export default function ChatPage() {
       }
     });
 
+    pc.onconnectionstatechange = () => {
+      console.log("Chat call: pc connectionState changed to:", pc.connectionState);
+      if (
+        pc.connectionState === "disconnected" ||
+        pc.connectionState === "failed" ||
+        pc.connectionState === "closed"
+      ) {
+        endCall();
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      console.log("Chat call: pc iceConnectionState changed to:", pc.iceConnectionState);
+      if (
+        pc.iceConnectionState === "disconnected" ||
+        pc.iceConnectionState === "failed" ||
+        pc.iceConnectionState === "closed"
+      ) {
+        endCall();
+      }
+    };
+
     socket.on("user-left", () => {
+      console.log("Remote peer left room, ending call");
+      endCall();
+    });
+
+    socket.on("call-ended", () => {
+      console.log("Remote peer ended call");
       endCall();
     });
 
@@ -627,16 +655,19 @@ export default function ChatPage() {
         const data = await res.json();
         for (const sig of data.signals || []) {
           if (sig.from === session?.user?.id) continue;
-          if (sig.type === "offer" && pc.signalingState === "stable") {
-            await pc.setRemoteDescription(sig.data);
+          if (sig.type === "call-ended" || sig.type === "end-call") {
+            endCall();
+            return;
+          } else if (sig.type === "offer" && pc.signalingState === "stable") {
+            await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            sendHttpSignal("answer", pc.localDescription);
+            sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
           } else if (sig.type === "answer" && pc.signalingState === "have-local-offer") {
-            await pc.setRemoteDescription(sig.data);
+            await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
           } else if (sig.type === "candidate") {
             try {
-              await pc.addIceCandidate(sig.data);
+              await pc.addIceCandidate(new RTCIceCandidate(sig.data));
             } catch {}
           }
         }
@@ -657,14 +688,38 @@ export default function ChatPage() {
     });
     setRemoteStream(null);
 
+    // Notify remote peer via socket before tearing down
+    if (socketRef.current) {
+      try {
+        socketRef.current.emit("call-ended", { meetingId: callRoomName });
+        socketRef.current.emit("leave-room", { meetingId: callRoomName });
+      } catch {}
+      setTimeout(() => {
+        if (socketRef.current) {
+          socketRef.current.disconnect();
+          socketRef.current = null;
+        }
+      }, 100);
+    }
+
     if (pcRef.current) {
-      pcRef.current.close();
+      try { pcRef.current.close(); } catch {}
       pcRef.current = null;
     }
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-      socketRef.current = null;
-    }
+
+    // Send HTTP signal fallback
+    try {
+      fetch("/api/chat/signal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send",
+          room: callRoomName,
+          to: selectedContact?.id,
+          data: { type: "call-ended", payload: {} },
+        }),
+      }).catch(() => {});
+    } catch {}
 
     // Send call end signal in DB
     if (selectedContact) {
