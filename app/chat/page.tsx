@@ -1822,7 +1822,7 @@ export default function ChatPage() {
                     }}
                     autoPlay
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-contain mx-auto"
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white/40">
