@@ -113,8 +113,12 @@ export async function POST(
   try {
     generated = await generateMoM(transcriptText, meta);
   } catch (err: any) {
+    let errorMsg = err.message || "Unknown error";
+    if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
+      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits. Please add billing credits at platform.openai.com or update OPENAI_API_KEY.";
+    }
     return NextResponse.json(
-      { error: `AI generation failed: ${err.message || "Unknown error"}` },
+      { error: errorMsg },
       { status: 500 }
     );
   }

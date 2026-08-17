@@ -171,9 +171,12 @@ Generate the structured JSON analysis:`;
       { upsert: true, new: true }
     );
 
-    return NextResponse.json({ success: true, meeting });
   } catch (err: any) {
     console.error("AI minutes generation failed:", err);
-    return NextResponse.json({ error: err.message || "Failed to generate AI minutes" }, { status: 500 });
+    let errorMsg = err.message || "Failed to generate AI minutes";
+    if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
+      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits. Please add billing credits at platform.openai.com or update OPENAI_API_KEY.";
+    }
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 }
