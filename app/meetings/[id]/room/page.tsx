@@ -64,10 +64,12 @@ export default function MeetingRoomPage() {
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
+  const [socketInstance, setSocketInstance] = useState<any>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  const [cameraStreamReady, setCameraStreamReady] = useState(false);
   const pcs = useRef<Record<string, RTCPeerConnection>>({});
   const pendingRemoteIceCandidates = useRef<Record<string, RTCIceCandidateInit[]>>({});
   const [remoteStreams, setRemoteStreams] = useState<PeerStream[]>([]);
@@ -535,7 +537,7 @@ export default function MeetingRoomPage() {
         audioCtx?.close();
       } catch { }
     };
-  }, [isMuted, cameraStreamRef.current, meetingId]);
+  }, [isMuted, cameraStreamReady, meetingId]);
 
   // Real-time remote peers speaking detection via local audio analysis
   useEffect(() => {
@@ -615,6 +617,7 @@ export default function MeetingRoomPage() {
     console.log("Initializing WebRTC Socket. URL:", SIGNALING_URL);
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
+    setSocketInstance(socket);
 
     function flushRemoteIceCandidates(peerId: string, pc: RTCPeerConnection) {
       const queue = pendingRemoteIceCandidates.current[peerId];
@@ -774,6 +777,7 @@ export default function MeetingRoomPage() {
 
       if (localStream) {
         cameraStreamRef.current = localStream;
+        setCameraStreamReady(true);
         if (localVideoRef.current && localStream.getVideoTracks().length > 0) {
           localVideoRef.current.srcObject = localStream;
         }
@@ -1123,7 +1127,7 @@ export default function MeetingRoomPage() {
         {/* Live Transcript Panel (Left Side) */}
         {showTranscript && (
           <LiveTranscriptPanel
-            socket={socketRef.current}
+            socket={socketInstance}
             meetingId={meetingId}
             currentUser={{ id: session?.user?.id || "", name: session?.user?.name || "Participant" }}
             isListening={isSttListening}
@@ -1155,7 +1159,8 @@ export default function MeetingRoomPage() {
                 autoPlay
                 playsInline
                 muted
-                className={cn("w-full h-full object-contain scale-x-[-1]", (isCameraOff) && "hidden")}
+                className="w-full h-full object-contain scale-x-[-1]"
+                style={{ visibility: isCameraOff ? "hidden" : "visible" }}
               />
 
               {/* Picture in Picture Button */}
