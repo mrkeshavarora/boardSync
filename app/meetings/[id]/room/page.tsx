@@ -935,7 +935,6 @@ export default function MeetingRoomPage() {
   const handleEndMeeting = async () => {
     if (!confirm("Are you sure you want to end this meeting for everyone?")) return;
     setEnding(true);
-    let targetUrl = `/meetings/${meetingId}`;
     try {
       // 1. Mark meeting as completed
       await fetch(`/api/meetings/${meetingId}`, {
@@ -944,25 +943,16 @@ export default function MeetingRoomPage() {
         body: JSON.stringify({ status: "Completed" }),
       });
 
-      // 2. Generate AI Minutes from all live transcript segments
+      // 2. Generate AI Minutes from live transcript segments
       try {
-        const aiRes = await fetch(`/api/meetings/${meetingId}/generate-ai-minutes`, {
+        await fetch(`/api/meetings/${meetingId}/generate-ai-minutes`, {
           method: "POST",
         });
-        if (aiRes.ok) {
-          const aiJson = await aiRes.json();
-          if (aiJson.minutes?._id) {
-            targetUrl = `/minutes/${aiJson.minutes._id}`;
-          }
-        }
       } catch (aiErr) {
         console.error("AI minutes generation failed:", aiErr);
       }
 
-      if (isRecording) {
-        mediaRecorderRef.current?.stop();
-      }
-      router.push(targetUrl);
+      handleLeave();
     } finally {
       setEnding(false);
     }
