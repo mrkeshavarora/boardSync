@@ -158,13 +158,17 @@ export default function MeetingRoomPage() {
   }, []);
 
   // Speech Recognition / STT Loop using Web Speech API
-  // Single stable instance — never recreated on mute/unmute to avoid re-init delay.
+  // Single stable instance with robust lifecycle management
   const chunkIntervalRef = useRef<any>(null);
   const activeRecordersRef = useRef<MediaRecorder[]>([]);
   const speechRecRef = useRef<any>(null);
-  const isMutedRef = useRef(isMuted); // always-current ref to avoid stale closures in onend
+  const isMutedRef = useRef(isMuted);
+  const isRecognizingRef = useRef(false);
+  const isExplicitlyStoppedRef = useRef(isMuted);
+  const isDestroyedRef = useRef(false);
+  const restartTimerRef = useRef<any>(null);
 
-  // Keep isMutedRef in sync without recreating the recognition instance
+  // Keep isMutedRef in sync
   useEffect(() => {
     isMutedRef.current = isMuted;
   }, [isMuted]);
@@ -172,6 +176,8 @@ export default function MeetingRoomPage() {
   // 1. Web Speech API — initialised ONCE per meeting session
   useEffect(() => {
     if (!session?.user) return;
+
+    isDestroyedRef.current = false;
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -183,19 +189,48 @@ export default function MeetingRoomPage() {
       return;
     }
 
-    // Abort any previous instance
+    // Abort and clean up any previous instance
     if (speechRecRef.current) {
       try { speechRecRef.current.abort(); } catch {}
       speechRecRef.current = null;
+    }
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = null;
     }
 
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "en-US";
-    recognition.maxAlternatives = 1; // no need for multiple alternatives — reduces overhead
+    recognition.maxAlternatives = 1;
+
+    const safeStart = () => {
+      if (isDestroyedRef.current || isMutedRef.current || isExplicitlyStoppedRef.current) return;
+      if (!speechRecRef.current || isRecognizingRef.current) return;
+
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+
+      try {
+        speechRecRef.current.start();
+      } catch (err: any) {
+        // If Chrome throws InvalidStateError, safely schedule retry
+        if (err?.name === "InvalidStateError" || err?.message?.includes("already started")) {
+          if (!restartTimerRef.current && !isMutedRef.current && !isDestroyedRef.current) {
+            restartTimerRef.current = setTimeout(() => {
+              restartTimerRef.current = null;
+              safeStart();
+            }, 200);
+          }
+        }
+      }
+    };
 
     recognition.onstart = () => {
+      isRecognizingRef.current = true;
       setIsSttListening(true);
       setSttStatusText("Live transcription");
       setSttStatusColor("text-emerald-400");
@@ -205,7 +240,6 @@ export default function MeetingRoomPage() {
       let finalTranscript = "";
       let interimTranscript = "";
 
-      // Only iterate new results since last event (event.resultIndex)
       for (let i = event.resultIndex; i < event.results.length; ++i) {
         const result = event.results[i];
         if (result.isFinal) {
@@ -225,9 +259,7 @@ export default function MeetingRoomPage() {
           timestamp: new Date().toISOString(),
           isFinal: false,
         };
-        // Show instantly in local panel
         window.dispatchEvent(new CustomEvent("local-transcript", { detail: partialData }));
-        // Broadcast to other participants
         if (socketRef.current?.connected) {
           socketRef.current.emit("transcript:partial", partialData);
         }
@@ -259,49 +291,81 @@ export default function MeetingRoomPage() {
     };
 
     recognition.onerror = (err: any) => {
-      // "no-speech" is normal silence — don't surface it as an error
-      if (err.error === "no-speech" || err.error === "aborted") return;
-      console.warn("Web Speech recognition error:", err.error);
-      setSttStatusText(`Speech: ${err.error}`);
+      const errorType = err?.error;
+      // "no-speech" is normal pause/silence — do not display error
+      if (errorType === "no-speech" || errorType === "aborted") return;
+      if (errorType === "not-allowed" || errorType === "service-not-allowed") {
+        console.warn("Speech recognition permission denied:", errorType);
+        isExplicitlyStoppedRef.current = true;
+        setSttStatusText("Mic Permission Blocked");
+        setSttStatusColor("text-red-400");
+        return;
+      }
+      console.warn("Web Speech recognition error:", errorType);
+      setSttStatusText(`Speech: ${errorType}`);
     };
 
     recognition.onend = () => {
+      isRecognizingRef.current = false;
       setIsSttListening(false);
-      // Immediately restart if not muted — zero delay keeps transcription gapless
-      if (!isMutedRef.current && speechRecRef.current) {
-        try { speechRecRef.current.start(); } catch {}
+      // Restart safely when browser engine finishes pausing/cycle
+      if (!isMutedRef.current && !isExplicitlyStoppedRef.current && !isDestroyedRef.current) {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = setTimeout(() => {
+          restartTimerRef.current = null;
+          safeStart();
+        }, 150);
       }
     };
 
     speechRecRef.current = recognition;
 
-    // Start only if not muted
     if (!isMutedRef.current) {
-      try { recognition.start(); } catch {}
+      safeStart();
     }
 
     return () => {
+      isDestroyedRef.current = true;
+      isExplicitlyStoppedRef.current = true;
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (speechRecRef.current) {
         try { speechRecRef.current.abort(); } catch {}
         speechRecRef.current = null;
       }
     };
-  // Only re-initialize when session or meetingId changes — NOT on isMuted toggle
   }, [meetingId, session]);
 
-  // 2. Handle mute/unmute by starting/stopping the existing recognition instance
-  //    without destroying and recreating it (which caused the startup delay).
+  // 2. Handle mute/unmute transitions safely without destroying instance
   useEffect(() => {
     if (!speechRecRef.current) return;
     if (isMuted) {
-      // Stop gracefully — onend will NOT restart because isMutedRef.current is true
-      try { speechRecRef.current.stop(); } catch {}
+      isExplicitlyStoppedRef.current = true;
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
+      if (isRecognizingRef.current) {
+        try { speechRecRef.current.stop(); } catch {}
+      }
       setIsSttListening(false);
       setSttStatusText("Muted");
       setSttStatusColor("text-red-400");
     } else {
-      // Resume — start the same instance
-      try { speechRecRef.current.start(); } catch {}
+      isExplicitlyStoppedRef.current = false;
+      setSttStatusText("Live transcription");
+      setSttStatusColor("text-emerald-400");
+      if (!isRecognizingRef.current) {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = setTimeout(() => {
+          restartTimerRef.current = null;
+          if (speechRecRef.current && !isRecognizingRef.current && !isMutedRef.current) {
+            try { speechRecRef.current.start(); } catch {}
+          }
+        }, 100);
+      }
     }
   }, [isMuted]);
 
@@ -582,19 +646,25 @@ export default function MeetingRoomPage() {
       }
     });
 
-    socket.on("current-participants", ({ participants }: { participants: string[] }) => {
-      participants.forEach((otherId) => createOfferFor(otherId));
+    socket.on("current-participants", ({ participants }: { participants: any[] }) => {
+      participants.forEach((item) => {
+        const otherId = typeof item === "string" ? item : item.socketId;
+        const otherName = typeof item === "string" ? "Participant" : (item.name || "Participant");
+        if (otherId) {
+          setParticipantNames((prev) => ({ ...prev, [otherId]: otherName }));
+          createOfferFor(otherId);
+        }
+      });
     });
 
-    socket.on("user-joined", ({ socketId, user }) => {
+    socket.on("user-joined", ({ socketId, user }: any) => {
       console.log("User joined:", socketId, user);
-      if (user?.name) {
-        setParticipantNames((prev) => ({ ...prev, [socketId]: user.name }));
-      }
+      const name = user?.name || "Participant";
+      setParticipantNames((prev) => ({ ...prev, [socketId]: name }));
     });
 
     socket.on("offer", async ({ from, description, userName }: any) => {
-      console.log("Received offer from:", from);
+      console.log("Received offer from:", from, userName);
       if (userName) {
         setParticipantNames((prev) => ({ ...prev, [from]: userName }));
       }
@@ -602,11 +672,19 @@ export default function MeetingRoomPage() {
       await pc.setRemoteDescription(new RTCSessionDescription(description));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      socket.emit("answer", { to: from, from: socket.id, description: pc.localDescription });
+      socket.emit("answer", {
+        to: from,
+        from: socket.id,
+        description: pc.localDescription,
+        userName: session?.user?.name || "Guest"
+      });
     });
 
-    socket.on("answer", async ({ from, description }: any) => {
-      console.log("Received answer from:", from);
+    socket.on("answer", async ({ from, description, userName }: any) => {
+      console.log("Received answer from:", from, userName);
+      if (userName) {
+        setParticipantNames((prev) => ({ ...prev, [from]: userName }));
+      }
       const pc = pcs.current[from];
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(description));
@@ -1092,6 +1170,7 @@ export default function MeetingRoomPage() {
 
             {/* Remote Streams Cards */}
             {remoteStreams.map(({ peerId, name, stream }) => {
+              const displayName = participantNames[peerId] || name || "Participant";
               const isSpeaking = !!speakingPeers[peerId];
               return (
                 <div 
@@ -1120,14 +1199,14 @@ export default function MeetingRoomPage() {
                     <button
                       onClick={() => handleMuteUserMic(peerId)}
                       className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all"
-                      title={`Mute ${name}'s microphone`}
+                      title={`Mute ${displayName}'s microphone`}
                     >
                       <MicOff size={15} />
                     </button>
                     <button
                       onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
                       className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all"
-                      title={`Picture-in-Picture (${name})`}
+                      title={`Picture-in-Picture (${displayName})`}
                     >
                       <PictureInPicture2 size={16} />
                     </button>
@@ -1149,7 +1228,7 @@ export default function MeetingRoomPage() {
                         <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
                       </span>
                     )}
-                    <span>{name}</span>
+                    <span>{displayName}</span>
                   </div>
                 </div>
               );
@@ -1211,51 +1290,54 @@ export default function MeetingRoomPage() {
               </div>
 
               {/* Show other participants */}
-              {remoteStreams.map(({ peerId, name }) => (
-                <div key={peerId} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-white/[0.03] group">
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
-                      {getInitials(name)}
+              {remoteStreams.map(({ peerId, name }) => {
+                const displayName = participantNames[peerId] || name || "Participant";
+                return (
+                  <div key={peerId} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-white/[0.03] group">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
+                        {getInitials(displayName)}
+                      </div>
+                      <p className="text-sm font-500 text-white truncate">{displayName}</p>
+                      {speakingPeers[peerId] && (
+                        <span className="flex items-center gap-0.5 shrink-0" title="Speaking">
+                          <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                          <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                          <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm font-500 text-white truncate">{name}</p>
-                    {speakingPeers[peerId] && (
-                      <span className="flex items-center gap-0.5 shrink-0" title="Speaking">
-                        <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
-                        <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
-                        <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
-                      </span>
-                    )}
-                  </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => handleMuteUserMic(peerId)}
-                      className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
-                      title={`Mute ${name}'s microphone`}
-                    >
-                      <MicOff size={13} />
-                    </button>
-                    {isOrganizer && (
-                      <>
-                        <button
-                          onClick={() => handleMuteUserCamera(peerId)}
-                          className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
-                          title={`Turn off ${name}'s camera`}
-                        >
-                          <VideoOff size={13} />
-                        </button>
-                        <button
-                          onClick={() => handleKickUser(peerId)}
-                          className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
-                          title={`Remove ${name} from meeting`}
-                        >
-                          <UserX size={13} />
-                        </button>
-                      </>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleMuteUserMic(peerId)}
+                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
+                        title={`Mute ${displayName}'s microphone`}
+                      >
+                        <MicOff size={13} />
+                      </button>
+                      {isOrganizer && (
+                        <>
+                          <button
+                            onClick={() => handleMuteUserCamera(peerId)}
+                            className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
+                            title={`Turn off ${displayName}'s camera`}
+                          >
+                            <VideoOff size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleKickUser(peerId)}
+                            className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
+                            title={`Remove ${displayName} from meeting`}
+                          >
+                            <UserX size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="p-4 border-t border-white/[0.06]">
               <p className="text-xs text-white/30 text-center">

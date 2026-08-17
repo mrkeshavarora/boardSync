@@ -86,7 +86,7 @@ export default function LiveTranscriptPanel({
 
     // Handle final transcript segment
     const handleFinal = (data: TranscriptItem) => {
-      if (data.meetingId !== meetingId) return;
+      if (!data || data.meetingId !== meetingId) return;
       
       // Remove from active partials
       setActivePartials((prev) => {
@@ -95,8 +95,17 @@ export default function LiveTranscriptPanel({
         return copy;
       });
 
-      // Add to final transcripts list
-      setFinalTranscripts((prev) => [...prev, data]);
+      // Add to final transcripts list with strict deduplication
+      setFinalTranscripts((prev) => {
+        const isDuplicate = prev.some(
+          (t) =>
+            t.speakerId === data.speakerId &&
+            t.text.trim() === data.text.trim() &&
+            Math.abs(new Date(t.timestamp).getTime() - new Date(data.timestamp).getTime()) < 2500
+        );
+        if (isDuplicate) return prev;
+        return [...prev, data];
+      });
     };
 
     // Handle local window custom event (fallback when socket is offline or local STT active)

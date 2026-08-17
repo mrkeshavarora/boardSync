@@ -36,37 +36,41 @@ const io = new Server(server, {
   }
 });
 
-// Room -> Set of socket ids
+// Room -> Map of socket id -> { name, userId }
 const rooms = new Map();
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
   socket.on('join-room', ({ meetingId, user }) => {
-    console.log(`Socket ${socket.id} joining meeting ${meetingId}`);
+    console.log(`Socket ${socket.id} joining meeting ${meetingId}`, user);
     socket.join(meetingId);
 
-    // track participants
-    if (!rooms.has(meetingId)) rooms.set(meetingId, new Set());
-    const set = rooms.get(meetingId);
-    set.add(socket.id);
+    // track participants with names and user IDs
+    if (!rooms.has(meetingId)) rooms.set(meetingId, new Map());
+    const roomMap = rooms.get(meetingId);
+    const name = user?.name || 'Participant';
+    const userId = user?.id || user?.userId;
+    roomMap.set(socket.id, { name, userId });
 
     // notify others
-    socket.to(meetingId).emit('user-joined', { socketId: socket.id, user });
+    socket.to(meetingId).emit('user-joined', { socketId: socket.id, user: { name, userId } });
 
     // send current participants to joining socket
-    const participants = Array.from(set).filter((id) => id !== socket.id);
+    const participants = Array.from(roomMap.entries())
+      .filter(([id]) => id !== socket.id)
+      .map(([id, info]) => ({ socketId: id, name: info.name, userId: info.userId }));
     socket.emit('current-participants', { participants });
   });
 
-  socket.on('offer', ({ to, from, description }) => {
-    console.log(`Offer from ${from} to ${to}`);
-    io.to(to).emit('offer', { from, description });
+  socket.on('offer', ({ to, from, description, userName, userId }) => {
+    console.log(`Offer from ${from} (${userName}) to ${to}`);
+    io.to(to).emit('offer', { from, description, userName, userId });
   });
 
-  socket.on('answer', ({ to, from, description }) => {
-    console.log(`Answer from ${from} to ${to}`);
-    io.to(to).emit('answer', { from, description });
+  socket.on('answer', ({ to, from, description, userName, userId }) => {
+    console.log(`Answer from ${from} (${userName}) to ${to}`);
+    io.to(to).emit('answer', { from, description, userName, userId });
   });
 
   socket.on('ice-candidate', ({ to, from, candidate }) => {
@@ -87,43 +91,43 @@ io.on('connection', (socket) => {
   });
 
   socket.on('transcript:partial', (data) => {
-    io.to(data.meetingId).emit('transcript:partial', data);
+    socket.to(data.meetingId).emit('transcript:partial', data);
   });
 
   socket.on('transcript:final', (data) => {
-    io.to(data.meetingId).emit('transcript:final', data);
+    socket.to(data.meetingId).emit('transcript:final', data);
   });
 
   socket.on('transcript:error', (data) => {
-    io.to(data.meetingId).emit('transcript:error', data);
+    socket.to(data.meetingId).emit('transcript:error', data);
   });
 
   socket.on('transcript:started', (data) => {
-    io.to(data.meetingId).emit('transcript:started', data);
+    socket.to(data.meetingId).emit('transcript:started', data);
   });
 
   socket.on('transcript:stopped', (data) => {
-    io.to(data.meetingId).emit('transcript:stopped', data);
+    socket.to(data.meetingId).emit('transcript:stopped', data);
   });
 
   socket.on('leave-room', ({ meetingId }) => {
     socket.leave(meetingId);
     if (rooms.has(meetingId)) {
-      const set = rooms.get(meetingId);
-      set.delete(socket.id);
+      const roomMap = rooms.get(meetingId);
+      roomMap.delete(socket.id);
       socket.to(meetingId).emit('user-left', { socketId: socket.id });
-      if (set.size === 0) rooms.delete(meetingId);
+      if (roomMap.size === 0) rooms.delete(meetingId);
     }
   });
 
   socket.on('disconnect', () => {
     console.log('Socket disconnected', socket.id);
     // remove from any rooms
-    for (const [meetingId, set] of rooms.entries()) {
-      if (set.has(socket.id)) {
-        set.delete(socket.id);
+    for (const [meetingId, roomMap] of rooms.entries()) {
+      if (roomMap.has(socket.id)) {
+        roomMap.delete(socket.id);
         socket.to(meetingId).emit('user-left', { socketId: socket.id });
-        if (set.size === 0) rooms.delete(meetingId);
+        if (roomMap.size === 0) rooms.delete(meetingId);
       }
     }
   });
