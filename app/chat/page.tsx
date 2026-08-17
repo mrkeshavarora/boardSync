@@ -143,6 +143,7 @@ export default function ChatPage() {
   const [editGroupDesc, setEditGroupDesc] = useState("");
   const [editGroupMembers, setEditGroupMembers] = useState<string[]>([]);
   const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
 
   const socketRef = useRef<any>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -150,6 +151,42 @@ export default function ChatPage() {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const signalPollRef = useRef<any>(null);
+  const callStartedAtRef = useRef<number>(0);
+  const handledCallRoomRef = useRef<string | null>(null);
+
+  // Call duration counter
+  useEffect(() => {
+    let t: any;
+    if (isInCall && !isCalling) {
+      t = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [isInCall, isCalling]);
+
+  // Robust stream attachment to video elements
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, isInCall]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, isInCall]);
+
+  const formatCallDuration = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
 
   // Fetch accepted connections periodically so contact list order stays updated in real-time
   useEffect(() => {
@@ -189,6 +226,9 @@ export default function ChatPage() {
     const callerNameParam = searchParams?.get("callerName");
 
     if (acceptId && callTypeParam && roomParam) {
+      if (handledCallRoomRef.current === roomParam) return;
+      handledCallRoomRef.current = roomParam;
+
       const existingCaller = contacts.find((c) => c.id === acceptId);
       const caller: Contact = existingCaller || {
         id: acceptId,
@@ -205,6 +245,9 @@ export default function ChatPage() {
         autoAcceptCall(caller, callTypeParam, roomParam);
       }, 100);
     } else if (acceptGroupId && callTypeParam) {
+      if (handledCallRoomRef.current === acceptGroupId) return;
+      handledCallRoomRef.current = acceptGroupId;
+
       setActiveTab("groups");
       window.history.replaceState({}, "", "/chat");
       fetch("/api/groups")
@@ -242,22 +285,20 @@ export default function ChatPage() {
 
         // Check for incoming call invite
         const latestMsg = list[list.length - 1];
-        if (latestMsg) {
+        if (latestMsg && isInCall) {
           const isFromOther = latestMsg.senderId === selectedContact.id;
-          const isRecent = new Date().getTime() - new Date(latestMsg.createdAt).getTime() < 15000; // within 15 seconds
+          const msgTime = new Date(latestMsg.createdAt).getTime();
+          const isAfterCallStart = msgTime >= callStartedAtRef.current;
 
-          if (isFromOther && isRecent) {
-            // Case 1: Incoming call invite (Handled by GlobalCallToast globally)
-            // We ignore it here so it doesn't trigger the old bottom popup.
-
+          if (isFromOther && isAfterCallStart) {
             // Case 2: Outgoing call declined by remote user
-            if (latestMsg.message.startsWith("[CALL_DECLINED]:") && isInCall) {
+            if (latestMsg.message.startsWith(`[CALL_DECLINED]:${callRoomName}`)) {
               endCall();
               alert("Call was declined by " + selectedContact.name);
             }
 
             // Case 3: Ongoing call ended by remote user
-            if (latestMsg.message.startsWith("[CALL_ENDED]:") && isInCall) {
+            if (latestMsg.message.startsWith(`[CALL_ENDED]:${callRoomName}`)) {
               endCall();
             }
           }
@@ -278,26 +319,12 @@ export default function ChatPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [selectedContact, isInCall, incomingCall]);
+  }, [selectedContact, isInCall, incomingCall, callRoomName]);
 
   // Scroll to bottom of chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // Sync remote stream to video element after React renders the <video> tag
-  useEffect(() => {
-    if (remoteStream && remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
-
-  // Sync local stream to local video preview after React renders the <video> tag
-  useEffect(() => {
-    if (localStream && localVideoRef.current) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream, isInCall]);
 
   // Handle Send Text Message
   async function handleSendMessage(e: React.FormEvent) {
@@ -428,6 +455,7 @@ export default function ChatPage() {
     setIsCalling(true);
     setIsMuted(false);
     setIsCameraOff(type === "voice");
+    callStartedAtRef.current = Date.now();
 
     try {
       // Send invitation message in DB
@@ -444,7 +472,7 @@ export default function ChatPage() {
         video: type === "video",
         audio: true,
       });
-      setLocalStream(stream); // useEffect will bind srcObject after render
+      setLocalStream(stream);
 
       connectToSignalingRoom(callRoomName, stream);
     } catch (e) {
@@ -461,6 +489,7 @@ export default function ChatPage() {
     setIsCalling(false);
     setIsMuted(false);
     setIsCameraOff(type === "voice");
+    callStartedAtRef.current = Date.now();
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -489,6 +518,8 @@ export default function ChatPage() {
 
     let peerSocketId: string | null = null;
     const pendingCandidates: RTCIceCandidate[] = [];
+    const pendingRemoteCandidates: RTCIceCandidateInit[] = [];
+    let disconnectTimer: any = null;
 
     stream.getTracks().forEach((track) => {
       pc.addTrack(track, stream);
@@ -509,6 +540,19 @@ export default function ChatPage() {
       } catch { }
     }
 
+    function flushPendingRemoteCandidates() {
+      if (pc.remoteDescription && pendingRemoteCandidates.length > 0) {
+        while (pendingRemoteCandidates.length > 0) {
+          const cand = pendingRemoteCandidates.shift();
+          if (cand) {
+            pc.addIceCandidate(new RTCIceCandidate(cand)).catch((err) => {
+              console.warn("Error adding queued remote ICE candidate:", err);
+            });
+          }
+        }
+      }
+    }
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         if (peerSocketId) {
@@ -520,7 +564,7 @@ export default function ChatPage() {
         } else {
           pendingCandidates.push(event.candidate);
         }
-        sendHttpSignal("candidate", event.candidate);
+        sendHttpSignal("candidate", event.candidate, selectedContact?.id);
       }
     };
 
@@ -539,20 +583,27 @@ export default function ChatPage() {
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
-        const stream = event.streams[0];
-        setRemoteStream(stream);
+        const remoteMediaStream = event.streams[0];
+        setRemoteStream(remoteMediaStream);
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.srcObject = remoteMediaStream;
         }
         setIsCalling(false);
       }
     };
 
     socket.on("connect", () => {
+      console.log("Chat WebRTC connected to signaling:", socket.id);
       socket.emit("join-room", {
         meetingId: room,
         user: { name: session?.user?.name || "User", id: session?.user?.id }
       });
+    });
+
+    socket.on("user-joined", ({ socketId }: any) => {
+      console.log("Remote peer joined chat call room:", socketId);
+      peerSocketId = socketId;
+      flushPendingCandidates(socketId);
     });
 
     socket.on("current-participants", async ({ participants }: { participants: any[] }) => {
@@ -563,15 +614,20 @@ export default function ChatPage() {
         peerSocketId = targetId;
         flushPendingCandidates(targetId);
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", {
-          to: targetId,
-          from: socket.id,
-          description: pc.localDescription,
-          userName: session?.user?.name || "User",
-        });
-        sendHttpSignal("offer", pc.localDescription, selectedContact?.id);
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.emit("offer", {
+            to: targetId,
+            from: socket.id,
+            description: pc.localDescription,
+            userName: session?.user?.name || "User",
+            userId: session?.user?.id,
+          });
+          sendHttpSignal("offer", pc.localDescription, selectedContact?.id);
+        } catch (e) {
+          console.error("Error creating WebRTC offer:", e);
+        }
       }
     });
 
@@ -579,16 +635,22 @@ export default function ChatPage() {
       peerSocketId = from;
       flushPendingCandidates(from);
 
-      await pc.setRemoteDescription(new RTCSessionDescription(description));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", {
-        to: from,
-        from: socket.id,
-        description: pc.localDescription,
-        userName: session?.user?.name || "User",
-      });
-      sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(description));
+        flushPendingRemoteCandidates();
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("answer", {
+          to: from,
+          from: socket.id,
+          description: pc.localDescription,
+          userName: session?.user?.name || "User",
+          userId: session?.user?.id,
+        });
+        sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
+      } catch (e) {
+        console.error("Error answering offer:", e);
+      }
     });
 
     socket.on("answer", async ({ from, description }: any) => {
@@ -596,40 +658,59 @@ export default function ChatPage() {
         peerSocketId = from;
         flushPendingCandidates(from);
       }
-      if (pc.signalingState === "have-local-offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(description));
+      try {
+        if (pc.signalingState === "have-local-offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(description));
+          flushPendingRemoteCandidates();
+        }
+      } catch (e) {
+        console.error("Error setting remote answer:", e);
       }
     });
 
     socket.on("ice-candidate", async ({ candidate }: any) => {
       try {
         if (candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          if (pc.remoteDescription && pc.signalingState !== "closed") {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            pendingRemoteCandidates.push(candidate);
+          }
         }
       } catch (e) {
-        console.warn("ICE error", e);
+        console.warn("ICE candidate add failed, queued:", e);
+        if (candidate) pendingRemoteCandidates.push(candidate);
       }
     });
 
     pc.onconnectionstatechange = () => {
       console.log("Chat call: pc connectionState changed to:", pc.connectionState);
-      if (
-        pc.connectionState === "disconnected" ||
-        pc.connectionState === "failed" ||
-        pc.connectionState === "closed"
-      ) {
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         endCall();
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log("Chat call: pc iceConnectionState changed to:", pc.iceConnectionState);
-      if (
-        pc.iceConnectionState === "disconnected" ||
-        pc.iceConnectionState === "failed" ||
-        pc.iceConnectionState === "closed"
-      ) {
+      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
         endCall();
+      } else if (pc.iceConnectionState === "disconnected") {
+        if (!disconnectTimer) {
+          disconnectTimer = setTimeout(() => {
+            if (
+              pc.iceConnectionState === "disconnected" ||
+              pc.iceConnectionState === "failed" ||
+              pc.iceConnectionState === "closed"
+            ) {
+              endCall();
+            }
+          }, 6000);
+        }
+      } else if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        if (disconnectTimer) {
+          clearTimeout(disconnectTimer);
+          disconnectTimer = null;
+        }
       }
     };
 
@@ -660,15 +741,23 @@ export default function ChatPage() {
             return;
           } else if (sig.type === "offer" && pc.signalingState === "stable") {
             await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
+            flushPendingRemoteCandidates();
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
           } else if (sig.type === "answer" && pc.signalingState === "have-local-offer") {
             await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
+            flushPendingRemoteCandidates();
           } else if (sig.type === "candidate") {
             try {
-              await pc.addIceCandidate(new RTCIceCandidate(sig.data));
-            } catch { }
+              if (pc.remoteDescription && pc.signalingState !== "closed") {
+                await pc.addIceCandidate(new RTCIceCandidate(sig.data));
+              } else {
+                pendingRemoteCandidates.push(sig.data);
+              }
+            } catch {
+              pendingRemoteCandidates.push(sig.data);
+            }
           }
         }
       } catch { }
@@ -1791,15 +1880,22 @@ export default function ChatPage() {
               </div>
               <div>
                 <h4 className="text-sm font-600 text-white">{selectedContact?.name}</h4>
-                <p className="text-[10px] text-white/50 uppercase">
-                  {isCalling ? `Calling (${callType})...` : `${callType} Call • Connected`}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-[10px] text-white/50 uppercase">
+                    {isCalling ? `Calling (${callType})...` : `${callType} Call • Connected`}
+                  </p>
+                  {!isCalling && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {formatCallDuration(callDuration)}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
 
           {/* Video area — fills remaining space */}
-          <div className="flex-1 relative bg-black overflow-hidden">
+          <div className="flex-1 relative bg-black overflow-hidden flex items-center justify-center">
             {isCalling ? (
               /* Ringing/Calling screen */
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -1822,7 +1918,7 @@ export default function ChatPage() {
                     }}
                     autoPlay
                     playsInline
-                    className="absolute inset-0 w-full h-full object-cover"
+                    className="absolute inset-0 w-full h-full object-contain mx-auto bg-black"
                   />
                 ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white/40">
@@ -1832,7 +1928,7 @@ export default function ChatPage() {
                 )}
 
                 {/* Local PIP — floating corner overlay */}
-                <div className="absolute bottom-4 right-4 w-28 h-20 sm:w-36 sm:h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10">
+                <div className="absolute bottom-4 right-4 w-28 h-20 sm:w-36 sm:h-24 md:w-48 md:h-32 rounded-2xl border-2 border-white/30 overflow-hidden bg-black shadow-2xl z-10 flex items-center justify-center">
                   <video
                     ref={(el) => {
                       localVideoRef.current = el;
@@ -1841,7 +1937,7 @@ export default function ChatPage() {
                     autoPlay
                     playsInline
                     muted
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-black scale-x-[-1]"
                   />
                   <div className="absolute bottom-1 left-2 text-[9px] text-white/60 font-500">You</div>
                 </div>
