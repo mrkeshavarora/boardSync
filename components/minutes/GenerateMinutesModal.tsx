@@ -98,7 +98,7 @@ export default function GenerateMinutesModal({
           return;
         }
         setStep("done");
-        setMinutesId(data.meeting?._id || meetingId);
+        setMinutesId(data.minutes?._id || data.meeting?._id || meetingId);
       } catch {
         setErrorMsg("Network error during AI minutes generation.");
         setStep("error");
