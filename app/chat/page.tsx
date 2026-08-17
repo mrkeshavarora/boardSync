@@ -1123,12 +1123,12 @@ export default function ChatPage() {
         {/* Left Panel: Contacts */}
         <aside className={cn(
           "w-full md:w-80 border-r border-white/[0.06] flex flex-col shrink-0 bg-white/[0.01]",
-          selectedContact ? "hidden md:flex" : "flex"
+          (selectedContact || selectedGroup) ? "hidden md:flex" : "flex"
         )}>
           {/* Tab switcher */}
           <div className="flex border-b border-white/[0.06]">
             <button
-              onClick={() => setActiveTab("chats")}
+              onClick={() => { setActiveTab("chats"); setSelectedGroup(null); }}
               className={cn(
                 "flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-600 transition-all border-b-2",
                 activeTab === "chats" ? "text-indigo-400 border-indigo-500" : "text-white/40 border-transparent hover:text-white/60"
@@ -1146,7 +1146,7 @@ export default function ChatPage() {
               <Users size={12} /> Groups
             </button>
             <button
-              onClick={() => setActiveTab("people")}
+              onClick={() => { setActiveTab("people"); setSelectedContact(null); setSelectedGroup(null); }}
               className={cn(
                 "flex-1 flex items-center justify-center gap-1 py-2.5 text-[11px] font-600 transition-all border-b-2",
                 activeTab === "people" ? "text-indigo-400 border-indigo-500" : "text-white/40 border-transparent hover:text-white/60"
@@ -1156,7 +1156,8 @@ export default function ChatPage() {
             </button>
           </div>
 
-          {activeTab === "chats" ? (
+          {/* ── Chats Tab ── */}
+          {activeTab === "chats" && (
             <>
               <div className="p-3 border-b border-white/[0.06]">
                 <div className="relative flex items-center">
@@ -1210,7 +1211,7 @@ export default function ChatPage() {
                     return (
                       <button
                         key={contact.id}
-                        onClick={() => setSelectedContact(contact)}
+                        onClick={() => { setSelectedContact(contact); setSelectedGroup(null); }}
                         className={cn(
                           "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
                           isSelected
@@ -1243,8 +1244,10 @@ export default function ChatPage() {
                 )}
               </div>
             </>
-          ) : (
-            /* ── Find People Tab ── */
+          )}
+
+          {/* ── Find People Tab ── */}
+          {activeTab === "people" && (
             <>
               <div className="p-3 border-b border-white/[0.06]">
                 <div className="relative flex items-center">
@@ -1644,9 +1647,10 @@ export default function ChatPage() {
                 <div className="flex items-center gap-2 md:gap-3">
                   <button
                     onClick={() => setSelectedGroup(null)}
-                    className="md:hidden w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/[0.08] transition-all"
+                    className="p-2 rounded-lg md:hidden hover:bg-white/[0.08] text-white/60 hover:text-white transition-all shrink-0"
+                    title="Back to groups"
                   >
-                    <ArrowLeft size={16} />
+                    <ArrowLeft size={18} />
                   </button>
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 border border-indigo-500/20 flex items-center justify-center text-sm font-700 text-white shrink-0">
                     {selectedGroup.name.slice(0, 2).toUpperCase()}
