@@ -779,6 +779,14 @@ export default function MeetingRoomPage() {
       }
 
       if (localStream) {
+        // Explicitly enable microphone tracks so mic is active by default
+        localStream.getAudioTracks().forEach((t) => {
+          t.enabled = true;
+        });
+        setIsMuted(false);
+        isMutedRef.current = false;
+        isExplicitlyStoppedRef.current = false;
+
         cameraStreamRef.current = localStream;
         setCameraStreamReady(true);
         if (localVideoRef.current && localStream.getVideoTracks().length > 0) {
@@ -927,7 +935,17 @@ export default function MeetingRoomPage() {
     const audioTracks = cameraStreamRef.current.getAudioTracks();
     const newMutedState = !isMuted;
     audioTracks.forEach((t) => (t.enabled = !newMutedState));
+    isMutedRef.current = newMutedState;
     setIsMuted(newMutedState);
+
+    // Sync across active WebRTC peer connection senders
+    Object.values(pcs.current).forEach((pc) => {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track && sender.track.kind === "audio") {
+          sender.track.enabled = !newMutedState;
+        }
+      });
+    });
   };
 
   const toggleCamera = () => {
@@ -936,6 +954,15 @@ export default function MeetingRoomPage() {
     const newCameraState = !isCameraOff;
     videoTracks.forEach((t) => (t.enabled = !newCameraState));
     setIsCameraOff(newCameraState);
+
+    // Sync across active WebRTC peer connection senders
+    Object.values(pcs.current).forEach((pc) => {
+      pc.getSenders().forEach((sender) => {
+        if (sender.track && sender.track.kind === "video") {
+          sender.track.enabled = !newCameraState;
+        }
+      });
+    });
   };
 
   const toggleScreenShare = async () => {
