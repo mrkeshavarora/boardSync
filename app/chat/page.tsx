@@ -143,6 +143,7 @@ export default function ChatPage() {
   const [editGroupDesc, setEditGroupDesc] = useState("");
   const [editGroupMembers, setEditGroupMembers] = useState<string[]>([]);
   const [updatingGroup, setUpdatingGroup] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
 
   const socketRef = useRef<any>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -150,6 +151,41 @@ export default function ChatPage() {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const signalPollRef = useRef<any>(null);
+  const handledCallRoomRef = useRef<string | null>(null);
+
+  // Call duration counter
+  useEffect(() => {
+    let t: any;
+    if (isInCall && !isCalling) {
+      t = setInterval(() => {
+        setCallDuration((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
+    }
+    return () => {
+      if (t) clearInterval(t);
+    };
+  }, [isInCall, isCalling]);
+
+  // Robust stream attachment to video elements
+  useEffect(() => {
+    if (localVideoRef.current && localStream) {
+      localVideoRef.current.srcObject = localStream;
+    }
+  }, [localStream, isInCall]);
+
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+  }, [remoteStream, isInCall]);
+
+  const formatCallDuration = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  };
 
   // Fetch accepted connections periodically so contact list order stays updated in real-time
   useEffect(() => {
@@ -189,6 +225,9 @@ export default function ChatPage() {
     const callerNameParam = searchParams?.get("callerName");
 
     if (acceptId && callTypeParam && roomParam) {
+      if (handledCallRoomRef.current === roomParam) return;
+      handledCallRoomRef.current = roomParam;
+
       const existingCaller = contacts.find((c) => c.id === acceptId);
       const caller: Contact = existingCaller || {
         id: acceptId,
@@ -205,6 +244,9 @@ export default function ChatPage() {
         autoAcceptCall(caller, callTypeParam, roomParam);
       }, 100);
     } else if (acceptGroupId && callTypeParam) {
+      if (handledCallRoomRef.current === acceptGroupId) return;
+      handledCallRoomRef.current = acceptGroupId;
+
       setActiveTab("groups");
       window.history.replaceState({}, "", "/chat");
       fetch("/api/groups")
@@ -489,6 +531,8 @@ export default function ChatPage() {
 
     let peerSocketId: string | null = null;
     const pendingCandidates: RTCIceCandidate[] = [];
+    const pendingRemoteCandidates: RTCIceCandidateInit[] = [];
+    let disconnectTimer: any = null;
 
     stream.getTracks().forEach((track) => {
       pc.addTrack(track, stream);
@@ -509,6 +553,19 @@ export default function ChatPage() {
       } catch {}
     }
 
+    function flushPendingRemoteCandidates() {
+      if (pc.remoteDescription && pendingRemoteCandidates.length > 0) {
+        while (pendingRemoteCandidates.length > 0) {
+          const cand = pendingRemoteCandidates.shift();
+          if (cand) {
+            pc.addIceCandidate(new RTCIceCandidate(cand)).catch((err) => {
+              console.warn("Error adding queued remote ICE candidate:", err);
+            });
+          }
+        }
+      }
+    }
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         if (peerSocketId) {
@@ -520,7 +577,7 @@ export default function ChatPage() {
         } else {
           pendingCandidates.push(event.candidate);
         }
-        sendHttpSignal("candidate", event.candidate);
+        sendHttpSignal("candidate", event.candidate, selectedContact?.id);
       }
     };
 
@@ -539,16 +596,17 @@ export default function ChatPage() {
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
-        const stream = event.streams[0];
-        setRemoteStream(stream);
+        const remoteMediaStream = event.streams[0];
+        setRemoteStream(remoteMediaStream);
         if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = stream;
+          remoteVideoRef.current.srcObject = remoteMediaStream;
         }
         setIsCalling(false);
       }
     };
 
     socket.on("connect", () => {
+      console.log("Chat WebRTC connected to signaling:", socket.id);
       socket.emit("join-room", {
         meetingId: room,
         user: { name: session?.user?.name || "User", id: session?.user?.id }
@@ -563,15 +621,20 @@ export default function ChatPage() {
         peerSocketId = targetId;
         flushPendingCandidates(targetId);
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", {
-          to: targetId,
-          from: socket.id,
-          description: pc.localDescription,
-          userName: session?.user?.name || "User",
-        });
-        sendHttpSignal("offer", pc.localDescription, selectedContact?.id);
+        try {
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socket.emit("offer", {
+            to: targetId,
+            from: socket.id,
+            description: pc.localDescription,
+            userName: session?.user?.name || "User",
+            userId: session?.user?.id,
+          });
+          sendHttpSignal("offer", pc.localDescription, selectedContact?.id);
+        } catch (e) {
+          console.error("Error creating WebRTC offer:", e);
+        }
       }
     });
 
@@ -579,16 +642,22 @@ export default function ChatPage() {
       peerSocketId = from;
       flushPendingCandidates(from);
 
-      await pc.setRemoteDescription(new RTCSessionDescription(description));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", {
-        to: from,
-        from: socket.id,
-        description: pc.localDescription,
-        userName: session?.user?.name || "User",
-      });
-      sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(description));
+        flushPendingRemoteCandidates();
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("answer", {
+          to: from,
+          from: socket.id,
+          description: pc.localDescription,
+          userName: session?.user?.name || "User",
+          userId: session?.user?.id,
+        });
+        sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
+      } catch (e) {
+        console.error("Error answering offer:", e);
+      }
     });
 
     socket.on("answer", async ({ from, description }: any) => {
@@ -596,40 +665,60 @@ export default function ChatPage() {
         peerSocketId = from;
         flushPendingCandidates(from);
       }
-      if (pc.signalingState === "have-local-offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(description));
+      try {
+        if (pc.signalingState === "have-local-offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(description));
+          flushPendingRemoteCandidates();
+        }
+      } catch (e) {
+        console.error("Error setting remote answer:", e);
       }
     });
 
     socket.on("ice-candidate", async ({ candidate }: any) => {
       try {
         if (candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          if (pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate));
+          } else {
+            pendingRemoteCandidates.push(candidate);
+          }
         }
       } catch (e) {
-        console.warn("ICE error", e);
+        console.warn("ICE candidate add failed, queued:", e);
+        if (candidate) pendingRemoteCandidates.push(candidate);
       }
     });
 
     pc.onconnectionstatechange = () => {
       console.log("Chat call: pc connectionState changed to:", pc.connectionState);
-      if (
-        pc.connectionState === "disconnected" ||
-        pc.connectionState === "failed" ||
-        pc.connectionState === "closed"
-      ) {
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         endCall();
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log("Chat call: pc iceConnectionState changed to:", pc.iceConnectionState);
-      if (
-        pc.iceConnectionState === "disconnected" ||
-        pc.iceConnectionState === "failed" ||
-        pc.iceConnectionState === "closed"
-      ) {
+      if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
         endCall();
+      } else if (pc.iceConnectionState === "disconnected") {
+        // Grace period before ending on transient network blip
+        if (!disconnectTimer) {
+          disconnectTimer = setTimeout(() => {
+            if (
+              pc.iceConnectionState === "disconnected" ||
+              pc.iceConnectionState === "failed" ||
+              pc.iceConnectionState === "closed"
+            ) {
+              endCall();
+            }
+          }, 6000);
+        }
+      } else if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+        if (disconnectTimer) {
+          clearTimeout(disconnectTimer);
+          disconnectTimer = null;
+        }
       }
     };
 
@@ -660,15 +749,23 @@ export default function ChatPage() {
             return;
           } else if (sig.type === "offer" && pc.signalingState === "stable") {
             await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
+            flushPendingRemoteCandidates();
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
           } else if (sig.type === "answer" && pc.signalingState === "have-local-offer") {
             await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
+            flushPendingRemoteCandidates();
           } else if (sig.type === "candidate") {
             try {
-              await pc.addIceCandidate(new RTCIceCandidate(sig.data));
-            } catch {}
+              if (pc.remoteDescription) {
+                await pc.addIceCandidate(new RTCIceCandidate(sig.data));
+              } else {
+                pendingRemoteCandidates.push(sig.data);
+              }
+            } catch {
+              pendingRemoteCandidates.push(sig.data);
+            }
           }
         }
       } catch {}
@@ -678,6 +775,7 @@ export default function ChatPage() {
   async function endCall() {
     setIsInCall(false);
     setIsCalling(false);
+    setCallDuration(0);
     if (signalPollRef.current) {
       clearInterval(signalPollRef.current);
       signalPollRef.current = null;
@@ -1780,9 +1878,9 @@ export default function ChatPage() {
       {isInCall && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
           {/* Call Header - fixed at top */}
-          <div className="shrink-0 px-6 py-3 flex items-center justify-between bg-black/60 backdrop-blur-sm z-20 border-b border-white/[0.06]">
+          <div className="shrink-0 px-6 py-3 flex items-center justify-between bg-black/80 backdrop-blur-md z-20 border-b border-white/[0.06]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-600 text-white">
+              <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-xs font-600 text-white overflow-hidden">
                 {selectedContact?.avatar ? (
                   <img src={selectedContact.avatar} alt={selectedContact.name} className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -1791,9 +1889,12 @@ export default function ChatPage() {
               </div>
               <div>
                 <h4 className="text-sm font-600 text-white">{selectedContact?.name}</h4>
-                <p className="text-[10px] text-white/50 uppercase">
-                  {isCalling ? `Calling (${callType})...` : `${callType} Call • Connected`}
-                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className={cn("w-1.5 h-1.5 rounded-full", isCalling ? "bg-amber-400 animate-ping" : "bg-emerald-400 animate-pulse")} />
+                  <p className="text-[11px] text-white/60 font-500">
+                    {isCalling ? `Calling (${callType})...` : `${callType === "video" ? "Video" : "Voice"} Call • ${formatCallDuration(callDuration)}`}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

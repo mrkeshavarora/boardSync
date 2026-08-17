@@ -199,7 +199,7 @@ export default function GroupCallRoom({
         async ({ participants: existingList }: { participants: any[] }) => {
           for (const item of existingList) {
             const remoteId = typeof item === "string" ? item : item.socketId;
-            const remoteName = typeof item === "string" ? "Board Member" : item.user?.name || "Board Member";
+            const remoteName = typeof item === "string" ? "Board Member" : item.name || item.user?.name || "Board Member";
             setParticipants((prev) =>
               prev.some((p) => p.socketId === remoteId)
                 ? prev

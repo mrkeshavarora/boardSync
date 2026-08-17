@@ -63,14 +63,18 @@ io.on('connection', (socket) => {
     socket.emit('current-participants', { participants });
   });
 
-  socket.on('offer', ({ to, from, description, userName, userId }) => {
-    console.log(`Offer from ${from} (${userName}) to ${to}`);
-    io.to(to).emit('offer', { from, description, userName, userId });
+  socket.on('offer', ({ to, from, description, userName, userId, user }) => {
+    const finalName = userName || user?.name || 'Participant';
+    const finalUserId = userId || user?.id || user?.userId;
+    console.log(`Offer from ${from} (${finalName}) to ${to}`);
+    io.to(to).emit('offer', { from, description, userName: finalName, userId: finalUserId, user: user || { name: finalName, id: finalUserId } });
   });
 
-  socket.on('answer', ({ to, from, description, userName, userId }) => {
-    console.log(`Answer from ${from} (${userName}) to ${to}`);
-    io.to(to).emit('answer', { from, description, userName, userId });
+  socket.on('answer', ({ to, from, description, userName, userId, user }) => {
+    const finalName = userName || user?.name || 'Participant';
+    const finalUserId = userId || user?.id || user?.userId;
+    console.log(`Answer from ${from} (${finalName}) to ${to}`);
+    io.to(to).emit('answer', { from, description, userName: finalName, userId: finalUserId, user: user || { name: finalName, id: finalUserId } });
   });
 
   socket.on('ice-candidate', ({ to, from, candidate }) => {

@@ -69,6 +69,7 @@ export default function MeetingRoomPage() {
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const pcs = useRef<Record<string, RTCPeerConnection>>({});
+  const pendingRemoteIceCandidates = useRef<Record<string, RTCIceCandidateInit[]>>({});
   const [remoteStreams, setRemoteStreams] = useState<PeerStream[]>([]);
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -615,6 +616,20 @@ export default function MeetingRoomPage() {
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
 
+    function flushRemoteIceCandidates(peerId: string, pc: RTCPeerConnection) {
+      const queue = pendingRemoteIceCandidates.current[peerId];
+      if (queue && queue.length > 0 && pc.remoteDescription) {
+        while (queue.length > 0) {
+          const cand = queue.shift();
+          if (cand) {
+            pc.addIceCandidate(new RTCIceCandidate(cand)).catch((e) =>
+              console.warn("Failed to add queued ICE candidate:", e)
+            );
+          }
+        }
+      }
+    }
+
     // Set up socket listeners first so we don't miss any messages
     socket.on("connect", () => {
       console.log("Connected to signaling server:", socket.id);
@@ -668,16 +683,21 @@ export default function MeetingRoomPage() {
       if (userName) {
         setParticipantNames((prev) => ({ ...prev, [from]: userName }));
       }
-      const pc = createPeerConnection(from);
-      await pc.setRemoteDescription(new RTCSessionDescription(description));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit("answer", {
-        to: from,
-        from: socket.id,
-        description: pc.localDescription,
-        userName: session?.user?.name || "Guest"
-      });
+      try {
+        const pc = createPeerConnection(from);
+        await pc.setRemoteDescription(new RTCSessionDescription(description));
+        flushRemoteIceCandidates(from, pc);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        socket.emit("answer", {
+          to: from,
+          from: socket.id,
+          description: pc.localDescription,
+          userName: session?.user?.name || "Guest"
+        });
+      } catch (err) {
+        console.error("Error answering offer:", err);
+      }
     });
 
     socket.on("answer", async ({ from, description, userName }: any) => {
@@ -687,14 +707,26 @@ export default function MeetingRoomPage() {
       }
       const pc = pcs.current[from];
       if (pc) {
-        await pc.setRemoteDescription(new RTCSessionDescription(description));
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(description));
+          flushRemoteIceCandidates(from, pc);
+        } catch (err) {
+          console.error("Error setting remote description from answer:", err);
+        }
       }
     });
 
     socket.on("ice-candidate", ({ from, candidate }: any) => {
       const pc = pcs.current[from];
-      if (pc) {
-        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((e) => console.warn("Failed to add ICE candidate:", e));
+      if (pc && pc.remoteDescription) {
+        pc.addIceCandidate(new RTCIceCandidate(candidate)).catch((e) =>
+          console.warn("Failed to add ICE candidate:", e)
+        );
+      } else {
+        if (!pendingRemoteIceCandidates.current[from]) {
+          pendingRemoteIceCandidates.current[from] = [];
+        }
+        pendingRemoteIceCandidates.current[from].push(candidate);
       }
     });
 
@@ -791,30 +823,47 @@ export default function MeetingRoomPage() {
         });
       };
 
-      // Add local audio/video tracks to peer connection
+      // Add local audio and active video (screen share if active, else camera) to peer connection
       if (cameraStreamRef.current) {
-        cameraStreamRef.current.getTracks().forEach((track) => {
+        const audioTrack = cameraStreamRef.current.getAudioTracks()[0];
+        if (audioTrack) {
           const senders = pc.getSenders();
-          if (!senders.some((s) => s.track === track)) {
-            pc.addTrack(track, cameraStreamRef.current!);
+          if (!senders.some((s) => s.track === audioTrack)) {
+            pc.addTrack(audioTrack, cameraStreamRef.current);
           }
-        });
+        }
+      }
+
+      const activeVideoTrack = isScreenSharing && screenStreamRef.current?.getVideoTracks()[0]
+        ? screenStreamRef.current.getVideoTracks()[0]
+        : cameraStreamRef.current?.getVideoTracks()[0];
+
+      if (activeVideoTrack) {
+        const senders = pc.getSenders();
+        if (!senders.some((s) => s.track === activeVideoTrack)) {
+          const ownerStream = isScreenSharing && screenStreamRef.current ? screenStreamRef.current : cameraStreamRef.current!;
+          pc.addTrack(activeVideoTrack, ownerStream);
+        }
       }
 
       return pc;
     }
 
     async function createOfferFor(peerId: string) {
-      const pc = createPeerConnection(peerId);
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      if (socketRef.current) {
-        socketRef.current.emit("offer", { 
-          to: peerId, 
-          from: socketRef.current.id, 
-          description: pc.localDescription,
-          userName: session?.user?.name || "Guest"
-        });
+      try {
+        const pc = createPeerConnection(peerId);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        if (socketRef.current) {
+          socketRef.current.emit("offer", { 
+            to: peerId, 
+            from: socketRef.current.id, 
+            description: pc.localDescription,
+            userName: session?.user?.name || "Guest"
+          });
+        }
+      } catch (err) {
+        console.error("Error creating offer for peer:", peerId, err);
       }
     }
 
@@ -823,6 +872,7 @@ export default function MeetingRoomPage() {
         pcs.current[peerId].close();
         delete pcs.current[peerId];
       }
+      delete pendingRemoteIceCandidates.current[peerId];
       setRemoteStreams((prev) => prev.filter((p) => p.peerId !== peerId));
       setParticipantNames((prev) => {
         const copy = { ...prev };
@@ -1083,18 +1133,18 @@ export default function MeetingRoomPage() {
         )}
 
         {/* Streams Container */}
-        <div className="flex-1 relative bg-black p-2 sm:p-4 flex items-center justify-center overflow-y-auto">
+        <div className="flex-1 relative bg-black p-3 sm:p-6 flex items-center justify-center overflow-y-auto">
           <div className={cn(
-            "grid gap-3 sm:gap-4 w-full max-h-[85vh] overflow-y-auto items-center justify-center p-2",
-            totalParticipants === 1 ? "grid-cols-1 max-w-sm sm:max-w-md" :
-            totalParticipants === 2 ? "grid-cols-1 sm:grid-cols-2 max-w-2xl" :
-            totalParticipants <= 4 ? "grid-cols-2 max-w-3xl" :
-            "grid-cols-2 sm:grid-cols-3 max-w-5xl"
+            "grid gap-4 w-full max-h-[85vh] overflow-y-auto items-center justify-center p-2",
+            totalParticipants === 1 ? "grid-cols-1 max-w-3xl" :
+            totalParticipants === 2 ? "grid-cols-1 md:grid-cols-2 max-w-5xl" :
+            totalParticipants <= 4 ? "grid-cols-1 sm:grid-cols-2 max-w-5xl" :
+            "grid-cols-2 sm:grid-cols-3 max-w-6xl"
           )}>
             {/* Local Video Card */}
             <div
               className={cn(
-                "relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl group transition-all duration-300",
+                "relative w-full aspect-video bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl group transition-all duration-300",
                 isLocalSpeaking
                   ? "ring-2 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-emerald-500/50"
                   : "border-white/[0.08]"
@@ -1119,7 +1169,7 @@ export default function MeetingRoomPage() {
 
               {/* Camera Off / Screen Share Overlay */}
               {(isCameraOff || isScreenSharing) && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 text-white p-4">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f1d] text-white p-4">
                   {isScreenSharing ? (
                     <div className="flex flex-col items-center gap-3">
                       <div className="p-4 rounded-full bg-indigo-500/20 text-indigo-400">
@@ -1128,11 +1178,11 @@ export default function MeetingRoomPage() {
                       <span className="text-base font-semibold">You are sharing your screen</span>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="p-4 rounded-full bg-white/10 text-white/60">
-                        <VideoOff size={36} />
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="w-16 h-16 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xl font-700 text-indigo-300 shadow-lg">
+                        {getInitials(session?.user?.name || "You")}
                       </div>
-                      <span className="text-base font-semibold">Your Camera is Off</span>
+                      <span className="text-xs text-white/50 font-500 mt-1">Your Camera is Off</span>
                     </div>
                   )}
                 </div>
@@ -1141,7 +1191,7 @@ export default function MeetingRoomPage() {
               {/* Participant Name Badge & Speaking Indicator */}
               <div
                 className={cn(
-                  "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200",
+                  "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200 z-10",
                   isLocalSpeaking
                     ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
                     : "bg-black/60 border border-white/10 text-white"
@@ -1162,11 +1212,13 @@ export default function MeetingRoomPage() {
             {remoteStreams.map(({ peerId, name, stream }) => {
               const displayName = participantNames[peerId] || name || "Participant";
               const isSpeaking = !!speakingPeers[peerId];
+              const hasVideo = stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks().some(t => t.enabled);
+
               return (
                 <div 
                   key={peerId}
                   className={cn(
-                    "relative w-full aspect-square bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl animate-fade-in group transition-all duration-300",
+                    "relative w-full aspect-video bg-[#0d1222] rounded-2xl overflow-hidden border flex items-center justify-center shadow-2xl animate-fade-in group transition-all duration-300",
                     isSpeaking
                       ? "ring-2 ring-emerald-500 shadow-[0_0_24px_rgba(16,185,129,0.35)] border-emerald-500/50"
                       : "border-white/[0.08]"
@@ -1181,9 +1233,19 @@ export default function MeetingRoomPage() {
                         remoteVideoRefs.current[peerId] = el;
                       }
                     }}
-                    className="w-full h-full object-cover"
+                    className={cn("w-full h-full object-cover", !hasVideo && "hidden")}
                   />
                   
+                  {/* Remote Camera Off Avatar Fallback */}
+                  {!hasVideo && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0f1d] text-white p-4">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-lg sm:text-xl font-700 text-indigo-300 mb-2 shadow-lg">
+                        {getInitials(displayName)}
+                      </div>
+                      <span className="text-xs text-white/40 font-500">Camera Off</span>
+                    </div>
+                  )}
+
                   {/* Action Buttons: Mute & Picture-in-Picture */}
                   <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
                     <button
@@ -1205,7 +1267,7 @@ export default function MeetingRoomPage() {
                   {/* Participant Name Badge & Speaking Indicator */}
                   <div
                     className={cn(
-                      "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200",
+                      "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200 z-10",
                       isSpeaking
                         ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
                         : "bg-black/60 border border-white/10 text-white"
