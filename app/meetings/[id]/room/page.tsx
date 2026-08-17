@@ -256,36 +256,18 @@ export default function MeetingRoomPage() {
           }
         };
 
-        let isCleaningUp = false;
-        let restartTimer: any = null;
-
         recognition.onerror = (err: any) => {
           console.warn("Web Speech recognition error:", err.error);
-          if (err.error === "no-speech" || err.error === "aborted") return;
-          if (err.error === "not-allowed") {
-            setSttStatusText("Microphone Permission Blocked");
-            setSttStatusColor("text-red-400");
-          } else {
-            setSttStatusText(`Speech status: ${err.error}`);
-          }
+          if (err.error === "no-speech") return;
+          setSttStatusText(`Speech status: ${err.error}`);
         };
 
         recognition.onend = () => {
           setIsSttListening(false);
-          if (isCleaningUp || isMuted) return;
-
-          setSttStatusText("Reconnecting transcription...");
-          setSttStatusColor("text-amber-400");
-
-          restartTimer = setTimeout(() => {
-            if (!isCleaningUp && !isMuted) {
-              try {
-                recognition.start();
-              } catch (e) {
-                console.warn("Speech recognition restart catch:", e);
-              }
-            }
-          }, 300);
+          // Restart if still active and not muted
+          if (speechRecRef.current && !isMuted) {
+            try { speechRecRef.current.start(); } catch {}
+          }
         };
 
         speechRecRef.current = recognition;
@@ -298,7 +280,6 @@ export default function MeetingRoomPage() {
     return () => {
       if (speechRecRef.current) {
         try { speechRecRef.current.abort(); } catch {}
-        speechRecRef.current = null;
       }
     };
   }, [isMuted, meetingId, session]);
@@ -591,15 +572,8 @@ export default function MeetingRoomPage() {
       }
     });
 
-    socket.on("current-participants", ({ participants }: { participants: any[] }) => {
-      participants.forEach((item) => {
-        const otherId = typeof item === "string" ? item : item.socketId;
-        const otherName = typeof item === "string" ? "Participant" : (item.name || "Participant");
-        if (otherId) {
-          setParticipantNames((prev) => ({ ...prev, [otherId]: otherName }));
-          createOfferFor(otherId);
-        }
-      });
+    socket.on("current-participants", ({ participants }: { participants: string[] }) => {
+      participants.forEach((otherId) => createOfferFor(otherId));
     });
 
     socket.on("user-joined", ({ socketId, user }) => {
@@ -1097,8 +1071,7 @@ export default function MeetingRoomPage() {
             </div>
 
             {/* Remote Streams Cards */}
-            {remoteStreams.map(({ peerId, stream }) => {
-              const displayName = participantNames[peerId] || "Participant";
+            {remoteStreams.map(({ peerId, name, stream }) => {
               const isSpeaking = !!speakingPeers[peerId];
               return (
                 <div 
@@ -1127,14 +1100,14 @@ export default function MeetingRoomPage() {
                     <button
                       onClick={() => handleMuteUserMic(peerId)}
                       className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all"
-                      title={`Mute ${displayName}'s microphone`}
+                      title={`Mute ${name}'s microphone`}
                     >
                       <MicOff size={15} />
                     </button>
                     <button
                       onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
                       className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all"
-                      title={`Picture-in-Picture (${displayName})`}
+                      title={`Picture-in-Picture (${name})`}
                     >
                       <PictureInPicture2 size={16} />
                     </button>
@@ -1156,7 +1129,7 @@ export default function MeetingRoomPage() {
                         <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
                       </span>
                     )}
-                    <span>{displayName}</span>
+                    <span>{name}</span>
                   </div>
                 </div>
               );
@@ -1342,7 +1315,24 @@ export default function MeetingRoomPage() {
           )}
         >
           {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+          <span className="hidden sm:inline">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
         </button>
+
+        {/* Record */}
+        {isOrganizer && (
+          <button
+            onClick={toggleRecording}
+            className={cn(
+              "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+              isRecording
+                ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 animate-pulse"
+                : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+            )}
+          >
+            <Circle size={18} className={isRecording ? "text-red-400" : ""} />
+            <span className="hidden sm:inline">{isRecording ? "Stop Record" : "Record"}</span>
+          </button>
+        )}
 
         {/* Generate MoM */}
         <button
