@@ -539,8 +539,11 @@ export default function ChatPage() {
 
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
-        // Only update state — the useEffect will bind srcObject after React renders <video>
-        setRemoteStream(event.streams[0]);
+        const stream = event.streams[0];
+        setRemoteStream(stream);
+        if (remoteVideoRef.current) {
+          remoteVideoRef.current.srcObject = stream;
+        }
         setIsCalling(false);
       }
     };
@@ -552,9 +555,11 @@ export default function ChatPage() {
       });
     });
 
-    socket.on("current-participants", async ({ participants }: { participants: string[] }) => {
-      if (participants.length > 0) {
-        const targetId = participants[0];
+    socket.on("current-participants", async ({ participants }: { participants: any[] }) => {
+      if (participants && participants.length > 0) {
+        const item = participants[0];
+        const targetId = typeof item === "string" ? item : item.socketId;
+        if (!targetId) return;
         peerSocketId = targetId;
         flushPendingCandidates(targetId);
 
@@ -564,8 +569,9 @@ export default function ChatPage() {
           to: targetId,
           from: socket.id,
           description: pc.localDescription,
+          userName: session?.user?.name || "User",
         });
-        sendHttpSignal("offer", pc.localDescription);
+        sendHttpSignal("offer", pc.localDescription, selectedContact?.id);
       }
     });
 
@@ -573,15 +579,16 @@ export default function ChatPage() {
       peerSocketId = from;
       flushPendingCandidates(from);
 
-      await pc.setRemoteDescription(description);
+      await pc.setRemoteDescription(new RTCSessionDescription(description));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit("answer", {
         to: from,
         from: socket.id,
         description: pc.localDescription,
+        userName: session?.user?.name || "User",
       });
-      sendHttpSignal("answer", pc.localDescription);
+      sendHttpSignal("answer", pc.localDescription, selectedContact?.id);
     });
 
     socket.on("answer", async ({ from, description }: any) => {
@@ -589,12 +596,16 @@ export default function ChatPage() {
         peerSocketId = from;
         flushPendingCandidates(from);
       }
-      await pc.setRemoteDescription(description);
+      if (pc.signalingState === "have-local-offer") {
+        await pc.setRemoteDescription(new RTCSessionDescription(description));
+      }
     });
 
     socket.on("ice-candidate", async ({ candidate }: any) => {
       try {
-        await pc.addIceCandidate(candidate);
+        if (candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
       } catch (e) {
         console.warn("ICE error", e);
       }
@@ -1748,7 +1759,12 @@ export default function ChatPage() {
                 {/* Remote video — full background */}
                 {remoteStream ? (
                   <video
-                    ref={remoteVideoRef}
+                    ref={(el) => {
+                      remoteVideoRef.current = el;
+                      if (el && remoteStream) {
+                        el.srcObject = remoteStream;
+                      }
+                    }}
                     autoPlay
                     playsInline
                     className="absolute inset-0 w-full h-full object-cover"
