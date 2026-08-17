@@ -90,6 +90,10 @@ io.on('connection', (socket) => {
     socket.to(meetingId).emit('user-speaking', { peerId: socket.id, isSpeaking });
   });
 
+  socket.on('mute-status-changed', ({ meetingId, isMuted }) => {
+    socket.to(meetingId).emit('peer-mute-changed', { peerId: socket.id, isMuted });
+  });
+
   socket.on('host-control', ({ meetingId, targetPeerId, action }) => {
     socket.to(meetingId).emit('host-control', { targetPeerId, action });
   });

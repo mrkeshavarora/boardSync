@@ -61,6 +61,7 @@ export default function MeetingRoomPage() {
   const [showGenerateMinutesModal, setShowGenerateMinutesModal] = useState(false);
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
+  const [mutedPeers, setMutedPeers] = useState<Record<string, boolean>>({});
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
@@ -646,6 +647,13 @@ export default function MeetingRoomPage() {
       setSpeakingPeers((prev) => ({ ...prev, [peerId]: isSpeaking }));
     });
 
+    socket.on("peer-mute-changed", ({ peerId, isMuted }: { peerId: string; isMuted: boolean }) => {
+      if (isMuted) {
+        setSpeakingPeers((prev) => ({ ...prev, [peerId]: false }));
+      }
+      setMutedPeers((prev) => ({ ...prev, [peerId]: isMuted }));
+    });
+
     socket.on("host-control", ({ targetPeerId, action }: { targetPeerId: string; action: string }) => {
       const myId = socket.id;
       const isTarget = targetPeerId === "*" || targetPeerId === myId;
@@ -938,6 +946,10 @@ export default function MeetingRoomPage() {
     isMutedRef.current = newMutedState;
     setIsMuted(newMutedState);
 
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("mute-status-changed", { meetingId, isMuted: newMutedState });
+    }
+
     // Sync across active WebRTC peer connection senders
     Object.values(pcs.current).forEach((pc) => {
       pc.getSenders().forEach((sender) => {
@@ -1193,6 +1205,16 @@ export default function MeetingRoomPage() {
                 style={{ visibility: isCameraOff ? "hidden" : "visible" }}
               />
 
+              {/* Local Mute Status Badge — ONLY show when local mic is OFF */}
+              {isMuted && (
+                <div
+                  className="absolute top-3 left-3 p-2 rounded-lg bg-red-500/20 backdrop-blur-md border border-red-500/30 text-red-400 shadow-lg z-10 flex items-center justify-center animate-fade-in"
+                  title="Your microphone is muted"
+                >
+                  <MicOff size={15} />
+                </div>
+              )}
+
               {/* Picture in Picture Button */}
               <button
                 onClick={() => togglePiP(localVideoRef.current)}
@@ -1247,6 +1269,7 @@ export default function MeetingRoomPage() {
             {remoteStreams.map(({ peerId, name, stream }) => {
               const displayName = participantNames[peerId] || name || "Participant";
               const isSpeaking = !!speakingPeers[peerId];
+              const isPeerMuted = !!mutedPeers[peerId] || (stream && stream.getAudioTracks().length > 0 && !stream.getAudioTracks().some(t => t.enabled));
               const hasVideo = stream && stream.getVideoTracks().length > 0 && stream.getVideoTracks().some(t => t.enabled);
 
               return (
@@ -1281,18 +1304,30 @@ export default function MeetingRoomPage() {
                     </div>
                   )}
 
-                  {/* Action Buttons: Mute & Picture-in-Picture */}
+                  {/* Action Buttons & Mute Status Indicator */}
                   <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
-                    <button
-                      onClick={() => handleMuteUserMic(peerId)}
-                      className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all"
-                      title={`Mute ${displayName}'s microphone`}
-                    >
-                      <MicOff size={15} />
-                    </button>
+                    {/* ONLY show Mute Icon when the member's mic is OFF (muted) */}
+                    {isPeerMuted && (
+                      <div
+                        className="p-2 rounded-lg bg-red-500/20 backdrop-blur-md border border-red-500/30 text-red-400 shadow-lg flex items-center justify-center animate-fade-in"
+                        title={`${displayName}'s microphone is muted`}
+                      >
+                        <MicOff size={15} />
+                      </div>
+                    )}
+
+                    {isOrganizer && (
+                      <button
+                        onClick={() => handleMuteUserMic(peerId)}
+                        className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100"
+                        title={`Mute ${displayName}'s microphone`}
+                      >
+                        <MicOff size={15} />
+                      </button>
+                    )}
                     <button
                       onClick={() => togglePiP(remoteVideoRefs.current[peerId])}
-                      className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all"
+                      className="p-2 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-white/70 hover:text-white transition-all opacity-0 group-hover:opacity-100"
                       title={`Picture-in-Picture (${displayName})`}
                     >
                       <PictureInPicture2 size={16} />
