@@ -36,32 +36,35 @@ const io = new Server(server, {
   }
 });
 
-// Room -> Set of socket ids
+// Room -> Map of socket id -> user name
 const rooms = new Map();
 
 io.on('connection', (socket) => {
   console.log('Socket connected:', socket.id);
 
   socket.on('join-room', ({ meetingId, user }) => {
-    console.log(`Socket ${socket.id} joining meeting ${meetingId}`);
+    console.log(`Socket ${socket.id} joining meeting ${meetingId}`, user);
     socket.join(meetingId);
 
-    // track participants
-    if (!rooms.has(meetingId)) rooms.set(meetingId, new Set());
-    const set = rooms.get(meetingId);
-    set.add(socket.id);
+    // track participants with names
+    if (!rooms.has(meetingId)) rooms.set(meetingId, new Map());
+    const roomMap = rooms.get(meetingId);
+    const name = user?.name || 'Participant';
+    roomMap.set(socket.id, name);
 
     // notify others
-    socket.to(meetingId).emit('user-joined', { socketId: socket.id, user });
+    socket.to(meetingId).emit('user-joined', { socketId: socket.id, user: { name } });
 
     // send current participants to joining socket
-    const participants = Array.from(set).filter((id) => id !== socket.id);
+    const participants = Array.from(roomMap.entries())
+      .filter(([id]) => id !== socket.id)
+      .map(([id, pName]) => ({ socketId: id, name: pName }));
     socket.emit('current-participants', { participants });
   });
 
-  socket.on('offer', ({ to, from, description }) => {
-    console.log(`Offer from ${from} to ${to}`);
-    io.to(to).emit('offer', { from, description });
+  socket.on('offer', ({ to, from, description, userName }) => {
+    console.log(`Offer from ${from} (${userName}) to ${to}`);
+    io.to(to).emit('offer', { from, description, userName });
   });
 
   socket.on('answer', ({ to, from, description }) => {
