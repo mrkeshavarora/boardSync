@@ -64,13 +64,10 @@ export default function MeetingRoomPage() {
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
-  const [socketInstance, setSocketInstance] = useState<any>(null); // state-tracked socket for panels
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRefs = useRef<Record<string, HTMLVideoElement | null>>({});
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
-  const streamReadyRef = useRef(false); // true once cameraStreamRef is populated
-  const [cameraStreamReady, setCameraStreamReady] = useState(false); // triggers speaking re-setup
   const pcs = useRef<Record<string, RTCPeerConnection>>({});
   const [remoteStreams, setRemoteStreams] = useState<PeerStream[]>([]);
   const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
@@ -398,8 +395,6 @@ export default function MeetingRoomPage() {
   }, [isMuted, meetingId, session]);
 
   // Real-time local speaking detection using Web Audio API
-  // Use cameraStreamReady (state) instead of cameraStreamRef.current as dependency
-  // to avoid re-triggering on every render while keeping stable analyzer lifecycle.
   useEffect(() => {
     if (isMuted || !cameraStreamRef.current) {
       setIsLocalSpeaking(false);
@@ -475,9 +470,7 @@ export default function MeetingRoomPage() {
         audioCtx?.close();
       } catch {}
     };
-  // Use cameraStreamReady state (not cameraStreamRef.current) to avoid
-  // re-triggering the effect on every render which caused camera blinking.
-  }, [isMuted, cameraStreamReady, meetingId]);
+  }, [isMuted, cameraStreamRef.current, meetingId]);
 
   // Real-time remote peers speaking detection via local audio analysis
   useEffect(() => {
@@ -557,7 +550,6 @@ export default function MeetingRoomPage() {
     console.log("Initializing WebRTC Socket. URL:", SIGNALING_URL);
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
-    setSocketInstance(socket); // expose to React state so panels can register listeners
 
     // Set up socket listeners first so we don't miss any messages
     socket.on("connect", () => {
@@ -675,9 +667,6 @@ export default function MeetingRoomPage() {
         if (localVideoRef.current && localStream.getVideoTracks().length > 0) {
           localVideoRef.current.srcObject = localStream;
         }
-        // Signal that stream is ready so the speaking-detection effect can run
-        streamReadyRef.current = true;
-        setCameraStreamReady(true);
 
         // Attach tracks to any peer connections created while media was initializing
         Object.values(pcs.current).forEach((pc) => {
@@ -1006,7 +995,7 @@ export default function MeetingRoomPage() {
         {/* Live Transcript Panel (Left Side) */}
         {showTranscript && (
           <LiveTranscriptPanel
-            socket={socketInstance}
+            socket={socketRef.current}
             meetingId={meetingId}
             currentUser={{ id: session?.user?.id || "", name: session?.user?.name || "Participant" }}
             isListening={isSttListening}
@@ -1038,9 +1027,7 @@ export default function MeetingRoomPage() {
                 autoPlay
                 playsInline
                 muted
-                // Use opacity/visibility instead of 'hidden' to avoid srcObject loss and blinking
-                className="w-full h-full object-cover scale-x-[-1]"
-                style={{ visibility: isCameraOff ? "hidden" : "visible" }}
+                className={cn("w-full h-full object-cover scale-x-[-1]", (isCameraOff) && "hidden")}
               />
               
               {/* Picture in Picture Button */}
