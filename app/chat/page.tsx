@@ -283,23 +283,16 @@ export default function ChatPage() {
         const list: Message[] = data.messages || [];
         setMessages(list);
 
-        // Check for incoming call invite
+        // Check for declined call invite
         const latestMsg = list[list.length - 1];
-        if (latestMsg && isInCall) {
+        if (latestMsg && isInCall && isCalling) {
           const isFromOther = latestMsg.senderId === selectedContact.id;
           const msgTime = new Date(latestMsg.createdAt).getTime();
-          const isAfterCallStart = msgTime >= callStartedAtRef.current;
 
-          if (isFromOther && isAfterCallStart) {
-            // Case 2: Outgoing call declined by remote user
-            if (latestMsg.message.startsWith(`[CALL_DECLINED]:${callRoomName}`)) {
+          if (isFromOther && msgTime > callStartedAtRef.current) {
+            if (latestMsg.message === `[CALL_DECLINED]:${callRoomName}`) {
               endCall();
               alert("Call was declined by " + selectedContact.name);
-            }
-
-            // Case 3: Ongoing call ended by remote user
-            if (latestMsg.message.startsWith(`[CALL_ENDED]:${callRoomName}`)) {
-              endCall();
             }
           }
         }
@@ -458,7 +451,24 @@ export default function ChatPage() {
     callStartedAtRef.current = Date.now();
 
     try {
-      // Send invitation message in DB
+      // 1. Clear any leftover signals from past calls in this room
+      fetch("/api/chat/signal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear", room: callRoomName }),
+      }).catch(() => {});
+
+      // 2. Acquire media stream first
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: type === "video",
+        audio: true,
+      });
+      setLocalStream(stream);
+
+      // 3. Connect to signaling room
+      connectToSignalingRoom(callRoomName, stream);
+
+      // 4. Send invitation message in DB
       await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -467,14 +477,6 @@ export default function ChatPage() {
           message: `[CALL_INVITE]:${type}:${callRoomName}`,
         }),
       });
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: type === "video",
-        audio: true,
-      });
-      setLocalStream(stream);
-
-      connectToSignalingRoom(callRoomName, stream);
     } catch (e) {
       console.error("Failed to start media streams", e);
       alert("Microphone or camera permission denied.");
@@ -685,26 +687,29 @@ export default function ChatPage() {
 
     pc.onconnectionstatechange = () => {
       console.log("Chat call: pc connectionState changed to:", pc.connectionState);
-      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
+      if (pc.remoteDescription && (pc.connectionState === "failed" || pc.connectionState === "closed")) {
         endCall();
       }
     };
 
     pc.oniceconnectionstatechange = () => {
       console.log("Chat call: pc iceConnectionState changed to:", pc.iceConnectionState);
+      if (!pc.remoteDescription) return;
+
       if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
         endCall();
       } else if (pc.iceConnectionState === "disconnected") {
         if (!disconnectTimer) {
           disconnectTimer = setTimeout(() => {
             if (
-              pc.iceConnectionState === "disconnected" ||
-              pc.iceConnectionState === "failed" ||
-              pc.iceConnectionState === "closed"
+              pc.remoteDescription &&
+              (pc.iceConnectionState === "disconnected" ||
+                pc.iceConnectionState === "failed" ||
+                pc.iceConnectionState === "closed")
             ) {
               endCall();
             }
-          }, 6000);
+          }, 8000);
         }
       } else if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
         if (disconnectTimer) {
@@ -715,13 +720,17 @@ export default function ChatPage() {
     };
 
     socket.on("user-left", () => {
-      console.log("Remote peer left room, ending call");
-      endCall();
+      console.log("Remote peer left room");
+      if (pc.remoteDescription) {
+        endCall();
+      }
     });
 
     socket.on("call-ended", () => {
       console.log("Remote peer ended call");
-      endCall();
+      if (pc.remoteDescription) {
+        endCall();
+      }
     });
 
     // HTTP Signaling fallback loop for environments where Socket.IO server is unreachable
@@ -730,15 +739,18 @@ export default function ChatPage() {
         const res = await fetch("/api/chat/signal", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "poll", room }),
+          body: JSON.stringify({ action: "poll", room, since: callStartedAtRef.current }),
         });
         if (!res.ok) return;
         const data = await res.json();
         for (const sig of data.signals || []) {
           if (sig.from === session?.user?.id) continue;
+          if (sig.createdAt < callStartedAtRef.current) continue;
           if (sig.type === "call-ended" || sig.type === "end-call") {
-            endCall();
-            return;
+            if (pc.remoteDescription) {
+              endCall();
+              return;
+            }
           } else if (sig.type === "offer" && pc.signalingState === "stable") {
             await pc.setRemoteDescription(new RTCSessionDescription(sig.data));
             flushPendingRemoteCandidates();

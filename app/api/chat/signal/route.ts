@@ -32,18 +32,31 @@ export async function POST(request: Request) {
     const fromId = session.user.id;
 
     if (action === "poll") {
+      const since = typeof body.since === "number" ? body.since : 0;
       // Return and clear signals destined for this user in this room
-      const pending = signals.filter((s) => s.room === room && (s.to === fromId || s.to === "*"));
-      
+      const pending = signals.filter(
+        (s) => s.room === room && (s.to === fromId || s.to === "*") && s.createdAt >= since
+      );
+
       // Remove fetched signals from queue
       for (const p of pending) {
         const idx = signals.indexOf(p);
-        if (idx !== -1 && p.to !== "*") {
+        if (idx !== -1) {
           signals.splice(idx, 1);
         }
       }
 
       return NextResponse.json({ signals: pending });
+    }
+
+    if (action === "clear") {
+      // Clear all signals for this room
+      for (let i = signals.length - 1; i >= 0; i--) {
+        if (signals[i].room === room) {
+          signals.splice(i, 1);
+        }
+      }
+      return NextResponse.json({ success: true });
     }
 
     if (action === "send") {
