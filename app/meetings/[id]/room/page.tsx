@@ -241,24 +241,30 @@ export default function MeetingRoomPage() {
 
     recognition.onresult = (event: any) => {
       let finalTranscript = "";
-      let interimTranscript = "";
+      let fullLiveInterim = "";
 
+      // 1. Extract newly finalized phrases starting from resultIndex
       for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          finalTranscript += result[0].transcript;
-        } else {
-          interimTranscript += result[0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript + " ";
         }
       }
 
-      // ── Interim: show word-by-word as user speaks ──
-      if (interimTranscript.trim()) {
+      // 2. Extract ALL active interim results (0 to length) for complete live word-by-word sentence
+      for (let i = 0; i < event.results.length; ++i) {
+        if (!event.results[i].isFinal) {
+          fullLiveInterim += event.results[i][0].transcript;
+        }
+      }
+
+      // ── Interim: stream instant word-by-word live preview as user speaks ──
+      const liveText = fullLiveInterim.trim();
+      if (liveText) {
         const partialData = {
           meetingId,
           speakerId: session.user.id,
           speakerName: session.user.name || "Participant",
-          text: interimTranscript.trim(),
+          text: liveText,
           timestamp: new Date().toISOString(),
           isFinal: false,
         };
@@ -311,13 +317,10 @@ export default function MeetingRoomPage() {
     recognition.onend = () => {
       isRecognizingRef.current = false;
       setIsSttListening(false);
-      // Restart safely when browser engine finishes pausing/cycle
+      // Restart immediately with zero delay when browser engine completes cycle
       if (!isMutedRef.current && !isExplicitlyStoppedRef.current && !isDestroyedRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-        restartTimerRef.current = setTimeout(() => {
-          restartTimerRef.current = null;
-          safeStart();
-        }, 150);
+        safeStart();
       }
     };
 

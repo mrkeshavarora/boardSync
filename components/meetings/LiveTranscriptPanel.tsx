@@ -222,23 +222,24 @@ export default function LiveTranscriptPanel({
               </div>
             ))}
 
-            {/* Active partial segments (interim) */}
+            {/* Active partial segments (interim - real-time word-by-word) */}
             {Object.entries(activePartials).map(([speakerId, partial]) => (
-              <div key={speakerId} className="flex gap-3 group animate-pulse">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5">
-                  <Loader2 size={12} className="animate-spin" />
+              <div key={speakerId} className="flex gap-3 group">
+                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-sm shadow-emerald-500/20">
+                  <Mic size={14} className="animate-pulse" />
                 </div>
                 <div className="space-y-1 min-w-0 flex-1">
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-700 text-emerald-400 truncate">
+                    <span className="text-xs font-700 text-emerald-400 truncate flex items-center gap-1.5">
                       {partial.speakerName} {speakerId === currentUser.id ? "(You)" : ""}
                     </span>
-                    <span className="text-[9px] text-emerald-400/50 shrink-0 font-medium">
-                      Translating...
+                    <span className="text-[9px] text-emerald-400/80 shrink-0 font-600 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      Live
                     </span>
                   </div>
-                  <p className="text-xs text-white/60 leading-relaxed font-400 italic break-words">
-                    {partial.text}...
+                  <p className="text-xs text-emerald-100/90 leading-relaxed font-500 break-words bg-emerald-950/30 border border-emerald-500/20 p-2.5 rounded-xl">
+                    {partial.text}
                   </p>
                 </div>
               </div>

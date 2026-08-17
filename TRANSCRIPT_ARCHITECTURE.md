@@ -7,22 +7,28 @@
 ## 1. Executive Summary of Critical Fixes
 
 ### A. Live Transcript Performance & Zero Latency
-1. **Single Stable `SpeechRecognition` Instance**:
+1. **Instant Word-by-Word Interim Streaming**:
+   - *Issue*: `onresult` previously accumulated interim text starting only from `event.resultIndex`, skipping preceding active interim tokens and delaying transcript updates until sentence completion (`isFinal`).
+   - *Fix*: `onresult` iterates all interim results from index `0` to `event.results.length - 1`, building the complete growing live phrase word-by-word in real time as each word is spoken.
+2. **Gapless Continuous Recognition Restarts**:
+   - *Issue*: `onend` had a 150ms timeout delay before calling `safeStart()`, causing small speech gaps between continuous speech cycles.
+   - *Fix*: Reduced restart delay to 0ms (`safeStart()` called immediately), making speech recognition gapless.
+3. **Clean Real-Time Live UI Rendering**:
+   - *Issue*: `LiveTranscriptPanel` had `animate-pulse` opacity flickering and displayed "Translating...", making real-time word-by-word streaming look like buffering/lag.
+   - *Fix*: Replaced "Translating..." with a glowing green "Live" indicator, removed container pulse flicker, and styled active speech in a crisp, highlighted text card (`bg-emerald-950/30 border border-emerald-500/20`).
+4. **Single Stable `SpeechRecognition` Instance**:
    - *Issue*: `SpeechRecognition` was recreated on every `isMuted` or re-render, causing a 1–2 second re-initialization delay for every sentence.
    - *Fix*: The recognition instance is initialized **once** on mount (`[meetingId, session]`). A separate `useEffect([isMuted])` toggles `.stop()` / `.start()` on the existing instance without re-instantiating it.
-2. **Stale Closure Elimination with `isMutedRef`**:
+5. **Stale Closure Elimination with `isMutedRef`**:
    - *Issue*: The `onend` callback was reading stale `isMuted` state, causing automatic restarts to silently fail after natural pauses in speech.
    - *Fix*: Introduced `isMutedRef` updated in a zero-dependency `useEffect`. `onend` checks `!isMutedRef.current` for gapless zero-delay restarts.
-3. **Bypass Slow OpenAI Whisper Chunking**:
+6. **Bypass Slow OpenAI Whisper Chunking**:
    - *Issue*: The secondary 5-second audio recorder was posting audio chunks to OpenAI Whisper every 6 seconds in parallel, adding 6–11 second delayed duplicate text over the live Web Speech API stream.
    - *Fix*: Added `if (SpeechRecognition) return;` at top of Whisper chunk recorder so it only runs as a fallback on unsupported browsers (e.g. Firefox).
-4. **Immediate Interim Word-by-Word Streaming**:
-   - *Issue*: Transcripts only updated after complete sentences.
-   - *Fix*: `event.resultIndex` iterates interim results and immediately dispatches `local-transcript` window event locally + emits `transcript:partial` to WebRTC peers via Socket.IO.
-5. **No Duplicate Socket Echoes**:
+7. **No Duplicate Socket Echoes**:
    - *Issue*: `server.js` used `io.to(meetingId)` which sent transcript socket events back to the speaker, causing double lines in the UI.
    - *Fix*: Updated `server.js` to use `socket.to(meetingId).emit(...)` (broadcasts to room excluding the sender).
-6. **State-tracked Socket Prop**:
+8. **State-tracked Socket Prop**:
    - *Issue*: `LiveTranscriptPanel` was passed `socketRef.current` (which is `null` at initial mount), causing socket listener registration to fail.
    - *Fix*: Introduced `socketInstance` React state in `room/page.tsx` so `LiveTranscriptPanel` re-renders and attaches socket listeners when the connection opens.
 
@@ -79,7 +85,7 @@ useEffect(() => {
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = "en-US";
-  recognition.maxAlternatives = 1; // no need for multiple alternatives — reduces overhead
+  recognition.maxAlternatives = 1;
 
   recognition.onstart = () => {
     setIsSttListening(true);
@@ -89,31 +95,34 @@ useEffect(() => {
 
   recognition.onresult = (event: any) => {
     let finalTranscript = "";
-    let interimTranscript = "";
+    let fullLiveInterim = "";
 
-    // Only iterate new results since last event (event.resultIndex)
+    // 1. Extract newly finalized phrases starting from resultIndex
     for (let i = event.resultIndex; i < event.results.length; ++i) {
-      const result = event.results[i];
-      if (result.isFinal) {
-        finalTranscript += result[0].transcript;
-      } else {
-        interimTranscript += result[0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += event.results[i][0].transcript + " ";
       }
     }
 
-    // ── Interim: show word-by-word as user speaks ──
-    if (interimTranscript.trim()) {
+    // 2. Extract ALL active interim results (0 to length) for complete live word-by-word sentence
+    for (let i = 0; i < event.results.length; ++i) {
+      if (!event.results[i].isFinal) {
+        fullLiveInterim += event.results[i][0].transcript;
+      }
+    }
+
+    // ── Interim: stream instant word-by-word live preview as user speaks ──
+    const liveText = fullLiveInterim.trim();
+    if (liveText) {
       const partialData = {
         meetingId,
         speakerId: session.user.id,
         speakerName: session.user.name || "Participant",
-        text: interimTranscript.trim(),
+        text: liveText,
         timestamp: new Date().toISOString(),
         isFinal: false,
       };
-      // Show instantly in local panel
       window.dispatchEvent(new CustomEvent("local-transcript", { detail: partialData }));
-      // Broadcast to other participants
       if (socketRef.current?.connected) {
         socketRef.current.emit("transcript:partial", partialData);
       }
@@ -135,7 +144,6 @@ useEffect(() => {
       if (socketRef.current?.connected) {
         socketRef.current.emit("transcript:final", segment);
       }
-      // Save to DB in the background (non-blocking)
       fetch(`/api/meetings/${meetingId}/transcript`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,50 +159,29 @@ useEffect(() => {
   };
 
   recognition.onend = () => {
+    isRecognizingRef.current = false;
     setIsSttListening(false);
-    // Immediately restart if not muted — zero delay keeps transcription gapless
-    if (!isMutedRef.current && speechRecRef.current) {
-      try { speechRecRef.current.start(); } catch {}
+    // Restart immediately with zero delay when browser engine completes cycle
+    if (!isMutedRef.current && !isExplicitlyStoppedRef.current && !isDestroyedRef.current) {
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      safeStart();
     }
   };
 
   speechRecRef.current = recognition;
 
   if (!isMutedRef.current) {
-    try { recognition.start(); } catch {}
+    safeStart();
   }
 
   return () => {
+    isDestroyedRef.current = true;
     if (speechRecRef.current) {
       try { speechRecRef.current.abort(); } catch {}
       speechRecRef.current = null;
     }
   };
 }, [meetingId, session]);
-
-// 2. Handle mute/unmute by starting/stopping existing instance
-useEffect(() => {
-  if (!speechRecRef.current) return;
-  if (isMuted) {
-    try { speechRecRef.current.stop(); } catch {}
-    setIsSttListening(false);
-    setSttStatusText("Muted");
-    setSttStatusColor("text-red-400");
-  } else {
-    try { speechRecRef.current.start(); } catch {}
-  }
-}, [isMuted]);
-
-// 3. Whisper chunk recorder — FALLBACK ONLY for non-WebSpeech browsers
-useEffect(() => {
-  const SpeechRecognition =
-    (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-  if (SpeechRecognition) return; // Skip Whisper when native Web Speech is present
-  if (!session?.user || isMuted) return;
-
-  // ... (Whisper fallback code) ...
-}, [isMuted, meetingId, session]);
 ```
 
 ---
@@ -202,74 +189,26 @@ useEffect(() => {
 ### File 2: `components/meetings/LiveTranscriptPanel.tsx` (UI Panel)
 
 ```tsx
-useEffect(() => {
-  const handlePartial = (data: TranscriptItem) => {
-    if (data.meetingId !== meetingId) return;
-    setActivePartials((prev) => ({
-      ...prev,
-      [data.speakerId]: {
-        text: data.text,
-        timestamp: data.timestamp,
-        speakerName: data.speakerName,
-      },
-    }));
-  };
-
-  const handleFinal = (data: TranscriptItem) => {
-    if (data.meetingId !== meetingId) return;
-    setActivePartials((prev) => {
-      const copy = { ...prev };
-      delete copy[data.speakerId];
-      return copy;
-    });
-    setFinalTranscripts((prev) => [...prev, data]);
-  };
-
-  const handleLocal = (e: any) => {
-    const data = e.detail;
-    if (!data) return;
-    if (data.isFinal) handleFinal(data);
-    else handlePartial(data);
-  };
-
-  window.addEventListener("local-transcript", handleLocal);
-
-  if (socket) {
-    socket.on("transcript:partial", handlePartial);
-    socket.on("transcript:final", handleFinal);
-  }
-
-  return () => {
-    window.removeEventListener("local-transcript", handleLocal);
-    if (socket) {
-      socket.off("transcript:partial", handlePartial);
-      socket.off("transcript:final", handleFinal);
-    }
-  };
-}, [socket, meetingId]);
+// Active partial rendering
+{Object.entries(activePartials).map(([speakerId, partial]) => (
+  <div key={speakerId} className="flex gap-3 group">
+    <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-sm shadow-emerald-500/20">
+      <Mic size={14} className="animate-pulse" />
+    </div>
+    <div className="space-y-1 min-w-0 flex-1">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-700 text-emerald-400 truncate flex items-center gap-1.5">
+          {partial.speakerName} {speakerId === currentUser.id ? "(You)" : ""}
+        </span>
+        <span className="text-[9px] text-emerald-400/80 shrink-0 font-600 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+          Live
+        </span>
+      </div>
+      <p className="text-xs text-emerald-100/90 leading-relaxed font-500 break-words bg-emerald-950/30 border border-emerald-500/20 p-2.5 rounded-xl">
+        {partial.text}
+      </p>
+    </div>
+  </div>
+))}
 ```
-
----
-
-### File 3: `server.js` (Socket.IO Server Broadcast)
-
-```javascript
-socket.on('transcript:partial', (data) => {
-  // Broadcast to everyone ELSE in the room — sender renders via local-transcript
-  socket.to(data.meetingId).emit('transcript:partial', data);
-});
-
-socket.on('transcript:final', (data) => {
-  // Broadcast to everyone ELSE in the room — sender renders via local-transcript
-  socket.to(data.meetingId).emit('transcript:final', data);
-});
-```
-
----
-
-## 4. How to Restore After a Git Pull
-
-If a future `git pull` reverts these files:
-1. Verify `app/meetings/[id]/room/page.tsx` contains `isMutedRef` and single-instance `SpeechRecognition`.
-2. Check `components/meetings/LiveTranscriptPanel.tsx` is passed `socketInstance` (not `socketRef.current`).
-3. Check `server.js` uses `socket.to(data.meetingId).emit(...)` instead of `io.to()`.
