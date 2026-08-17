@@ -81,8 +81,8 @@ export default function AddAgendaModal({ meetingId, onAdded }: AddAgendaModalPro
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#111116] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl space-y-0">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-[#111116] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl space-y-0 animate-fade-in">
             {/* Header */}
             <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
               <div className="flex items-center gap-3">

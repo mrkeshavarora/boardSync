@@ -372,7 +372,7 @@ export default function UsersContent() {
 
       {/* Invite/Add User Modal */}
       {showInviteModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#0b1021] border border-white/[0.08] rounded-2xl w-full max-w-lg overflow-hidden animate-fade-in">
             <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="font-600 text-white text-base">Add New Member</h3>
@@ -475,7 +475,7 @@ export default function UsersContent() {
 
       {/* Change Password Modal */}
       {showPasswordModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#0b1021] border border-white/[0.08] rounded-2xl w-full max-w-md overflow-hidden animate-fade-in">
             <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="font-600 text-white text-base">Change Password</h3>
@@ -522,7 +522,7 @@ export default function UsersContent() {
 
       {/* User Details Profile Modal */}
       {showDetailModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-[#0b1021] border border-white/[0.08] rounded-2xl w-full max-w-md overflow-hidden animate-fade-in">
             <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between">
               <h3 className="font-600 text-white text-base">User Details Profile</h3>
