@@ -32,7 +32,7 @@ export default function RejoinMeetingBtn({ meetingId }: RejoinMeetingBtnProps) {
         <span className="relative w-2 h-2 rounded-full bg-white" />
       </span>
       <Video size={17} className="shrink-0 relative z-10" />
-      <span className="relative z-10">Re-join Meeting</span>
+      <span className="relative z-10">Join Meeting</span>
       <ArrowRightCircle
         size={16}
         className="shrink-0 relative z-10 opacity-70 group-hover:translate-x-0.5 transition-transform"
