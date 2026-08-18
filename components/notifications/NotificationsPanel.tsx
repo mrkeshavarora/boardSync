@@ -124,7 +124,7 @@ export default function NotificationsPanel() {
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-white/[0.04]">
+          <div className="divide-y divide-white/[0.04] max-h-[420px] overflow-y-auto custom-scrollbar">
             {displayed.map((n) => {
               const { icon: Icon, color, bg } = ICON_MAP[n.type] ?? ICON_MAP.system;
               const Inner = (

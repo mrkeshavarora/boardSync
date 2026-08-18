@@ -461,3 +461,29 @@ html[data-theme="light"] div[style*="background: rgb(13, 21, 39)"] {
   box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.15) !important;
 }
 
+/* Header Profile Dropdown Panel in Light Mode */
+html[data-theme="light"] .header-dropdown-panel {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.15) !important;
+}
+
+html[data-theme="light"] .header-dropdown-usercard {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html[data-theme="light"] .header-dropdown-item {
+  color: #334155 !important;
+}
+
+html[data-theme="light"] .header-dropdown-item:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] .header-dropdown-divider {
+  border-top-color: #e2e8f0 !important;
+}
+

@@ -126,17 +126,17 @@ export default function Header({
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setDropdownOpen(!dropdownOpen)}
-            className="flex items-center gap-2 pl-1 pr-1.5 sm:pr-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all"
+            className="flex items-center gap-2.5 pl-1.5 pr-2 sm:pr-3 py-1 rounded-xl bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all cursor-pointer"
           >
             {user.image || (user as any).avatar ? (
               <img
                 src={user.image || (user as any).avatar}
                 alt={user.name ?? "User"}
-                className="w-7 h-7 rounded-md object-cover flex-shrink-0 border border-white/20"
+                className="w-8 h-8 rounded-lg object-cover flex-shrink-0 border border-indigo-500/30 shadow-sm shadow-indigo-500/20"
               />
             ) : (
               <div
-                className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-700 text-white flex-shrink-0"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-700 text-white flex-shrink-0 shadow-sm shadow-indigo-500/20"
                 style={{ background: "var(--gradient-brand)" }}
               >
                 {user.name ? getInitials(user.name) : "?"}
@@ -151,28 +151,61 @@ export default function Header({
 
           {dropdownOpen && (
             <div
-              className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-white/[0.1] py-1.5 shadow-2xl animate-fade-in z-50"
-              style={{ background: "#111827" }}
+              className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-white/[0.12] p-2 shadow-2xl animate-fade-in z-50 overflow-hidden header-dropdown-panel"
+              style={{ background: "#0d1527" }}
             >
-              <div className="px-3 py-2 border-b border-white/[0.06] mb-1">
-                <p className="text-xs font-600 text-white truncate">{user.name}</p>
-                <p className="text-[10px] text-white/40 truncate">{user.email}</p>
+              {/* Profile Card inside dropdown */}
+              <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] mb-2 header-dropdown-usercard">
+                {user.image || (user as any).avatar ? (
+                  <img
+                    src={user.image || (user as any).avatar}
+                    alt={user.name ?? "User"}
+                    className="w-10 h-10 rounded-xl object-cover shrink-0 border border-indigo-500/30 shadow-md shadow-indigo-500/20"
+                  />
+                ) : (
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-700 text-white shrink-0 shadow-md shadow-indigo-500/20"
+                    style={{ background: "var(--gradient-brand)" }}
+                  >
+                    {user.name ? getInitials(user.name) : "?"}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-700 text-white truncate leading-tight">{user.name ?? "User"}</p>
+                  <p className="text-[10px] text-white/50 truncate mt-0.5">{user.email ?? ""}</p>
+                  <span className="inline-block px-2 py-0.5 mt-1 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 text-[9px] font-600">
+                    {roleLabel}
+                  </span>
+                </div>
               </div>
-              <Link href="/profile" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/[0.05] transition-all">
-                <User size={14} />
-                Profile
-              </Link>
-              <Link href="/settings" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2.5 px-3 py-2 text-sm text-white/60 hover:text-white hover:bg-white/[0.05] transition-all">
-                <Settings size={14} />
-                Settings
-              </Link>
-              <hr className="border-white/[0.06] my-1" />
+
+              <div className="space-y-0.5">
+                <Link
+                  href="/profile"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-500 text-white/70 hover:text-white hover:bg-white/[0.06] transition-all header-dropdown-item"
+                >
+                  <User size={15} className="text-indigo-400" />
+                  <span>My Profile</span>
+                </Link>
+                <Link
+                  href="/settings"
+                  onClick={() => setDropdownOpen(false)}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-500 text-white/70 hover:text-white hover:bg-white/[0.06] transition-all header-dropdown-item"
+                >
+                  <Settings size={15} className="text-indigo-400" />
+                  <span>Account Settings</span>
+                </Link>
+              </div>
+
+              <div className="my-1.5 border-t border-white/[0.08] header-dropdown-divider" />
+
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/[0.08] transition-all text-left"
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-500 text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all text-left cursor-pointer"
               >
-                <LogOut size={14} />
-                Sign Out
+                <LogOut size={15} />
+                <span>Sign Out</span>
               </button>
             </div>
           )}

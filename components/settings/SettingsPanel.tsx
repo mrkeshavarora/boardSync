@@ -348,17 +348,17 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                 <div className="space-y-8">
                   {/* Incoming Requests */}
                   {incomingRequests.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <h3 className="text-xs uppercase tracking-widest text-white/40 font-600">Incoming Requests ({incomingRequests.length})</h3>
-                      <div className="space-y-2">
+                      <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1.5 custom-scrollbar">
                         {incomingRequests.map(conn => (
-                          <div key={conn.connectionId} className="flex items-center justify-between p-4 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+                          <div key={conn.connectionId} className="flex items-center justify-between p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
                             <div>
                               <div className="text-sm font-500 text-white">{conn.name}</div>
                               <div className="text-xs text-white/40">{conn.email} • {conn.role}</div>
                             </div>
                             <div className="flex gap-2">
-                              <button onClick={() => handleAcceptConnection(conn.id)} className="px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-xs font-500 transition-colors flex items-center gap-1.5">
+                              <button onClick={() => handleAcceptConnection(conn.id)} className="px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 text-xs font-500 transition-colors flex items-center gap-1.5 cursor-pointer">
                                 <Check size={14} /> Accept
                               </button>
                             </div>
@@ -369,17 +369,17 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                   )}
 
                   {/* Accepted Connections */}
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <h3 className="text-xs uppercase tracking-widest text-white/40 font-600">My Connections ({acceptedConnections.length})</h3>
                     {acceptedConnections.length === 0 ? (
-                      <div className="p-6 text-center border border-dashed border-white/[0.1] rounded-xl text-sm text-white/30">
+                      <div className="p-5 text-center border border-dashed border-white/[0.1] rounded-xl text-sm text-white/30">
                         You have no connections yet. Add them when creating a meeting!
                       </div>
                     ) : (
-                      <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="grid sm:grid-cols-2 gap-3 max-h-[220px] overflow-y-auto pr-1.5 custom-scrollbar">
                         {acceptedConnections.map(conn => (
                           <div key={conn.connectionId} className="flex items-center gap-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white">
+                            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white">
                               {conn.name?.charAt(0)?.toUpperCase()}
                             </div>
                             <div>
@@ -394,13 +394,13 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
 
                   {/* Outgoing Requests */}
                   {outgoingRequests.length > 0 && (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <h3 className="text-xs uppercase tracking-widest text-white/40 font-600">Sent Requests ({outgoingRequests.length})</h3>
-                      <div className="space-y-2 opacity-70">
+                      <div className="space-y-2 opacity-90 max-h-[220px] overflow-y-auto pr-1.5 custom-scrollbar">
                         {outgoingRequests.map(conn => (
                           <div key={conn.connectionId} className="flex items-center justify-between p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
                             <div className="text-sm font-500 text-white">{conn.name}</div>
-                            <span className="text-xs px-2 py-1 bg-white/10 rounded-full text-white/50">Pending</span>
+                            <span className="text-xs px-2.5 py-1 bg-white/10 rounded-full text-white/50 font-500">Pending</span>
                           </div>
                         ))}
                       </div>
@@ -415,23 +415,23 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
           {section === "notifications" && (
             <>
               <div>
-                <h2 className="text-lg font-600 text-white">Notification Preferences</h2>
-                <p className="text-sm text-white/50 mt-1">Control how and when you receive notifications</p>
+                <h2 className="text-base font-600 text-white">Notification Preferences</h2>
+                <p className="text-xs text-white/50 mt-0.5">Control how and when you receive notifications</p>
               </div>
-              <div className="space-y-6">
+              <div className="space-y-3.5">
                 <div>
-                  <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">Email Notifications</h3>
-                  <div className="space-y-4">
+                  <h3 className="text-[11px] uppercase tracking-widest text-white/40 font-600 mb-2">Email Notifications</h3>
+                  <div className="space-y-1">
                     {[
                       { key: "emailMeetingReminders", label: "Meeting Reminders", desc: "Reminders 24h and 1h before meetings" },
                       { key: "emailRsvp", label: "RSVP Requests", desc: "When you are invited to a meeting" },
                       { key: "emailMinutes", label: "Approved Minutes", desc: "When meeting minutes are approved" },
                       { key: "emailActionItems", label: "Action Item Alerts", desc: "Overdue and newly assigned actions" },
                     ].map(({ key, label, desc }) => (
-                      <div key={key} className="flex items-center justify-between py-3 border-b border-white/[0.04] last:border-0">
+                      <div key={key} className="flex items-center justify-between py-1.5 border-b border-white/[0.04] last:border-0">
                         <div>
-                          <div className="text-sm font-500 text-white">{label}</div>
-                          <div className="text-xs text-white/40">{desc}</div>
+                          <div className="text-xs font-500 text-white">{label}</div>
+                          <div className="text-[11px] text-white/40">{desc}</div>
                         </div>
                         <Toggle
                           enabled={notifPrefs[key as keyof typeof notifPrefs]}
@@ -442,11 +442,11 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                   </div>
                 </div>
                 <div>
-                  <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">In-App Notifications</h3>
-                  <div className="flex items-center justify-between py-3">
+                  <h3 className="text-[11px] uppercase tracking-widest text-white/40 font-600 mb-2">In-App Notifications</h3>
+                  <div className="flex items-center justify-between py-1.5">
                     <div>
-                      <div className="text-sm font-500 text-white">All In-App Notifications</div>
-                      <div className="text-xs text-white/40">Show notifications inside the app</div>
+                      <div className="text-xs font-500 text-white">All In-App Notifications</div>
+                      <div className="text-[11px] text-white/40">Show notifications inside the app</div>
                     </div>
                     <Toggle
                       enabled={notifPrefs.inAppAll}
