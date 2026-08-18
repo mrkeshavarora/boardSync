@@ -83,10 +83,10 @@ export default function LoginPage() {
       <div className="w-full max-w-md animate-fade-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+          <Link href="/" className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4 hover:scale-105 transition-transform cursor-pointer"
             style={{ background: "var(--gradient-brand)" }}>
             <Shield className="w-7 h-7 text-white" />
-          </div>
+          </Link>
           <h1 className="text-2xl font-700 text-white mb-1">Welcome back</h1>
           <p className="text-sm text-white/40">Sign in to your BoardSync account</p>
         </div>

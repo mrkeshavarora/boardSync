@@ -156,13 +156,13 @@ export default function LandingPage() {
         style={{ background: scrolled ? "rgba(10,15,30,0.9)" : "transparent", backdropFilter: scrolled ? "blur(20px)" : "none" }}>
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center gap-2.5 cursor-pointer">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-lg"
               style={{ background: "var(--gradient-brand)" }}>
               <span className="text-white font-800 text-sm">B</span>
             </div>
             <span className="text-white font-700 text-lg tracking-tight">BoardSync</span>
-          </div>
+          </Link>
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center gap-8">

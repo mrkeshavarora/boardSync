@@ -75,7 +75,7 @@ export default function Sidebar({
     >
       {/* Header section Logo */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/[0.06] shrink-0">
-        <Link href="/dashboard" className="flex items-center gap-3 min-w-0" onClick={() => setMobileOpen(false)}>
+        <Link href="/" className="flex items-center gap-3 min-w-0" onClick={() => setMobileOpen(false)}>
           {/* Logo when expanded */}
           <div className={cn("items-center gap-2.5", collapsed ? "lg:hidden flex" : "flex")}>
             <img src="/favicon.png" alt="BoardSync" className="w-8 h-8 rounded-lg object-cover border border-white/10 shadow-md shadow-indigo-500/20" />
