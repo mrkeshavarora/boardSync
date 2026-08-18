@@ -25,8 +25,8 @@ export async function GET(request: Request) {
 
   const [connections, latestMessages] = await Promise.all([
     Connection.find(query)
-      .populate("fromUserId", "name email role avatar")
-      .populate("toUserId", "name email role avatar"),
+      .populate("fromUserId", "name email role avatar lastLogin")
+      .populate("toUserId", "name email role avatar lastLogin"),
     ChatMessage.aggregate([
       {
         $match: {
@@ -70,6 +70,9 @@ export async function GET(request: Request) {
     const otherUserId = otherUser._id ? otherUser._id.toString() : otherUser.toString();
 
     const msgInfo = messageMap.get(otherUserId);
+    const FIVE_MINUTES = 5 * 60 * 1000;
+    const lastActiveTime = otherUser.lastLogin ? new Date(otherUser.lastLogin).getTime() : 0;
+    const isOnline = Date.now() - lastActiveTime < FIVE_MINUTES;
 
     return {
       id: otherUserId,
@@ -78,6 +81,7 @@ export async function GET(request: Request) {
       role: otherUser.role,
       avatar: otherUser.avatar ?? null,
       status: connection.status,
+      isOnline,
       direction: isOutgoing ? "outgoing" : "incoming",
       connectionId: connection._id.toString(),
       lastMessage: msgInfo?.lastMessage ?? null,

@@ -23,6 +23,7 @@ interface Contact {
   role: string;
   avatar: string | null;
   status: string;
+  isOnline?: boolean;
   lastMessage?: string | null;
   lastMessageAt?: string | null;
 }
@@ -188,6 +189,22 @@ export default function ChatPage() {
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   };
 
+  // Real-time presence heartbeat ping
+  useEffect(() => {
+    async function pingPresence() {
+      try {
+        await fetch("/api/presence", { method: "POST" });
+      } catch (e) {
+        // ignore
+      }
+    }
+    if (session?.user) {
+      pingPresence();
+      const interval = setInterval(pingPresence, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [session?.user]);
+
   // Fetch accepted connections periodically so contact list order stays updated in real-time
   useEffect(() => {
     let interval: any;
@@ -198,6 +215,13 @@ export default function ChatPage() {
           const data = await res.json();
           const loaded: Contact[] = data.connections || [];
           setContacts(loaded);
+          // Keep selectedContact updated with latest isOnline status
+          if (selectedContact) {
+            const updated = loaded.find((c) => c.id === selectedContact.id);
+            if (updated) {
+              setSelectedContact((prev) => (prev ? { ...prev, isOnline: updated.isOnline } : prev));
+            }
+          }
         }
       } catch (e) {
         console.error("Failed to load contacts", e);
@@ -1413,7 +1437,12 @@ export default function ChatPage() {
                   </div>
                   <div>
                     <h3 className="text-xs md:text-sm font-600 text-white leading-tight">{selectedContact.name}</h3>
-                    <p className="text-[9px] md:text-[10px] text-emerald-400 font-500 mt-0.5">Online</p>
+                    {selectedContact.isOnline && (
+                      <p className="text-[9px] md:text-[10px] text-emerald-400 font-500 mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+                        Online
+                      </p>
+                    )}
                   </div>
                 </div>
 
