@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Plus, X, Clock, User as UserIcon, List, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -90,8 +91,8 @@ export default function AddAgendaModal({ meetingId, onAdded }: AddAgendaModalPro
         Add Agenda Item
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+      {isOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
           <div className="bg-[#111116] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl space-y-0 animate-fade-in">
             {/* Header */}
             <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between">
@@ -209,7 +210,8 @@ export default function AddAgendaModal({ meetingId, onAdded }: AddAgendaModalPro
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

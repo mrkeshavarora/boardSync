@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { AlertTriangle, CheckCircle2, X, FileText, Send, Users } from "lucide-react";
 
 interface PublishConfirmModalProps {
@@ -38,8 +39,9 @@ export default function PublishConfirmModal({
   };
 
   if (success) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+    if (typeof document === "undefined") return null;
+    return createPortal(
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}>
         <div className="w-full max-w-sm rounded-2xl border p-8 flex flex-col items-center text-center animate-fade-in" style={{ background: "var(--bg-card)", borderColor: "var(--border-default)" }}>
           <div className="w-16 h-16 rounded-full flex items-center justify-center bg-emerald-500/20 mb-4">
             <CheckCircle2 size={32} className="text-emerald-400" />
@@ -47,12 +49,14 @@ export default function PublishConfirmModal({
           <h3 className="text-lg font-700 text-white mb-2">Minutes Published</h3>
           <p className="text-sm" style={{ color: "var(--text-muted)" }}>Participants have been notified.</p>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}>
       <div className="w-full max-w-md rounded-2xl border shadow-2xl animate-fade-in" style={{ background: "var(--bg-card)", borderColor: "var(--border-default)" }}>
         <div className="flex items-center justify-between p-5 border-b" style={{ borderColor: "var(--border-subtle)" }}>
           <div className="flex items-center gap-3">
@@ -123,6 +127,7 @@ export default function PublishConfirmModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

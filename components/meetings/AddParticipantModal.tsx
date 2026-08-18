@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { UserPlus, X, Search, Check, Users, Loader2, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getInitials } from "@/lib/utils";
@@ -142,8 +143,8 @@ export default function AddParticipantModal({
         Add Participants
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm overflow-y-auto">
+      {isOpen && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
           <div className="bg-[#111116] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl space-y-0 flex flex-col max-h-[85vh] animate-fade-in">
             {/* Header */}
             <div className="px-6 py-5 border-b border-white/[0.08] flex items-center justify-between shrink-0">
@@ -309,7 +310,8 @@ export default function AddParticipantModal({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

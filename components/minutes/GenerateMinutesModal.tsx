@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Mic, MicOff, Square, Upload, Loader2, CheckCircle2, XCircle,
@@ -39,6 +40,11 @@ export default function GenerateMinutesModal({
   const [mode, setMode] = useState<"ai" | "record" | "upload" | "transcript">("ai");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Prevent background scrolling while modal is open
   useEffect(() => {
@@ -150,10 +156,15 @@ export default function GenerateMinutesModal({
   const activeStepIndex = STEPS.findIndex((s) => s.id === step);
   const isProcessing = ["uploading", "transcribing", "generating"].includes(step);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}>
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.80)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+    >
+      {/* Scrollable inner wrapper for very small screens */}
+      <div className="w-full flex items-center justify-center p-4 overflow-y-auto" style={{ maxHeight: "100dvh" }}>
       <div
-        className="w-full max-w-md rounded-2xl border border-white/[0.12] shadow-2xl shadow-black/80 animate-fade-in my-auto"
+        className="w-full max-w-md rounded-2xl border border-white/[0.14] shadow-2xl shadow-black/80 animate-fade-in"
         style={{ background: "#0d1527" }}
       >
         {/* Header */}
@@ -349,6 +360,10 @@ export default function GenerateMinutesModal({
           )}
         </div>
       </div>
+      </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(modalContent, document.body);
 }
