@@ -28,30 +28,43 @@ export default async function DashboardPage() {
   const canReadAllActions = hasPermission(role, "actions:read:all");
 
   const accessibleIds = await getAccessibleMeetingIds(session.user.id, role);
-  const meetingQuery: any = {
-    status: { $in: ["Scheduled", "In Progress"] },
-    date: { $gte: new Date(now.getFullYear(), now.getMonth(), now.getDate()) },
-  };
+  const baseFilter: any = {};
   if (accessibleIds !== null) {
-    meetingQuery._id = { $in: accessibleIds };
+    baseFilter._id = { $in: accessibleIds };
   }
 
-  // Fetch all dashboard data in parallel
+  // 1. Query future/today scheduled & in-progress meetings
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let upcomingMeetings = await Meeting.find({
+    ...baseFilter,
+    status: { $in: ["Scheduled", "In Progress"] },
+    date: { $gte: todayMidnight },
+  })
+    .sort({ date: 1 })
+    .limit(5)
+    .populate("organizerId", "name")
+    .lean();
+
+  // 2. Fallback: If no future meetings match today midnight, query active/scheduled meetings in DB
+  if (upcomingMeetings.length === 0) {
+    upcomingMeetings = await Meeting.find({
+      ...baseFilter,
+      status: { $nin: ["Cancelled", "Archived"] },
+    })
+      .sort({ date: -1, createdAt: -1 })
+      .limit(5)
+      .populate("organizerId", "name")
+      .lean();
+  }
+
+  // Fetch remaining dashboard statistics from real database records
   const [
-    upcomingMeetings,
     openActionCount,
     overdueActionCount,
     recentActions,
     boardMemberCount,
     pendingRsvpCount,
   ] = await Promise.all([
-    // Upcoming & in-progress meetings (next 5, sorted by date)
-    Meeting.find(meetingQuery)
-      .sort({ date: 1 })
-      .limit(5)
-      .populate("organizerId", "name")
-      .lean(),
-
     // Open action items count (scoped by role)
     ActionItem.countDocuments({
       status: { $in: ["Open", "In Progress", "Overdue"] },
@@ -69,7 +82,7 @@ export default async function DashboardPage() {
       status: { $in: ["Open", "In Progress", "Overdue"] },
       ...(canReadAllActions ? {} : { assignedTo: userId }),
     })
-      .sort({ dueDate: 1 })
+      .sort({ dueDate: 1, createdAt: -1 })
       .limit(4)
       .populate("assignedTo", "name")
       .lean(),
@@ -77,7 +90,6 @@ export default async function DashboardPage() {
     // Total board members (active users)
     User.countDocuments({
       status: "active",
-      role: { $in: ["super_admin", "board_member"] },
     }),
 
     // Pending RSVPs for the current user on upcoming meetings

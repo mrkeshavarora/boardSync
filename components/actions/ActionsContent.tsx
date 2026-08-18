@@ -7,7 +7,7 @@ import {
   CalendarDays,
   Inbox,
   TrendingUp, Zap, Target, BarChart3, ChevronRight,
-  SortAsc, SortDesc,
+  SortAsc, SortDesc, Plus, X, Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -362,6 +362,109 @@ export default function ActionsContent({
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [localActions, setLocalActions] = useState<ActionItemData[]>(actions);
 
+  // New Action Modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [meetings, setMeetings] = useState<{ id: string; title: string }[]>([]);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newPriority, setNewPriority] = useState<"Low" | "Medium" | "High" | "Critical">("High");
+  const [newStatus, setNewStatus] = useState<"Open" | "In Progress" | "Completed" | "Overdue">("Open");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [selectedMeetingId, setSelectedMeetingId] = useState("");
+
+  // Dynamically recompute stats on localActions state change
+  const liveStats = useMemo(() => {
+    const total = localActions.length;
+    const open = localActions.filter((a) => a.status === "Open").length;
+    const inProgress = localActions.filter((a) => a.status === "In Progress").length;
+    const overdue = localActions.filter((a) => a.status === "Overdue").length;
+    const completed = localActions.filter((a) => a.status === "Completed").length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    return { total, open, inProgress, overdue, completed, completionRate };
+  }, [localActions]);
+
+  const fetchMeetings = async () => {
+    try {
+      const res = await fetch("/api/meetings");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.meetings) {
+          const list = data.meetings.map((m: any) => ({
+            id: m._id || m.id,
+            title: m.title,
+          }));
+          setMeetings(list);
+          if (list.length > 0) setSelectedMeetingId(list[0].id);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenCreateModal = () => {
+    fetchMeetings();
+    const defaultDate = new Date();
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    setNewDueDate(defaultDate.toISOString().split("T")[0]);
+    setShowCreateModal(true);
+  };
+
+  const handleCreateActionItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+    setIsCreating(true);
+
+    try {
+      const res = await fetch("/api/actions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTitle.trim(),
+          description: newDescription.trim() || undefined,
+          priority: newPriority,
+          status: newStatus,
+          dueDate: newDueDate ? new Date(newDueDate).toISOString() : undefined,
+          meetingId: selectedMeetingId || undefined,
+          assignedTo: currentUserId,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        const newItem = json.action;
+        const formattedItem: ActionItemData = {
+          id: newItem._id || newItem.id,
+          title: newItem.title,
+          description: newItem.description,
+          assigneeName: "You",
+          assigneeId: currentUserId,
+          assigneeInitials: "YOU",
+          meetingTitle: meetings.find((m) => m.id === selectedMeetingId)?.title || "Board Meeting",
+          meetingId: selectedMeetingId,
+          dueDate: newItem.dueDate
+            ? new Date(newItem.dueDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : null,
+          dueDateRaw: newItem.dueDate || null,
+          priority: newItem.priority,
+          status: newItem.status,
+          createdAt: newItem.createdAt || new Date().toISOString(),
+          isAssignedToMe: true,
+        };
+        setLocalActions((prev) => [formattedItem, ...prev]);
+        setShowCreateModal(false);
+        setNewTitle("");
+        setNewDescription("");
+      }
+    } catch (err) {
+      console.error("Failed to create action item:", err);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   // Optimistic status update
   async function handleStatusChange(id: string, newStatus: string) {
     setLocalActions((prev) =>
@@ -457,13 +560,13 @@ export default function ActionsContent({
   return (
     <div className="space-y-6 max-w-7xl mx-auto animate-fade-in">
       {/* ── Page Header ── */}
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-700 text-white flex items-center gap-2 flex-wrap">
             My Actions
-            {stats.overdue > 0 && (
+            {liveStats.overdue > 0 && (
               <span className="badge bg-red-500/15 text-red-400 border-red-500/25 text-[10px]">
-                {stats.overdue} overdue
+                {liveStats.overdue} overdue
               </span>
             )}
           </h2>
@@ -471,20 +574,28 @@ export default function ActionsContent({
             Track and manage your assigned action items across all meetings
           </p>
         </div>
+
+        <button
+          onClick={handleOpenCreateModal}
+          className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-600 text-xs flex items-center gap-2 shadow-lg shadow-indigo-500/25 transition-all cursor-pointer"
+        >
+          <Plus size={15} />
+          <span>New Action Item</span>
+        </button>
       </div>
 
       {/* ── KPI Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3">
         <StatCard
           label="Total Actions"
-          value={stats.total}
+          value={liveStats.total}
           icon={Target}
           gradient="linear-gradient(135deg, #4f46e5, #7c3aed)"
           glow="rgba(79,70,229,0.2)"
         />
         <StatCard
           label="Open"
-          value={stats.open}
+          value={liveStats.open}
           icon={Circle}
           gradient="linear-gradient(135deg, #f59e0b, #d97706)"
           glow="rgba(245,158,11,0.2)"
@@ -492,7 +603,7 @@ export default function ActionsContent({
         />
         <StatCard
           label="In Progress"
-          value={stats.inProgress}
+          value={liveStats.inProgress}
           icon={Zap}
           gradient="linear-gradient(135deg, #3b82f6, #2563eb)"
           glow="rgba(59,130,246,0.2)"
@@ -500,23 +611,23 @@ export default function ActionsContent({
         />
         <StatCard
           label="Overdue"
-          value={stats.overdue}
+          value={liveStats.overdue}
           icon={AlertTriangle}
           gradient={
-            stats.overdue > 0
+            liveStats.overdue > 0
               ? "linear-gradient(135deg, #ef4444, #dc2626)"
               : "linear-gradient(135deg, #374151, #1f2937)"
           }
-          glow={stats.overdue > 0 ? "rgba(239,68,68,0.25)" : "rgba(0,0,0,0)"}
-          sub={stats.overdue > 0 ? "Needs attention" : "All on track"}
+          glow={liveStats.overdue > 0 ? "rgba(239,68,68,0.25)" : "rgba(0,0,0,0)"}
+          sub={liveStats.overdue > 0 ? "Needs attention" : "All on track"}
         />
         <StatCard
           label="Completion Rate"
-          value={`${stats.completionRate}%`}
+          value={`${liveStats.completionRate}%`}
           icon={TrendingUp}
           gradient="linear-gradient(135deg, #10b981, #059669)"
           glow="rgba(16,185,129,0.2)"
-          sub={`${stats.completed} completed`}
+          sub={`${liveStats.completed} completed`}
         />
       </div>
 
@@ -530,13 +641,13 @@ export default function ActionsContent({
             <BarChart3 size={14} className="text-white/40" />
             <span className="text-xs font-600 text-white/60">Overall Progress</span>
           </div>
-          <span className="text-xs font-700 text-white/80">{stats.completionRate}% complete</span>
+          <span className="text-xs font-700 text-white/80">{liveStats.completionRate}% complete</span>
         </div>
         <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{
-              width: `${stats.completionRate}%`,
+              width: `${liveStats.completionRate}%`,
               background: "linear-gradient(90deg, #4f46e5, #10b981)",
             }}
           />
@@ -544,10 +655,10 @@ export default function ActionsContent({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
           {(
             [
-              { label: "Overdue", color: "bg-red-400", count: stats.overdue },
-              { label: "In Progress", color: "bg-blue-400", count: stats.inProgress },
-              { label: "Open", color: "bg-amber-400", count: stats.open },
-              { label: "Completed", color: "bg-emerald-400", count: stats.completed },
+              { label: "Overdue", color: "bg-red-400", count: liveStats.overdue },
+              { label: "In Progress", color: "bg-blue-400", count: liveStats.inProgress },
+              { label: "Open", color: "bg-amber-400", count: liveStats.open },
+              { label: "Completed", color: "bg-emerald-400", count: liveStats.completed },
             ] as const
           ).map(({ label, color, count }) => (
             <div key={label} className="flex items-center gap-1.5">
@@ -726,6 +837,168 @@ export default function ActionsContent({
           Showing {filtered.length} of {localActions.length} action item
           {localActions.length !== 1 ? "s" : ""}
         </p>
+      )}
+
+      {/* ── Create Action Item Modal ── */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
+          style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/[0.12] shadow-2xl shadow-black/80 animate-fade-in my-auto"
+            style={{ background: "#0d1527" }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/[0.08]">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{
+                    background:
+                      "linear-gradient(135deg,rgba(99,102,241,0.25),rgba(124,58,237,0.2))",
+                    border: "1px solid rgba(99,102,241,0.35)",
+                  }}
+                >
+                  <Plus size={16} className="text-indigo-400" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-600 text-white text-sm leading-tight truncate">
+                    Create Action Item
+                  </h3>
+                  <p className="text-[11px] text-white/40 truncate mt-0.5">
+                    Assign a new board task or action item
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors shrink-0"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleCreateActionItem} className="p-4 sm:p-5 space-y-4">
+              <div className="space-y-1">
+                <label className="text-[11px] font-600 text-white/60 uppercase tracking-wider">
+                  Action Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Review & Approve Q3 Financial Statements"
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-600 text-white/60 uppercase tracking-wider">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Add details, background context, or deliverables..."
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50 resize-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-600 text-white/60 uppercase tracking-wider">
+                    Priority
+                  </label>
+                  <select
+                    value={newPriority}
+                    onChange={(e: any) => setNewPriority(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d1527] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[11px] font-600 text-white/60 uppercase tracking-wider">
+                    Status
+                  </label>
+                  <select
+                    value={newStatus}
+                    onChange={(e: any) => setNewStatus(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d1527] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                  >
+                    <option value="Open">Open</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Overdue">Overdue</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-600 text-white/60 uppercase tracking-wider">
+                  Due Date
+                </label>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+
+              {meetings.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-[11px] font-600 text-white/60 uppercase tracking-wider">
+                    Associated Meeting
+                  </label>
+                  <select
+                    value={selectedMeetingId}
+                    onChange={(e) => setSelectedMeetingId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0d1527] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-indigo-500/50 truncate"
+                  >
+                    {meetings.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 rounded-xl border border-white/10 text-xs font-500 text-white/70 hover:bg-white/5 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !newTitle.trim()}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-600 text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Action"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

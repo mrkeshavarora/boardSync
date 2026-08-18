@@ -203,7 +203,7 @@ export default function DashboardContent({
               View all <ArrowRight size={12} />
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
             {upcomingMeetings.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/30">
                 <Inbox size={28} />
@@ -251,7 +251,7 @@ export default function DashboardContent({
 
         {/* Recent Action Items */}
         <div
-          className="rounded-2xl p-5 border border-white/[0.06]"
+          className="rounded-2xl p-5 border border-white/[0.06] flex flex-col"
           style={{ background: "var(--bg-card)" }}
         >
           <div className="flex items-center justify-between mb-4">
@@ -263,7 +263,7 @@ export default function DashboardContent({
               View all <ArrowRight size={12} />
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3 max-h-[260px] overflow-y-auto pr-1 custom-scrollbar">
             {recentActions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2 text-white/30">
                 <CheckSquare size={28} />
