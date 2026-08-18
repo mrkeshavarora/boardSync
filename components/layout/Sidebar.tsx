@@ -122,17 +122,17 @@ export default function Sidebar({
               onClick={() => setMobileOpen(false)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 transition-all duration-150 group relative",
+                "sidebar-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-500 transition-all duration-150 group relative",
                 isActive
-                  ? "text-white"
+                  ? "sidebar-nav-active text-white font-600"
                   : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]",
                 collapsed ? "lg:justify-center lg:px-2 px-3" : "justify-start px-3"
               )}
             >
-              {/* Active indicator */}
+              {/* Active indicator background in dark mode */}
               {isActive && (
                 <span
-                  className="absolute inset-0 rounded-lg"
+                  className="absolute inset-0 rounded-xl"
                   style={{
                     background:
                       "linear-gradient(135deg, rgba(79,70,229,0.2) 0%, rgba(124,58,237,0.1) 100%)",
@@ -173,9 +173,9 @@ export default function Sidebar({
               onClick={() => setMobileOpen(false)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-500 transition-all duration-150",
+                "sidebar-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-500 transition-all duration-150",
                 isActive
-                  ? "text-white bg-white/[0.06]"
+                  ? "sidebar-nav-active text-white bg-white/[0.06] font-600"
                   : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]",
                 collapsed ? "lg:justify-center lg:px-2 px-3" : "justify-start px-3"
               )}
