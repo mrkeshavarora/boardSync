@@ -128,12 +128,20 @@ export default function Header({
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2 pl-1 pr-1.5 sm:pr-3 py-1 rounded-lg bg-white/[0.04] border border-white/[0.08] hover:bg-white/[0.08] transition-all"
           >
-            <div
-              className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-700 text-white flex-shrink-0"
-              style={{ background: "var(--gradient-brand)" }}
-            >
-              {user.name ? getInitials(user.name) : "?"}
-            </div>
+            {user.image || (user as any).avatar ? (
+              <img
+                src={user.image || (user as any).avatar}
+                alt={user.name ?? "User"}
+                className="w-7 h-7 rounded-md object-cover flex-shrink-0 border border-white/20"
+              />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-md flex items-center justify-center text-xs font-700 text-white flex-shrink-0"
+                style={{ background: "var(--gradient-brand)" }}
+              >
+                {user.name ? getInitials(user.name) : "?"}
+              </div>
+            )}
             <div className="hidden sm:block text-left max-w-[100px] md:max-w-none">
               <p className="text-xs font-600 text-white leading-tight truncate">{user.name ?? "User"}</p>
               <p className="text-[10px] text-white/40 leading-tight truncate">{roleLabel}</p>

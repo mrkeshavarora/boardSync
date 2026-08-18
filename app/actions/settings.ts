@@ -10,6 +10,7 @@ export async function updateProfile(data: {
   title: string;
   department: string;
   bio: string;
+  avatar?: string;
 }) {
   const session = await auth();
   if (!session?.user?.email) {
@@ -26,12 +27,14 @@ export async function updateProfile(data: {
         title: data.title,
         department: data.department,
         bio: data.bio,
+        avatar: data.avatar || "",
       },
     }
   );
 
   revalidatePath("/settings");
   revalidatePath("/profile");
+  revalidatePath("/");
   
   return { success: true };
 }

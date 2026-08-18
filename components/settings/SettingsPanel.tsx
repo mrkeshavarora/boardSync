@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon, Camera, Upload, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 
@@ -47,17 +47,17 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean
 
 function FormField({ label, id, children, hint }: { label: string; id: string; children: React.ReactNode; hint?: string }) {
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="text-sm font-500 text-white/80">{label}</label>
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-xs font-500 text-white/80">{label}</label>
       {children}
-      {hint && <p className="text-xs text-white/30">{hint}</p>}
+      {hint && <p className="text-[10px] text-white/30">{hint}</p>}
     </div>
   );
 }
 
-const inputClass = "w-full px-3 py-2.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-sm text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-colors";
+const inputClass = "w-full px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-colors";
 
-export default function SettingsPanel({ user }: { user: { name?: string | null; email?: string | null; title?: string | null; department?: string | null; bio?: string | null } }) {
+export default function SettingsPanel({ user }: { user: { name?: string | null; email?: string | null; title?: string | null; department?: string | null; bio?: string | null; avatar?: string | null } }) {
   const searchParams = useSearchParams();
   const [section, setSection] = useState<SettingsSection>("profile");
   const [showPassword, setShowPassword] = useState(false);
@@ -77,6 +77,37 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
   const [title, setTitle] = useState(user?.title ?? "");
   const [department, setDepartment] = useState(user?.department ?? "");
   const [bio, setBio] = useState(user?.bio ?? "");
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar ?? "");
+  const [avatarError, setAvatarError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setAvatarError("Image size must be less than 2MB");
+      return;
+    }
+    setAvatarError("");
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setAvatarUrl(event.target.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   useEffect(() => {
     const syncTheme = () => {
@@ -159,6 +190,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
         title,
         department,
         bio,
+        avatar: avatarUrl,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -168,57 +200,115 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
   };
 
   return (
-    <div className="max-w-5xl mx-auto animate-fade-in">
-      <div className="flex flex-col lg:flex-row gap-6">
+    <div className="space-y-4 max-w-5xl mx-auto animate-fade-in">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-700 text-white">Settings</h1>
+          <p className="text-xs text-white/50 mt-0.5">Manage your account settings & preferences</p>
+        </div>
+        <button
+          onClick={handleSave}
+          className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-600 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
+        >
+          <Save size={15} />
+          {saved ? "Saved!" : "Save Changes"}
+        </button>
+      </div>
+
+      {/* Main Layout */}
+      <div className="flex flex-col lg:flex-row gap-4 items-stretch">
         {/* Sidebar Nav */}
-        <aside className="lg:w-64 shrink-0">
-          <div className="p-2 rounded-2xl border border-white/[0.06] space-y-1" style={{ background: "var(--bg-card)" }}>
-            {NAV_ITEMS.map((item) => {
-              const isActive = section === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setSection(item.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all",
-                    isActive ? "bg-indigo-500/10 text-indigo-400" : "text-white/50 hover:text-white hover:bg-white/[0.04]"
-                  )}
-                >
-                  <item.icon size={18} className={isActive ? "text-indigo-400" : "text-white/30"} />
-                  <div>
-                    <div className="text-sm font-600">{item.label}</div>
-                    <div className="text-xs opacity-60">{item.desc}</div>
-                  </div>
-                </button>
-              );
-            })}
+        <aside className="w-full lg:w-56 shrink-0 flex flex-col">
+          <div className="p-1.5 rounded-2xl border border-white/[0.06] space-y-1 h-full flex flex-col" style={{ background: "var(--bg-card)" }}>
+            <div className="space-y-1">
+              {NAV_ITEMS.map((item) => {
+                const isActive = section === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setSection(item.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer",
+                      isActive ? "bg-indigo-500/10 text-indigo-400 font-600" : "text-white/50 hover:text-white hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <item.icon size={16} className={isActive ? "text-indigo-400 shrink-0" : "text-white/30 shrink-0"} />
+                    <div className="min-w-0">
+                      <div className="text-xs font-600 truncate">{item.label}</div>
+                      <div className="text-[10px] opacity-60 truncate">{item.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <div className="flex-1 p-6 rounded-2xl border border-white/[0.06] space-y-6" style={{ background: "var(--bg-card)" }}>
+        <div className="flex-1 w-full p-4 sm:p-5 rounded-2xl border border-white/[0.06] space-y-4" style={{ background: "var(--bg-card)" }}>
           {/* Profile Section */}
           {section === "profile" && (
             <>
               <div>
-                <h2 className="text-lg font-600 text-white">Profile Information</h2>
-                <p className="text-sm text-white/50 mt-1">Update your personal details</p>
+                <h2 className="text-base font-600 text-white">Profile Information</h2>
+                <p className="text-xs text-white/50 mt-0.5">Update your personal details</p>
               </div>
+
+              {/* Hidden File Input */}
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                accept="image/png, image/jpeg, image/gif, image/webp"
+                className="hidden"
+              />
 
               {/* Avatar */}
-              <div className="flex items-center gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-2xl font-700 shadow-lg shadow-indigo-500/20">
-                  {profileName?.charAt(0)?.toUpperCase() ?? "?"}
+              <div className="flex items-center gap-4">
+                <div
+                  onClick={handleAvatarClick}
+                  className="relative w-14 h-14 rounded-xl overflow-hidden cursor-pointer group shrink-0 border border-white/20 shadow-md shadow-indigo-500/20"
+                >
+                  {avatarUrl ? (
+                    <img src={avatarUrl} alt={profileName} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-700">
+                      {profileName?.charAt(0)?.toUpperCase() ?? "?"}
+                    </div>
+                  )}
+                  {/* Hover overlay */}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                    <Camera size={16} />
+                  </div>
                 </div>
-                <div>
-                  <button className="px-3 py-2 rounded-lg text-sm font-500 text-white/80 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] transition-colors">
-                    Change Avatar
-                  </button>
-                  <p className="text-xs text-white/30 mt-1.5">JPG, PNG or GIF. Max 2MB.</p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAvatarClick}
+                      className="px-3 py-1.5 rounded-lg text-xs font-600 text-white bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 transition-all flex items-center gap-1.5 shadow-sm shadow-indigo-500/20 cursor-pointer"
+                    >
+                      <Upload size={13} />
+                      Change Avatar
+                    </button>
+                    {avatarUrl && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveAvatar}
+                        className="px-2.5 py-1.5 rounded-lg text-xs font-500 text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 size={12} />
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-white/40">JPG, PNG or GIF. Max 2MB.</p>
+                  {avatarError && <p className="text-[11px] text-red-400 font-500">{avatarError}</p>}
                 </div>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-2 gap-3">
                 <FormField label="Full Name" id="fullName">
                   <input
                     id="fullName"
@@ -239,7 +329,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                 </FormField>
               </div>
               <FormField label="Bio" id="bio">
-                <textarea id="bio" rows={3} className={cn(inputClass, "resize-none")} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short bio about yourself..." />
+                <textarea id="bio" rows={2} className={cn(inputClass, "resize-none")} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A short bio about yourself..." />
               </FormField>
             </>
           )}

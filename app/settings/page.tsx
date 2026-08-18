@@ -25,6 +25,7 @@ export default async function SettingsPage() {
         title: dbUser.title,
         department: dbUser.department,
         bio: dbUser.bio,
+        avatar: dbUser.avatar,
       }} />
     </AppShell>
   );
