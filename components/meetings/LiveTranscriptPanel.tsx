@@ -148,15 +148,15 @@ export default function LiveTranscriptPanel({
   };
 
   return (
-    <div className="w-80 sm:w-96 border-r border-white/[0.06] flex flex-col shrink-0 h-full relative" style={{ background: "#080d1a" }}>
+    <div className="w-72 sm:w-80 border-r border-white/[0.08] flex flex-col shrink-0 h-full relative shadow-xl" style={{ background: "#070b16" }}>
       {/* Panel Header */}
-      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between bg-black/40">
+      <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-black/40 backdrop-blur-md">
         <div className="flex flex-col">
-          <h3 className="text-sm font-700 text-white flex items-center gap-1.5">
-            <Sparkles size={14} className="text-indigo-400 animate-pulse" />
+          <h3 className="text-xs font-600 text-white flex items-center gap-1.5">
+            <Sparkles size={13} className="text-indigo-400 animate-pulse" />
             Live Transcript
           </h3>
-          <span className={cn("text-[10px] font-medium mt-0.5 flex items-center gap-1.5", statusColorClass)}>
+          <span className={cn("text-[9.5px] font-medium mt-0.5 flex items-center gap-1.5", statusColorClass)}>
             <span className={cn("w-1.5 h-1.5 rounded-full bg-current", isListening && "animate-ping")} />
             {statusText}
           </span>
@@ -166,7 +166,7 @@ export default function LiveTranscriptPanel({
       {/* Transcript List Container */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar bg-gradient-to-b from-[#080d1a] to-[#040811]"
+        className="flex-1 overflow-y-auto p-4 space-y-3.5 custom-scrollbar bg-gradient-to-b from-[#070b16] to-[#040710]"
       >
         {statusText.includes("not-allowed") && (
           <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs space-y-1">
@@ -188,34 +188,35 @@ export default function LiveTranscriptPanel({
             <p className="text-[11px] text-amber-300/80">Web Speech recognition requires Google Chrome, Microsoft Edge, or Safari.</p>
           </div>
         )}
+
         {finalTranscripts.length === 0 && Object.keys(activePartials).length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/30 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-              <Volume2 size={20} className="animate-pulse" />
+          <div className="h-full flex flex-col items-center justify-center text-center p-5 text-white/30 space-y-2.5">
+            <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <Volume2 size={18} className="animate-pulse" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-white/60">No speech transcribed yet</p>
-              <p className="text-[10px] text-white/20 mt-1">Start speaking into your mic. Your transcript will appear instantly on the left.</p>
+              <p className="text-xs font-500 text-white/60">No speech transcribed yet</p>
+              <p className="text-[10px] text-white/30 mt-0.5">Start speaking into your mic. Your transcript will appear instantly on the left.</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Finalized segments */}
             {finalTranscripts.map((t, idx) => (
-              <div key={idx} className="flex gap-3 group animate-fade-in">
-                <div className="w-8 h-8 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5">
-                  <User size={14} />
+              <div key={idx} className="flex gap-2.5 group animate-fade-in">
+                <div className="w-7 h-7 rounded-full bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5">
+                  <User size={13} />
                 </div>
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-700 text-white truncate">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-1.5">
+                    <span className="text-[11px] font-600 text-white/90 truncate">
                       {t.speakerName} {t.speakerId === currentUser.id ? "(You)" : ""}
                     </span>
-                    <span className="text-[9px] text-white/30 shrink-0 font-medium">
+                    <span className="text-[8.5px] text-white/30 shrink-0 font-medium">
                       {getDisplayTime(t.timestamp)}
                     </span>
                   </div>
-                  <p className="text-xs text-white/80 leading-relaxed font-400 whitespace-pre-wrap break-words">
+                  <p className="text-[11.5px] text-white/80 leading-relaxed font-400 whitespace-pre-wrap break-words">
                     {t.text}
                   </p>
                 </div>
@@ -224,21 +225,21 @@ export default function LiveTranscriptPanel({
 
             {/* Active partial segments (interim - real-time word-by-word) */}
             {Object.entries(activePartials).map(([speakerId, partial]) => (
-              <div key={speakerId} className="flex gap-3 group">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-sm shadow-emerald-500/20">
-                  <Mic size={14} className="animate-pulse" />
+              <div key={speakerId} className="flex gap-2.5 group">
+                <div className="w-7 h-7 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 shadow-sm shadow-emerald-500/20">
+                  <Mic size={13} className="animate-pulse" />
                 </div>
-                <div className="space-y-1 min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-700 text-emerald-400 truncate flex items-center gap-1.5">
+                <div className="space-y-0.5 min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-1.5">
+                    <span className="text-[11px] font-600 text-emerald-400 truncate flex items-center gap-1">
                       {partial.speakerName} {speakerId === currentUser.id ? "(You)" : ""}
                     </span>
-                    <span className="text-[9px] text-emerald-400/80 shrink-0 font-600 flex items-center gap-1">
+                    <span className="text-[8.5px] text-emerald-400/80 shrink-0 font-600 flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
                       Live
                     </span>
                   </div>
-                  <p className="text-xs text-emerald-100/90 leading-relaxed font-500 break-words bg-emerald-950/30 border border-emerald-500/20 p-2.5 rounded-xl">
+                  <p className="text-[11.5px] text-emerald-100/90 leading-relaxed font-500 break-words bg-emerald-950/30 border border-emerald-500/20 p-2 rounded-lg">
                     {partial.text}
                   </p>
                 </div>
@@ -249,7 +250,7 @@ export default function LiveTranscriptPanel({
       </div>
 
       {/* Footer Info */}
-      <div className="px-5 py-3 border-t border-white/[0.06] bg-black/40 text-[10px] text-white/30 text-center">
+      <div className="px-4 py-2.5 border-t border-white/[0.08] bg-black/40 text-[9.5px] text-white/30 text-center font-medium">
         Powered by Web Speech Engine & OpenAI AI Minutes
       </div>
     </div>

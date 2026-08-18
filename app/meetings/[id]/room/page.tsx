@@ -1123,43 +1123,43 @@ export default function MeetingRoomPage() {
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: "#060b16" }}>
       {/* Top Bar */}
       <div
-        className="h-16 flex items-center justify-between px-6 border-b border-white/[0.06] z-20 shrink-0"
-        style={{ background: "rgba(6,11,22,0.95)", backdropFilter: "blur(12px)" }}
+        className="h-14 flex items-center justify-between px-4 sm:px-6 border-b border-white/[0.08] z-20 shrink-0"
+        style={{ background: "rgba(6,11,22,0.97)", backdropFilter: "blur(12px)" }}
       >
         {/* Left */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleLeave}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={16} />
           </button>
           <div>
-            <h1 className="text-sm font-700 text-white leading-tight">{meeting?.title ?? "Meeting"}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
+            <h1 className="text-xs sm:text-sm font-600 text-white leading-tight">{meeting?.title ?? "Meeting"}</h1>
+            <div className="flex items-center gap-1.5 mt-0.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-xs text-emerald-400 font-500">Live</span>
-              <span className="text-xs text-white/30 ml-1">{formatTime(elapsed)}</span>
+              <span className="text-[10.5px] text-emerald-400 font-500">Live</span>
+              <span className="text-[10.5px] text-white/30 ml-1">{formatTime(elapsed)}</span>
             </div>
           </div>
         </div>
 
         {/* Right */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.05] border border-white/[0.08] text-sm text-white/60">
-            <Users size={14} />
-            <span>{totalParticipants}</span>
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/[0.08] text-xs text-white/70">
+            <Users size={13} />
+            <span className="font-500">{totalParticipants}</span>
           </div>
           <button
             onClick={() => setShowSidebar((s) => !s)}
             className={cn(
-              "w-9 h-9 rounded-lg flex items-center justify-center border transition-all",
+              "w-8 h-8 rounded-lg flex items-center justify-center border transition-all",
               showSidebar
                 ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-400"
                 : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white"
             )}
           >
-            <MessageSquare size={16} />
+            <MessageSquare size={15} />
           </button>
         </div>
       </div>
@@ -1248,16 +1248,16 @@ export default function MeetingRoomPage() {
               {/* Participant Name Badge & Speaking Indicator */}
               <div
                 className={cn(
-                  "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200 z-10",
+                  "absolute bottom-3 left-3 px-2.5 py-1 rounded-md backdrop-blur-md text-[11px] font-500 flex items-center gap-1.5 transition-all duration-200 z-10",
                   isLocalSpeaking
-                    ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
-                    : "bg-black/60 border border-white/10 text-white"
+                    ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-md shadow-emerald-500/20"
+                    : "bg-black/60 border border-white/10 text-white/90"
                 )}
               >
                 {isLocalSpeaking && (
                   <span className="flex items-center gap-0.5" title="Speaking">
                     <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
-                    <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                    <span className="w-1 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
                     <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
                   </span>
                 )}
@@ -1337,16 +1337,16 @@ export default function MeetingRoomPage() {
                   {/* Participant Name Badge & Speaking Indicator */}
                   <div
                     className={cn(
-                      "absolute bottom-4 left-4 px-3 py-1.5 rounded-lg backdrop-blur-md text-xs font-medium flex items-center gap-2 transition-all duration-200 z-10",
+                      "absolute bottom-3 left-3 px-2.5 py-1 rounded-md backdrop-blur-md text-[11px] font-500 flex items-center gap-1.5 transition-all duration-200 z-10",
                       isSpeaking
-                        ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-lg shadow-emerald-500/20"
-                        : "bg-black/60 border border-white/10 text-white"
+                        ? "bg-emerald-500/30 border border-emerald-500/50 text-emerald-200 shadow-md shadow-emerald-500/20"
+                        : "bg-black/60 border border-white/10 text-white/90"
                     )}
                   >
                     {isSpeaking && (
                       <span className="flex items-center gap-0.5" title="Speaking">
                         <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
-                        <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                        <span className="w-1 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
                         <span className="w-1 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
                       </span>
                     )}
@@ -1478,7 +1478,7 @@ export default function MeetingRoomPage() {
 
       {/* Bottom Controls Bar */}
       <div
-        className="h-20 sm:h-24 flex items-center justify-center gap-2 sm:gap-4 border-t border-white/[0.06] shrink-0 px-3 sm:px-6"
+        className="h-16 sm:h-20 flex items-center justify-center gap-1.5 sm:gap-3 border-t border-white/[0.08] shrink-0 px-2 sm:px-6"
         style={{ background: "rgba(6,11,22,0.97)" }}
       >
         {/* Mic Toggle */}
@@ -1486,13 +1486,13 @@ export default function MeetingRoomPage() {
           id="toggle-mic-btn"
           onClick={toggleMic}
           className={cn(
-            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+            "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
             isMuted
               ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-              : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+              : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
         >
-          {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+          {isMuted ? <MicOff size={16} /> : <Mic size={16} />}
           <span>{isMuted ? "Unmute" : "Mute"}</span>
         </button>
 
@@ -1501,13 +1501,13 @@ export default function MeetingRoomPage() {
           id="toggle-camera-btn"
           onClick={toggleCamera}
           className={cn(
-            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+            "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
             isCameraOff
               ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-              : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+              : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
         >
-          {isCameraOff ? <VideoOff size={18} /> : <Video size={18} />}
+          {isCameraOff ? <VideoOff size={16} /> : <Video size={16} />}
           <span className="hidden sm:inline">{isCameraOff ? "Start Video" : "Stop Video"}</span>
         </button>
 
@@ -1516,14 +1516,14 @@ export default function MeetingRoomPage() {
           id="toggle-transcript-btn"
           onClick={() => setShowTranscript((s) => !s)}
           className={cn(
-            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+            "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
             showTranscript
-              ? "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30"
-              : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+              ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/35"
+              : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
           title={showTranscript ? "Hide Transcript" : "Show Transcript"}
         >
-          <Sparkles size={18} />
+          <Sparkles size={16} />
           <span className="hidden sm:inline">{showTranscript ? "Hide CC" : "Show CC"}</span>
         </button>
 
@@ -1532,13 +1532,13 @@ export default function MeetingRoomPage() {
           id="toggle-screenshare-btn"
           onClick={toggleScreenShare}
           className={cn(
-            "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+            "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
             isScreenSharing
               ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-              : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+              : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
           )}
         >
-          {isScreenSharing ? <MonitorOff size={18} /> : <Monitor size={18} />}
+          {isScreenSharing ? <MonitorOff size={16} /> : <Monitor size={16} />}
           <span className="hidden sm:inline">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
         </button>
 
@@ -1547,13 +1547,13 @@ export default function MeetingRoomPage() {
           <button
             onClick={toggleRecording}
             className={cn(
-              "flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0",
+              "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
               isRecording
                 ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 animate-pulse"
-                : "bg-white/[0.06] text-white/70 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
+                : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
             )}
           >
-            <Circle size={18} className={isRecording ? "text-red-400" : ""} />
+            <Circle size={16} className={isRecording ? "text-red-400" : ""} />
             <span className="hidden sm:inline">{isRecording ? "Stop Record" : "Record"}</span>
           </button>
         )}
@@ -1562,10 +1562,10 @@ export default function MeetingRoomPage() {
         <button
           id="generate-mom-btn"
           onClick={() => setShowGenerateMinutesModal(true)}
-          className="flex flex-col items-center gap-1 sm:gap-1.5 px-3 sm:px-5 py-2 rounded-xl sm:rounded-2xl transition-all font-500 text-[10px] sm:text-xs shrink-0 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30"
+          className="flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30"
           title="Generate Meeting Minutes"
         >
-          <Sparkles size={18} className="text-indigo-400" />
+          <Sparkles size={16} className="text-indigo-400" />
           <span className="hidden sm:inline">Generate MoM</span>
         </button>
 
@@ -1578,37 +1578,36 @@ export default function MeetingRoomPage() {
         )}
 
         {/* Divider */}
-        <div className="w-px h-8 sm:h-10 bg-white/[0.08] mx-1 shrink-0" />
+        <div className="w-px h-6 sm:h-8 bg-white/[0.08] mx-0.5 sm:mx-1 shrink-0" />
 
         {/* Leave / End */}
         {isOrganizer ? (
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-1.5 sm:gap-2 shrink-0">
             <button
               id="leave-meeting-btn"
               onClick={handleLeave}
-              className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-white/10 hover:bg-white/20 text-white font-600 text-[10px] sm:text-xs transition-all border border-white/10"
+              className="flex flex-col items-center justify-center gap-1 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-500 text-[10px] sm:text-[11px] transition-all border border-white/10"
             >
-              <PhoneOff size={18} />
+              <PhoneOff size={16} />
               <span className="hidden sm:inline">Leave</span>
             </button>
             <button
               id="end-meeting-btn"
               onClick={handleEndMeeting}
               disabled={ending}
-              className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-xs transition-all shadow-lg shadow-red-500/30 disabled:opacity-60"
+              className="flex flex-col items-center justify-center gap-1 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 disabled:opacity-60"
             >
-              <PhoneOff size={18} />
-              <span className="hidden sm:inline">{ending ? "Ending…" : "End Meeting"}</span>
-              <span className="sm:hidden">{ending ? "End…" : "End"}</span>
+              <PhoneOff size={16} />
+              <span className="hidden sm:inline">{ending ? "Ending..." : "End Meeting"}</span>
             </button>
           </div>
         ) : (
           <button
             id="leave-meeting-btn"
             onClick={handleLeave}
-            className="flex flex-col items-center gap-1 sm:gap-1.5 px-4 sm:px-6 py-2 rounded-xl sm:rounded-2xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 font-600 text-[10px] sm:text-xs transition-all shrink-0"
+            className="flex flex-col items-center justify-center gap-1 px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 shrink-0"
           >
-            <PhoneOff size={18} />
+            <PhoneOff size={16} />
             <span>Leave</span>
           </button>
         )}
@@ -1616,5 +1615,3 @@ export default function MeetingRoomPage() {
     </div>
   );
 }
-
-

@@ -151,31 +151,35 @@ export default function GenerateMinutesModal({
   const isProcessing = ["uploading", "transcribing", "generating"].includes(step);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(10px)" }}>
       <div
-        className="w-full max-w-lg rounded-2xl border animate-fade-in my-auto"
-        style={{ background: "var(--bg-card)", borderColor: "var(--border-default)" }}
+        className="w-full max-w-md rounded-2xl border border-white/[0.12] shadow-2xl shadow-black/80 animate-fade-in my-auto"
+        style={{ background: "#0d1527" }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-white/[0.08]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.2),rgba(124,58,237,0.15))", border: "1px solid rgba(99,102,241,0.3)" }}>
-              <Sparkles size={18} className="text-indigo-400" />
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: "linear-gradient(135deg,rgba(99,102,241,0.25),rgba(124,58,237,0.2))", border: "1px solid rgba(99,102,241,0.35)" }}>
+              <Sparkles size={16} className="text-indigo-400" />
             </div>
-            <div>
-              <h2 className="font-700 text-white text-base">Generate Meeting Minutes</h2>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>{meetingTitle}</p>
+            <div className="min-w-0">
+              <h2 className="font-600 text-white text-sm leading-tight truncate">Generate Meeting Minutes</h2>
+              <p className="text-[11px] text-white/40 truncate mt-0.5">{meetingTitle}</p>
             </div>
           </div>
-          {!isProcessing && <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors"><X size={16} /></button>}
+          {!isProcessing && (
+            <button onClick={onClose} className="w-7 h-7 rounded-full flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors shrink-0">
+              <X size={15} />
+            </button>
+          )}
         </div>
 
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-5 space-y-4">
           {/* Governance notice */}
-          <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-            <AlertTriangle size={16} className="text-amber-400 mt-0.5 shrink-0" />
-            <p className="text-xs leading-relaxed" style={{ color: "rgba(245,158,11,0.9)" }}>
-              <strong>Governance:</strong> AI-generated minutes are a draft only. They must be reviewed, edited if needed, and formally approved before becoming official records.
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <AlertTriangle size={15} className="text-amber-400 mt-0.5 shrink-0" />
+            <p className="text-[11px] leading-relaxed text-amber-200/90">
+              <strong className="font-600 text-amber-300">Governance:</strong> AI-generated minutes are a draft only. They must be reviewed, edited if needed, and formally approved before becoming official records.
             </p>
           </div>
 
