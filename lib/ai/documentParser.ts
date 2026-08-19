@@ -1,4 +1,3 @@
-import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 
 /**
@@ -90,10 +89,11 @@ export async function extractTextFromDocumentUrl(
 }
 
 /**
- * Parses PDF buffer using pdf-parse v1 (no canvas dependency required).
+ * Parses PDF buffer using pdf-parse v1 (dynamically imported to avoid build-time test file issue).
  */
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   try {
+    const { default: pdfParse } = await import("pdf-parse");
     const result = await pdfParse(buffer);
     return cleanExtractedText(result.text || "");
   } catch (pdfErr: any) {
