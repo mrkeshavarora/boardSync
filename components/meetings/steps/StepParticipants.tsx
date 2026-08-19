@@ -190,7 +190,7 @@ export default function StepParticipants({ data, updateData }: { data: any; upda
             />
           </div>
 
-          <div className="border border-white/[0.06] rounded-xl overflow-hidden bg-white/[0.02]">
+          <div className="border border-white/[0.06] rounded-xl bg-white/[0.02] max-h-[250px] overflow-y-auto">
             {error && (
               <div className="px-4 py-3 text-sm text-red-300 bg-red-500/10">{error}</div>
             )}
@@ -252,7 +252,7 @@ export default function StepParticipants({ data, updateData }: { data: any; upda
               <p className="text-sm text-white/30">No participants added yet.</p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-2 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
               {data.participants.map((p: any) => (
                 <div key={p.userId} className="flex items-center justify-between p-3 border border-white/[0.06] rounded-xl bg-white/[0.03]">
                   <div className="flex items-center gap-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useRef } from "react";
-import { MessageSquare, Volume2, Mic, X, Sparkles, User, Loader2 } from "lucide-react";
+import { MessageSquare, Volume2, Mic, X, Sparkles, User, Loader2, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface TranscriptItem {
@@ -22,6 +22,7 @@ interface LiveTranscriptPanelProps {
   isListening: boolean;
   statusText: string; // "Live transcription" or "Reconnecting transcription..."
   statusColorClass: string; // "text-emerald-400" or "text-amber-400"
+  onClose?: () => void;
 }
 
 export default function LiveTranscriptPanel({
@@ -31,6 +32,7 @@ export default function LiveTranscriptPanel({
   isListening,
   statusText,
   statusColorClass,
+  onClose,
 }: LiveTranscriptPanelProps) {
   const [finalTranscripts, setFinalTranscripts] = useState<TranscriptItem[]>([]);
   const [activePartials, setActivePartials] = useState<Record<string, { text: string; timestamp: string; speakerName: string }>>({});
@@ -150,16 +152,28 @@ export default function LiveTranscriptPanel({
   return (
     <div className="w-72 sm:w-80 border-r border-white/[0.08] flex flex-col shrink-0 h-full relative shadow-xl" style={{ background: "#070b16" }}>
       {/* Panel Header */}
-      <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-black/40 backdrop-blur-md">
-        <div className="flex flex-col">
-          <h3 className="text-xs font-600 text-white flex items-center gap-1.5">
-            <Sparkles size={13} className="text-indigo-400 animate-pulse" />
-            Live Transcript
-          </h3>
-          <span className={cn("text-[9.5px] font-medium mt-0.5 flex items-center gap-1.5", statusColorClass)}>
-            <span className={cn("w-1.5 h-1.5 rounded-full bg-current", isListening && "animate-ping")} />
-            {statusText}
-          </span>
+      <div className="px-3.5 py-3 border-b border-white/[0.08] flex items-center justify-between bg-black/40 backdrop-blur-md">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] text-white/60 hover:text-white transition-all border border-white/[0.06] shrink-0"
+              title="Hide Transcript"
+              aria-label="Hide Transcript"
+            >
+              <ChevronLeft size={15} />
+            </button>
+          )}
+          <div className="flex flex-col min-w-0">
+            <h3 className="text-xs font-600 text-white flex items-center gap-1.5 truncate">
+              <Sparkles size={13} className="text-indigo-400 shrink-0 animate-pulse" />
+              Live Transcript
+            </h3>
+            <span className={cn("text-[9.5px] font-medium mt-0.5 flex items-center gap-1.5 truncate", statusColorClass)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full bg-current shrink-0", isListening && "animate-ping")} />
+              {statusText}
+            </span>
+          </div>
         </div>
       </div>
 
