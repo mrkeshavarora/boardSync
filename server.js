@@ -92,6 +92,12 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('meeting-document-shared', (data) => {
+    if (data?.meetingId) {
+      io.to(data.meetingId).emit('meeting-document-shared', data);
+    }
+  });
+
   socket.on('speaking', ({ meetingId, isSpeaking }) => {
     socket.to(meetingId).emit('user-speaking', { peerId: socket.id, isSpeaking });
   });

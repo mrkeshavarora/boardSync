@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
   PhoneOff, Users, MessageSquare, ChevronLeft, ChevronRight, Loader2, Circle, Download, Sparkles,
-  PictureInPicture2, UserX, VolumeX, FileText, Send, X
+  PictureInPicture2, UserX, VolumeX, FileText, Send, X, Paperclip, UploadCloud, File, ExternalLink, Plus, Check
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,33 @@ interface PeerStream {
   peerId: string;
   name: string;
   stream: MediaStream;
+}
+
+interface ChatAttachment {
+  id?: string;
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  storageUrl: string;
+}
+
+interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  text: string;
+  timestamp: string;
+  attachment?: ChatAttachment;
+}
+
+interface MeetingDocItem {
+  _id: string;
+  fileName: string;
+  fileType?: string;
+  fileSize?: number;
+  storageUrl?: string;
+  uploadedBy?: { _id: string; name: string; email?: string } | string;
+  createdAt?: string;
 }
 
 export default function MeetingRoomPage() {
@@ -83,10 +110,101 @@ export default function MeetingRoomPage() {
   );
 
   // Meeting Group Chat & Document Chat states
-  const [chatMessages, setChatMessages] = useState<{ id: string; senderId: string; senderName: string; text: string; timestamp: string }[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInputText, setChatInputText] = useState("");
-  const [meetingDocs, setMeetingDocs] = useState<{ _id: string; fileName: string }[]>([]);
+  const [meetingDocs, setMeetingDocs] = useState<MeetingDocItem[]>([]);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState("");
+  const chatFileInputRef = useRef<HTMLInputElement | null>(null);
+  const docTabFileInputRef = useRef<HTMLInputElement | null>(null);
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Document Upload Handler (Available to ANY meeting participant)
+  const handleUploadDocument = async (file: File) => {
+    if (!file || !meetingId) return;
+    setIsUploadingDoc(true);
+    setUploadProgressText(`Uploading ${file.name}...`);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch(`/api/meetings/${meetingId}/documents/upload`, {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to upload document");
+      }
+
+      const json = await res.json();
+      const newDoc: MeetingDocItem = json.document;
+
+      // 1. Add to local meetingDocs list
+      setMeetingDocs((prev) => {
+        if (prev.some((d) => d._id === newDoc._id)) return prev;
+        return [newDoc, ...prev];
+      });
+
+      // 2. Broadcast document-shared socket event so all meeting peers get the document in real-time
+      if (socketRef.current) {
+        socketRef.current.emit("meeting-document-shared", {
+          meetingId,
+          document: newDoc,
+        });
+      }
+
+      // 3. Create a chat message with attachment and broadcast to chat
+      const newMsg: ChatMessage = {
+        id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        senderId: session?.user?.id || "local",
+        senderName: session?.user?.name || "Participant",
+        text: `Shared a new document: ${newDoc.fileName}`,
+        attachment: {
+          id: newDoc._id,
+          fileName: newDoc.fileName,
+          fileType: newDoc.fileType || file.type || "document",
+          fileSize: newDoc.fileSize || file.size,
+          storageUrl: newDoc.storageUrl || "",
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      if (socketRef.current) {
+        socketRef.current.emit("meeting-chat", {
+          ...newMsg,
+          meetingId,
+        });
+      }
+
+      setChatMessages((prev) => [...prev, newMsg]);
+    } catch (err: any) {
+      console.error("Document upload error:", err);
+      alert(err.message || "Failed to upload document.");
+    } finally {
+      setIsUploadingDoc(false);
+      setUploadProgressText("");
+    }
+  };
+
+  const formatBytes = (bytes?: number) => {
+    if (!bytes || bytes === 0) return "0 B";
+    const k = 1024;
+    const sizes = ["B", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+  };
+
+  const getFileIconColor = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase() || "";
+    if (["pdf"].includes(ext)) return "text-red-400 bg-red-500/10 border-red-500/20";
+    if (["doc", "docx"].includes(ext)) return "text-blue-400 bg-blue-500/10 border-blue-500/20";
+    if (["xls", "xlsx", "csv"].includes(ext)) return "text-emerald-400 bg-emerald-500/10 border-emerald-500/20";
+    if (["ppt", "pptx"].includes(ext)) return "text-amber-400 bg-amber-500/10 border-amber-500/20";
+    if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "text-purple-400 bg-purple-500/10 border-purple-500/20";
+    return "text-indigo-400 bg-indigo-500/10 border-indigo-500/20";
+  };
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
@@ -811,6 +929,38 @@ export default function MeetingRoomPage() {
         if (prev.some((m) => m.id === data.id)) return prev;
         return [...prev, data];
       });
+
+      // If this chat message has a document attachment, make sure it's reflected in meetingDocs too
+      if (data?.attachment) {
+        setMeetingDocs((prev) => {
+          if (prev.some((d) => (data.attachment.id && d._id === data.attachment.id) || d.fileName === data.attachment.fileName)) {
+            return prev;
+          }
+          return [
+            {
+              _id: data.attachment.id || `doc-${Date.now()}`,
+              fileName: data.attachment.fileName,
+              fileType: data.attachment.fileType,
+              fileSize: data.attachment.fileSize,
+              storageUrl: data.attachment.storageUrl,
+              uploadedBy: data.senderName,
+              createdAt: data.timestamp,
+            },
+            ...prev,
+          ];
+        });
+      }
+    });
+
+    socket.on("meeting-document-shared", ({ document }: any) => {
+      if (document) {
+        setMeetingDocs((prev) => {
+          if (prev.some((d) => d._id === document._id || d.fileName === document.fileName)) {
+            return prev;
+          }
+          return [document, ...prev];
+        });
+      }
     });
 
     socket.on("call-ended", () => {
@@ -1543,6 +1693,20 @@ export default function MeetingRoomPage() {
             {/* TAB 1: Meeting Group Chat */}
             {sidebarTab === "chat" && (
               <div className="flex-1 flex flex-col min-h-0 bg-[#080d1a]">
+                {/* Hidden File Input for Chat */}
+                <input
+                  ref={chatFileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleUploadDocument(file);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+
                 {/* Messages List */}
                 <div
                   ref={chatScrollRef}
@@ -1555,7 +1719,7 @@ export default function MeetingRoomPage() {
                       </div>
                       <p className="text-xs font-500 text-white/60">No messages yet</p>
                       <p className="text-[11px] text-white/30 max-w-[200px]">
-                        Send a message to chat with everyone joined in this meeting.
+                        Send a message or click the attachment icon to share documents with everyone in this meeting.
                       </p>
                     </div>
                   ) : (
@@ -1571,31 +1735,78 @@ export default function MeetingRoomPage() {
                             <span>•</span>
                             <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                           </div>
-                          <div
-                            className={cn(
-                              "px-3.5 py-2 rounded-2xl text-xs max-w-[85%] break-words",
-                              isMe
-                                ? "bg-indigo-600 text-white rounded-tr-sm shadow-md shadow-indigo-600/20"
-                                : "bg-white/[0.06] border border-white/[0.08] text-white rounded-tl-sm"
-                            )}
-                          >
-                            {msg.text}
-                          </div>
+
+                          {msg.attachment ? (
+                            <div
+                              className={cn(
+                                "rounded-2xl text-xs max-w-[90%] sm:max-w-[85%] break-words overflow-hidden border shadow-sm",
+                                isMe
+                                  ? "bg-indigo-600/30 border-indigo-500/40 text-white rounded-tr-sm"
+                                  : "bg-white/[0.06] border-white/[0.1] text-white rounded-tl-sm"
+                              )}
+                            >
+                              <div className="p-2.5 space-y-2">
+                                <p className="text-[11px] text-white/80 font-500">{msg.text}</p>
+                                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-black/40 border border-white/10">
+                                  <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center border shrink-0", getFileIconColor(msg.attachment.fileName))}>
+                                    <FileText size={15} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="font-600 text-xs text-white truncate" title={msg.attachment.fileName}>
+                                      {msg.attachment.fileName}
+                                    </p>
+                                    <p className="text-[10px] text-white/40">{formatBytes(msg.attachment.fileSize)}</p>
+                                  </div>
+                                  <a
+                                    href={msg.attachment.storageUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    download={msg.attachment.fileName}
+                                    className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors flex items-center justify-center shrink-0 cursor-pointer"
+                                    title={`Download ${msg.attachment.fileName}`}
+                                  >
+                                    <Download size={13} />
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              className={cn(
+                                "px-3.5 py-2 rounded-2xl text-xs max-w-[85%] break-words",
+                                isMe
+                                  ? "bg-indigo-600 text-white rounded-tr-sm shadow-md shadow-indigo-600/20"
+                                  : "bg-white/[0.06] border border-white/[0.08] text-white rounded-tl-sm"
+                              )}
+                            >
+                              {msg.text}
+                            </div>
+                          )}
                         </div>
                       );
                     })
                   )}
                 </div>
 
-                {/* Message Input Box */}
+                {/* Upload Progress Status Banner */}
+                {isUploadingDoc && (
+                  <div className="px-3.5 py-1.5 bg-indigo-500/15 border-t border-indigo-500/20 flex items-center justify-between text-xs text-indigo-300 animate-pulse">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Loader2 size={13} className="animate-spin text-indigo-400 shrink-0" />
+                      <span className="truncate">{uploadProgressText || "Uploading document to meeting..."}</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message Input Box with Attachment Button */}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
                     if (!chatInputText.trim()) return;
-                    const newMsg = {
+                    const newMsg: ChatMessage = {
                       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                       senderId: session?.user?.id || "local",
-                      senderName: session?.user?.name || "You",
+                      senderName: session?.user?.name || "Participant",
                       text: chatInputText.trim(),
                       timestamp: new Date().toISOString(),
                     };
@@ -1610,17 +1821,28 @@ export default function MeetingRoomPage() {
                   }}
                   className="p-3 border-t border-white/[0.08] bg-black/30 flex items-center gap-2"
                 >
+                  <button
+                    type="button"
+                    onClick={() => chatFileInputRef.current?.click()}
+                    disabled={isUploadingDoc}
+                    className="p-2 rounded-xl bg-white/[0.06] hover:bg-indigo-500/20 text-white/70 hover:text-indigo-300 border border-white/[0.08] hover:border-indigo-500/30 transition-all flex items-center justify-center cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Upload & share document with meeting participants"
+                  >
+                    {isUploadingDoc ? <Loader2 size={14} className="animate-spin text-indigo-400" /> : <Paperclip size={14} />}
+                  </button>
+
                   <input
                     type="text"
                     value={chatInputText}
                     onChange={(e) => setChatInputText(e.target.value)}
-                    placeholder="Message everyone..."
+                    placeholder="Message everyone or share a doc..."
                     className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50"
                   />
+
                   <button
                     type="submit"
                     disabled={!chatInputText.trim()}
-                    className="p-2 rounded-xl btn-gradient text-white shadow-md disabled:opacity-40 transition-all flex items-center justify-center cursor-pointer"
+                    className="p-2 rounded-xl btn-gradient text-white shadow-md disabled:opacity-40 transition-all flex items-center justify-center cursor-pointer shrink-0"
                     title="Send message"
                   >
                     <Send size={14} />
@@ -1629,29 +1851,131 @@ export default function MeetingRoomPage() {
               </div>
             )}
 
-            {/* TAB 2: Doc Chat */}
+            {/* TAB 2: Doc Chat & Meeting Documents */}
             {sidebarTab === "docs" && (
               <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#080d1a]">
-                <div className="space-y-1">
-                  <h4 className="text-xs font-600 text-white flex items-center gap-1.5">
-                    <FileText size={14} className="text-indigo-400" />
-                    Meeting Document AI Chat
-                  </h4>
-                  <p className="text-[11px] text-white/40">
-                    Ask questions across documents linked to this board meeting.
-                  </p>
+                {/* Hidden File Input for Doc Tab */}
+                <input
+                  ref={docTabFileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      handleUploadDocument(file);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+
+                {/* Header & Upload Button */}
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-white/[0.08]">
+                  <div>
+                    <h4 className="text-xs font-600 text-white flex items-center gap-1.5">
+                      <FileText size={14} className="text-indigo-400" />
+                      Meeting Documents ({meetingDocs.length})
+                    </h4>
+                    <p className="text-[10px] text-white/40 mt-0.5">
+                      Accessible by all participants during and after meeting
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => docTabFileInputRef.current?.click()}
+                    disabled={isUploadingDoc}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-500 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/30 transition-all flex items-center gap-1.5 cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Upload new document to this meeting"
+                  >
+                    {isUploadingDoc ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin text-indigo-400" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={13} />
+                        <span>Add Doc</span>
+                      </>
+                    )}
+                  </button>
                 </div>
 
-                {/* Render the Reusable DocumentChat component */}
-                <DocumentChat
-                  documentNames={meetingDocs.map((d) => d.fileName)}
-                  placeholder={
-                    meetingDocs.length > 0
-                      ? "Ask questions about this meeting's documents..."
-                      : "No documents attached to this meeting..."
-                  }
-                  className="bg-white/[0.02] border-white/[0.08] p-4 sm:p-4 text-xs"
-                />
+                {/* Documents List */}
+                {meetingDocs.length > 0 ? (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                    {meetingDocs.map((doc) => {
+                      const uploaderName =
+                        typeof doc.uploadedBy === "object" && doc.uploadedBy !== null
+                          ? (doc.uploadedBy as any).name
+                          : typeof doc.uploadedBy === "string"
+                          ? doc.uploadedBy
+                          : "Participant";
+                      return (
+                        <div
+                          key={doc._id || doc.fileName}
+                          className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] transition-all group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center border shrink-0 text-xs", getFileIconColor(doc.fileName))}>
+                              <FileText size={13} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-500 text-white truncate" title={doc.fileName}>
+                                {doc.fileName}
+                              </p>
+                              <p className="text-[10px] text-white/40 truncate">
+                                {doc.fileSize ? formatBytes(doc.fileSize) : "Document"} • Added by {uploaderName}
+                              </p>
+                            </div>
+                          </div>
+
+                          {doc.storageUrl && (
+                            <a
+                              href={doc.storageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={doc.fileName}
+                              className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors shrink-0"
+                              title={`Download ${doc.fileName}`}
+                            >
+                              <Download size={13} />
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl border border-dashed border-white/[0.1] bg-white/[0.02] flex flex-col items-center justify-center text-center text-white/30 space-y-1.5">
+                    <UploadCloud size={20} className="text-white/20" />
+                    <p className="text-xs text-white/50">No documents added yet</p>
+                    <p className="text-[10.5px] text-white/30 max-w-[200px]">
+                      Anyone in this meeting can click &quot;Add Doc&quot; to share a file.
+                    </p>
+                  </div>
+                )}
+
+                {/* Divider */}
+                <div className="pt-2 border-t border-white/[0.06]">
+                  <h4 className="text-xs font-600 text-white flex items-center gap-1.5 mb-1">
+                    <Sparkles size={13} className="text-cyan-400" />
+                    AI Document Assistant
+                  </h4>
+                  <p className="text-[11px] text-white/40 mb-3">
+                    Ask AI questions about the uploaded meeting documents.
+                  </p>
+
+                  {/* Render the Reusable DocumentChat component */}
+                  <DocumentChat
+                    documentNames={meetingDocs.map((d) => d.fileName)}
+                    placeholder={
+                      meetingDocs.length > 0
+                        ? "Ask questions about this meeting's documents..."
+                        : "No documents attached to this meeting..."
+                    }
+                    className="bg-white/[0.02] border-white/[0.08] p-4 sm:p-4 text-xs"
+                  />
+                </div>
               </div>
             )}
 
