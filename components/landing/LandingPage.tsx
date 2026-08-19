@@ -297,7 +297,7 @@ export default function LandingPage() {
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
                 <span className="text-[10px] font-700 uppercase tracking-wider text-emerald-500">Board Live</span>
               </div>
-              <p className={`text-xs font-700 truncate ${isLight ? "text-slate-900" : "text-white"}`}>Q3 Strategy Meeting</p>
+              <p className={`text-xs font-700 truncate ${isLight ? "text-slate-900" : "text-white"}`}>Strategy & Governance Meeting</p>
               <p className={`text-[10px] truncate ${isLight ? "text-slate-500" : "text-white/40"}`}>8 Directors Connected</p>
             </div>
           </div>
@@ -319,37 +319,37 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="text-center max-w-4xl mx-auto">
+          <div className="text-center max-w-3xl mx-auto">
             {/* Announcement Badge */}
-            <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border mb-8 transition-all duration-300 hover:scale-105 cursor-pointer ${
+            <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border mb-6 transition-all duration-300 hover:scale-105 cursor-pointer animate-hero-fade-up ${
               isLight 
-                ? "border-indigo-200 bg-indigo-50/90 text-indigo-700 shadow-2xs" 
+                ? "border-indigo-200/80 bg-indigo-50/80 text-indigo-700 shadow-2xs backdrop-blur-sm" 
                 : "border-indigo-500/30 bg-indigo-500/10 text-indigo-300"
             }`}>
               <span className="flex h-2 w-2 relative">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
               </span>
-              <span className="text-xs font-600">BoardSync 2.0 — Next-Gen AI Minutes & Governance Platform</span>
+              <span className="text-xs font-600 tracking-wide">BoardSync 2.0 — Next-Gen AI Minutes & Governance</span>
               <ChevronRight size={13} className="text-indigo-500" />
             </div>
 
-            {/* Headline */}
-            <h1 className="text-4xl sm:text-6xl lg:text-7xl font-800 leading-[1.08] tracking-tight mb-6">
-              <span className={isLight ? "text-slate-900" : "text-white"}>The Boardroom,</span>
+            {/* Soft, smaller, elegant Headline */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-800 leading-[1.12] tracking-tight mb-5 animate-hero-fade-up" style={{ animationDelay: "100ms" }}>
+              <span className={isLight ? "text-slate-800/90" : "text-white/95"}>The Boardroom,</span>
               <br />
-              <span className="gradient-text-animated">Reimagined.</span>
+              <span className="gradient-text-animated font-800">Reimagined.</span>
             </h1>
 
-            {/* Sub-headline */}
-            <p className={`text-base sm:text-lg lg:text-xl max-w-2xl mx-auto mb-8 leading-relaxed font-400 ${
-              isLight ? "text-slate-600" : "text-white/60"
-            }`}>
+            {/* Soft Sub-headline */}
+            <p className={`text-sm sm:text-base lg:text-lg max-w-xl mx-auto mb-8 leading-relaxed font-400 animate-hero-fade-up ${
+              isLight ? "text-slate-500/90" : "text-white/60"
+            }`} style={{ animationDelay: "200ms" }}>
               The complete platform for modern corporate governance. Schedule meetings, draft minutes with AI, vote on resolutions, and track action items — all in one secure space.
             </p>
 
             {/* Interactive Feature Pills */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 animate-hero-fade-up" style={{ animationDelay: "300ms" }}>
               {[
                 { icon: Shield, label: "Bank-Grade Encryption" },
                 { icon: Sparkles, label: "AI Minutes Builder" },
@@ -358,9 +358,9 @@ export default function LandingPage() {
               ].map((chip) => (
                 <span
                   key={chip.label}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-600 border transition-all ${
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-500 border transition-all duration-300 hover:scale-105 ${
                     isLight
-                      ? "bg-white border-slate-200 text-slate-700 shadow-2xs hover:border-slate-300"
+                      ? "bg-white/80 border-slate-200/80 text-slate-600 shadow-2xs hover:border-indigo-300 hover:text-indigo-600"
                       : "bg-white/[0.04] border-white/[0.08] text-white/80 hover:bg-white/[0.08]"
                   }`}
                 >
@@ -371,40 +371,22 @@ export default function LandingPage() {
             </div>
 
             {/* Hero CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-12 animate-hero-fade-up" style={{ animationDelay: "400ms" }}>
               <Link href="/login"
-                className="btn-gradient px-8 py-4 rounded-xl text-base font-700 flex items-center gap-2.5 shadow-2xl shadow-indigo-500/35 hover:shadow-indigo-500/55 transition-all duration-300 hover:scale-105 group">
+                className="btn-gradient px-7 py-3.5 rounded-2xl text-sm font-700 flex items-center gap-2 shadow-xl shadow-purple-500/25 hover:scale-105 transition-all duration-300 w-full sm:w-auto justify-center group">
                 <span>Start Free Trial</span>
-                <ArrowRight size={18} className="transition-transform duration-300 group-hover:translate-x-1" />
+                <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
               </Link>
               
               <Link href="/login"
-                className={`group px-7 py-4 rounded-xl text-base font-600 border transition-all duration-300 flex items-center gap-2.5 ${
+                className={`group px-7 py-3.5 rounded-2xl text-sm font-600 border transition-all duration-300 hover:scale-105 w-full sm:w-auto justify-center flex items-center gap-2 ${
                   isLight 
-                    ? "text-slate-700 hover:text-slate-900 border-slate-300 bg-white hover:bg-slate-50 shadow-2xs" 
-                    : "text-white/80 hover:text-white border-white/10 hover:border-white/20 bg-white/[0.04] hover:bg-white/[0.08]"
+                    ? "bg-white/90 border-slate-200/90 text-slate-700 hover:bg-white shadow-2xs hover:border-slate-300" 
+                    : "bg-white/[0.04] border-white/[0.08] text-white/80 hover:bg-white/[0.08]"
                 }`}>
-                <Lock size={16} className={isLight ? "text-slate-400 group-hover:text-slate-600" : "text-white/40 group-hover:text-white/70"} />
+                <Lock size={15} className={isLight ? "text-slate-400 group-hover:text-slate-600" : "text-white/40 group-hover:text-white/70"} />
                 <span>Sign In to Dashboard</span>
               </Link>
-            </div>
-
-            {/* Trust Signals & Rating */}
-            <div className={`flex flex-wrap items-center justify-center gap-6 text-xs font-500 ${
-              isLight ? "text-slate-500" : "text-white/40"
-            }`}>
-              <div className="flex items-center gap-1 text-amber-400">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={13} className="fill-amber-400 text-amber-400" />
-                ))}
-                <span className={`ml-1 font-600 ${isLight ? "text-slate-700" : "text-white/80"}`}>4.9/5 Rating</span>
-              </div>
-              <span className="hidden sm:inline opacity-30">•</span>
-              {["SOC 2 Type II Certified", "ISO 27001 Ready", "256-Bit SSL"].map((t) => (
-                <span key={t} className="flex items-center gap-1.5">
-                  <CheckCircle2 size={12} className="text-emerald-500" /> {t}
-                </span>
-              ))}
             </div>
           </div>
 
@@ -560,7 +542,7 @@ export default function LandingPage() {
                       {
                         title: "Next Meeting",
                         value: "Tomorrow 10 AM",
-                        sub: "Q3 Strategy Review",
+                        sub: "Annual Strategy Review",
                         badge: "8 Confirmed",
                         badgeColor: "bg-emerald-500/15 text-emerald-600 border-emerald-500/20",
                         bg: isLight ? "bg-white border-slate-200 shadow-2xs" : "bg-white/[0.03] border-white/[0.08]",
@@ -616,14 +598,14 @@ export default function LandingPage() {
                             IN PROGRESS • LIVE
                           </span>
                           <h3 className={`text-xs sm:text-sm font-700 leading-tight ${isLight ? "text-slate-900" : "text-white"}`}>
-                            Q3 Board Strategy & Financial Review
+                            Board Strategy & Financial Review
                           </h3>
                         </div>
                         <span className={`text-[10px] font-600 ${isLight ? "text-slate-500" : "text-white/40"}`}>Today, 10:00 AM</span>
                       </div>
 
                       <p className={`text-[11px] leading-relaxed line-clamp-2 ${isLight ? "text-slate-600" : "text-white/50"}`}>
-                        Agenda: 1. Q3 Financial Approval  2. ESG Compliance Audit  3. Executive Remuneration
+                        Agenda: 1. Financial Approval  2. ESG Compliance Audit  3. Executive Remuneration
                       </p>
 
                       <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-white/[0.04]">
@@ -691,7 +673,7 @@ export default function LandingPage() {
 
                     <div className="space-y-1.5">
                       {[
-                        { task: "Finalize Q3 Financial Audit Sign-off", owner: "James Miller (CFO)", due: "Tomorrow", status: "High Priority", statusClass: "bg-red-500/15 text-red-600 border-red-500/25" },
+                        { task: "Finalize Financial Audit Sign-off", owner: "James Miller (CFO)", due: "Tomorrow", status: "High Priority", statusClass: "bg-red-500/15 text-red-600 border-red-500/25" },
                         { task: "Revise Executive Governance & Remuneration Policy", owner: "Alexandra Chen", due: "Aug 28", status: "In Review", statusClass: "bg-amber-500/15 text-amber-600 border-amber-500/25" },
                         { task: "Submit ESG Compliance Regulatory Filing", owner: "Sarah Kim", due: "Sep 02", status: "Completed", statusClass: "bg-emerald-500/15 text-emerald-600 border-emerald-500/25" },
                       ].map((row, i) => (
@@ -860,27 +842,120 @@ export default function LandingPage() {
             <div className="space-y-12">
               {[
                 {
-                  step: "01", title: "Schedule & Invite",
-                  desc: "Create a meeting with the step-by-step wizard. Set the agenda, invite participants, and attach board packs.",
-                  side: "left", icon: Clock,
+                  step: "01",
+                  title: "Schedule & Invite",
+                  desc: "Create a meeting with the step-by-step wizard. Set the agenda, invite participants, and attach board packs with automatic notifications.",
+                  side: "left",
+                  icon: Clock,
+                  mockup: (
+                    <div className={`p-4 rounded-2xl border shadow-md space-y-2.5 ${
+                      isLight ? "bg-white border-slate-200/90 shadow-slate-200/40" : "bg-[#0d1527] border-white/10"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                          <span className={`text-xs font-700 ${isLight ? "text-slate-900" : "text-white"}`}>Strategy & Governance</span>
+                        </div>
+                        <span className="text-[10px] font-700 px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 border border-indigo-500/20">
+                          Tomorrow 10:00 AM
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md border ${isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-white/5 border-white/10 text-white/70"}`}>
+                          ✓ Financial Audit
+                        </span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md border ${isLight ? "bg-slate-100 border-slate-200 text-slate-700" : "bg-white/5 border-white/10 text-white/70"}`}>
+                          ✓ Board Pack attached
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-white/5 text-[10px]">
+                        <span className={isLight ? "text-slate-500" : "text-white/50"}>8 Directors Invited</span>
+                        <span className="text-emerald-600 font-700">Invites Sent</span>
+                      </div>
+                    </div>
+                  )
                 },
                 {
-                  step: "02", title: "Run the Meeting",
-                  desc: "Work through the agenda live. Record attendance, capture decisions, and assign action items on the spot.",
-                  side: "right", icon: Users,
+                  step: "02",
+                  title: "Run the Meeting",
+                  desc: "Work through the agenda live. Record attendance, capture decisions, record votes, and assign action items on the spot.",
+                  side: "right",
+                  icon: Users,
+                  mockup: (
+                    <div className={`p-4 rounded-2xl border shadow-md space-y-2.5 ${
+                      isLight ? "bg-white border-slate-200/90 shadow-slate-200/40" : "bg-[#0d1527] border-white/10"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          <span className="text-[10px] font-800 text-emerald-600 tracking-wider uppercase">Live Meeting</span>
+                        </div>
+                        <span className={`text-[10px] font-600 ${isLight ? "text-slate-500" : "text-white/50"}`}>8 Directors Active</span>
+                      </div>
+                      <div className={`p-2.5 rounded-xl border ${isLight ? "bg-slate-50 border-slate-200/60" : "bg-white/[0.03] border-white/[0.06]"}`}>
+                        <div className="flex items-center justify-between text-[11px] font-700 mb-1">
+                          <span className={isLight ? "text-slate-800" : "text-white"}>Resolution #3: Annual Budget Approval</span>
+                          <span className="text-emerald-600 font-800">Passed 8-0</span>
+                        </div>
+                        <p className={`text-[10px] ${isLight ? "text-slate-500" : "text-white/50"}`}>Quorum: 100% Verified · Action assigned to CFO</p>
+                      </div>
+                    </div>
+                  )
                 },
                 {
-                  step: "03", title: "Draft & Approve Minutes",
-                  desc: "The secretary drafts minutes in the rich editor. Board members review and the chair approves in one click.",
-                  side: "left", icon: FileText,
+                  step: "03",
+                  title: "Draft & Approve Minutes",
+                  desc: "The secretary drafts minutes in the rich editor or generates them with AI. Board members review and the chair approves in one click.",
+                  side: "left",
+                  icon: FileText,
+                  mockup: (
+                    <div className={`p-4 rounded-2xl border shadow-md space-y-2.5 ${
+                      isLight ? "bg-white border-slate-200/90 shadow-slate-200/40" : "bg-[#0d1527] border-white/10"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-700 text-purple-600 flex items-center gap-1.5">
+                          <Sparkles size={13} /> AI Minutes v2.4
+                        </span>
+                        <span className="text-[10px] font-700 px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 border border-emerald-500/20">
+                          Chair Approved
+                        </span>
+                      </div>
+                      <p className={`text-[11px] leading-relaxed line-clamp-2 ${isLight ? "text-slate-600" : "text-white/60"}`}>
+                        "The Board unanimously approved the annual financial statement and resolved to file ESG compliance filings before Sep 02."
+                      </p>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-white/5 text-[10px]">
+                        <span className={isLight ? "text-slate-500" : "text-white/50"}>Signed by Alexandra Chen</span>
+                        <span className="text-indigo-600 font-700">Export PDF</span>
+                      </div>
+                    </div>
+                  )
                 },
                 {
-                  step: "04", title: "Track & Report",
-                  desc: "Monitor action items to completion and generate board-ready reports with attendance and resolution summaries.",
-                  side: "right", icon: BarChart3,
+                  step: "04",
+                  title: "Track & Report",
+                  desc: "Monitor action items to completion and generate board-ready governance reports with attendance and resolution summaries.",
+                  side: "right",
+                  icon: BarChart3,
+                  mockup: (
+                    <div className={`p-4 rounded-2xl border shadow-md space-y-2.5 ${
+                      isLight ? "bg-white border-slate-200/90 shadow-slate-200/40" : "bg-[#0d1527] border-white/10"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-700 ${isLight ? "text-slate-900" : "text-white"}`}>Action Item Execution</span>
+                        <span className="text-[10px] font-800 text-blue-600">94.2% Done</span>
+                      </div>
+                      <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-white/10 overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 w-[94%]" />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className={isLight ? "text-slate-500" : "text-white/50"}>16 of 17 Tasks Closed</span>
+                        <span className="text-emerald-600 font-700">100% Audit Ready</span>
+                      </div>
+                    </div>
+                  )
                 },
-              ].map(({ step, title, desc, side, icon: Icon }) => (
-                <div key={step} className={`lg:grid lg:grid-cols-2 lg:gap-16 items-center ${side === "right" ? "lg:direction-rtl" : ""}`}>
+              ].map(({ step, title, desc, side, icon: Icon, mockup }) => (
+                <div key={step} className={`lg:grid lg:grid-cols-2 lg:gap-12 items-center ${side === "right" ? "lg:direction-rtl" : ""}`}>
                   <div className={side === "right" ? "lg:order-2" : ""}>
                     <div className="flex items-center gap-4 mb-3">
                       <span className={`text-5xl font-800 ${isLight ? "opacity-20 text-indigo-900" : "opacity-10 text-white"}`}>{step}</span>
@@ -893,12 +968,8 @@ export default function LandingPage() {
                     <h3 className={`text-xl font-700 mb-2 ${isLight ? "text-slate-900" : "text-white"}`}>{title}</h3>
                     <p className={`leading-relaxed ${isLight ? "text-slate-600" : "text-white/50"}`}>{desc}</p>
                   </div>
-                  <div className={`hidden lg:block ${side === "right" ? "lg:order-1" : ""}`}>
-                    <div className={`h-32 rounded-2xl border ${
-                      isLight 
-                        ? "border-slate-200 bg-gradient-to-br from-indigo-50/50 to-slate-50 shadow-2xs" 
-                        : "border-white/[0.07] bg-gradient-to-br from-white/[0.02] to-transparent"
-                    }`} />
+                  <div className={`mt-6 lg:mt-0 ${side === "right" ? "lg:order-1" : ""}`}>
+                    {mockup}
                   </div>
                 </div>
               ))}

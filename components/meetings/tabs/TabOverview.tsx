@@ -59,7 +59,7 @@ export default function TabOverview() {
           <div className="p-5 rounded-xl border border-white/[0.06] bg-white/[0.02]">
             <p className="text-sm text-white/70 leading-relaxed">
               Quarterly review of company strategy, financial performance, and key operational metrics. 
-              Please review the attached Q3 Financial Report prior to the meeting.
+              Please review the attached Financial Report prior to the meeting.
             </p>
           </div>
         </div>

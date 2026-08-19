@@ -13,7 +13,7 @@ export default function TabActions({ meetingId }: { meetingId: string }) {
     },
     {
       id: "2",
-      title: "Distribute finalized Q3 report to shareholders",
+      title: "Distribute finalized report to shareholders",
       assignee: "Sarah Kim",
       dueDate: "Aug 20, 2026",
       status: "Pending",

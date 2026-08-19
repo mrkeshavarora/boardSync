@@ -44,7 +44,7 @@ export default function StepDetails({ data, updateData, errors = {} }: StepDetai
             type="text"
             value={data.title}
             onChange={(e) => updateData({ title: e.target.value })}
-            placeholder="e.g. Q3 Board of Directors Meeting"
+            placeholder="e.g. Annual Board of Directors Meeting"
             aria-invalid={!!errors.title}
             className={cn("w-full px-4 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/60 transition-all", errors.title && "border-red-500/60")}
           />

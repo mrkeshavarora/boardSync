@@ -200,18 +200,33 @@ html[data-theme="light"] select option {
   100% { background-position: 0% 50%; }
 }
 
+@keyframes fadeInUpSmooth {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-hero-fade-up {
+  animation: fadeInUpSmooth 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .animate-fade-in { animation: fadeIn 0.4s ease forwards; }
 .animate-slide-in { animation: slideInLeft 0.3s ease forwards; }
 .animate-float-slow { animation: floatSlow 6s ease-in-out infinite; }
 .animate-float-delayed { animation: floatDelayed 7s ease-in-out infinite 1.5s; }
 
 .gradient-text-animated {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 35%, #ec4899 70%, #6366f1 100%);
+  background: linear-gradient(135deg, #7C3AED 0%, #A855F7 35%, #C026D3 70%, #6366f1 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  animation: textGradientMove 6s ease infinite;
+  animation: textGradientMove 5s ease infinite;
 }
 
 .skeleton {

@@ -75,11 +75,11 @@ function BarChartCss() {
 
 // ─── Attendance Table ─────────────────────────────────────────────────────────
 const ATTENDANCE = [
-  { name: "Q3 Strategy Review", date: "Aug 15", invited: 12, attended: 10, rate: 83 },
+  { name: "Strategy Review", date: "Aug 15", invited: 12, attended: 10, rate: 83 },
   { name: "Finance Committee", date: "Aug 10", invited: 8, attended: 8, rate: 100 },
   { name: "Risk Assessment", date: "Jul 28", invited: 10, attended: 7, rate: 70 },
   { name: "Annual Planning", date: "Jul 15", invited: 12, attended: 11, rate: 92 },
-  { name: "Q2 Review", date: "Jun 30", invited: 12, attended: 9, rate: 75 },
+  { name: "Mid-Year Review", date: "Jun 30", invited: 12, attended: 9, rate: 75 },
 ];
 
 // ─── Action Items Summary ─────────────────────────────────────────────────────

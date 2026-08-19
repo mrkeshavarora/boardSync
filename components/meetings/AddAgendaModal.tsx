@@ -130,7 +130,7 @@ export default function AddAgendaModal({ meetingId, onAdded }: AddAgendaModalPro
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="e.g., Financial Q3 Review & Budget Approval"
+                  placeholder="e.g., Financial Review & Budget Approval"
                   className="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.1] text-sm text-white focus:outline-none focus:border-indigo-500 transition-all placeholder:text-white/20"
                   required
                 />

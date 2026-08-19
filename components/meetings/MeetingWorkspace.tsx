@@ -71,7 +71,7 @@ export default function MeetingWorkspace({ meetingId, autoJoin = false }: { meet
             ID: {meetingId ? `${String(meetingId).substring(0, 8)}...` : "N/A"}
             </span>
           </div>
-          <h1 className="text-2xl font-700 text-white">Q3 Strategy Review</h1>
+          <h1 className="text-2xl font-700 text-white">Board Strategy Review</h1>
           <p className="text-sm text-white/50 mt-1">Aug 15, 2026 • 10:00 AM - 12:00 PM UTC</p>
         </div>
         

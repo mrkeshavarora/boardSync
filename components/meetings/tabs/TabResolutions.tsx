@@ -6,8 +6,8 @@ export default function TabResolutions({ meetingId }: { meetingId: string }) {
   const [resolutions] = useState([
     {
       id: "1",
-      title: "Approval of Q3 Financial Report",
-      description: "The board approves the Q3 financial performance report as presented by the CFO.",
+      title: "Approval of Annual Financial Report",
+      description: "The board approves the financial performance report as presented by the CFO.",
       status: "Passed",
       votes: { for: 10, against: 0, abstain: 0 },
       date: "Aug 15, 2026",

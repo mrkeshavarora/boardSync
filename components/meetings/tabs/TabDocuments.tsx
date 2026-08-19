@@ -4,9 +4,9 @@ import { FileText, Download, Eye, UploadCloud, MoreVertical } from "lucide-react
 
 export default function TabDocuments() {
   const documents = [
-    { id: 1, name: "Q3_Financials.xlsx", size: "1.2 MB", type: "Excel", uploadedBy: "Robert Davis", date: "Aug 10, 2026" },
-    { id: 2, name: "Q3_Summary_Report.pdf", size: "3.4 MB", type: "PDF", uploadedBy: "Robert Davis", date: "Aug 10, 2026" },
-    { id: 3, name: "Minutes_Q2_Board_Meeting.pdf", size: "845 KB", type: "PDF", uploadedBy: "Sarah Kim", date: "Aug 12, 2026" },
+    { id: 1, name: "Financials.xlsx", size: "1.2 MB", type: "Excel", uploadedBy: "Robert Davis", date: "Aug 10, 2026" },
+    { id: 2, name: "Summary_Report.pdf", size: "3.4 MB", type: "PDF", uploadedBy: "Robert Davis", date: "Aug 10, 2026" },
+    { id: 3, name: "Minutes_Board_Meeting.pdf", size: "845 KB", type: "PDF", uploadedBy: "Sarah Kim", date: "Aug 12, 2026" },
   ];
 
   return (

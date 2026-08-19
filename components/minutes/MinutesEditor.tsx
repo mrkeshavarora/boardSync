@@ -24,7 +24,7 @@ export default function MinutesEditor({ meetingId }: { meetingId: string }) {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   // Mock initial content
-  const [content, setContent] = useState(`<h2>Meeting Minutes — Q3 Strategy Review</h2>
+  const [content, setContent] = useState(`<h2>Meeting Minutes — Board Strategy Review</h2>
 <p><strong>Date:</strong> August 15, 2026</p>
 <p><strong>Time:</strong> 10:00 AM – 12:00 PM UTC</p>
 <p><strong>Location:</strong> Boardroom A, 1st Floor HQ</p>
@@ -34,12 +34,12 @@ export default function MinutesEditor({ meetingId }: { meetingId: string }) {
 <p>The meeting was called to order at 10:05 AM by the Chairperson. A quorum was confirmed with 10 of 12 board members present.</p>
 
 <h3>2. Approval of Previous Minutes</h3>
-<p>The minutes from the Q2 Board Meeting held on May 18, 2026 were reviewed. No amendments were proposed.</p>
+<p>The minutes from the previous Board Meeting held on May 18, 2026 were reviewed. No amendments were proposed.</p>
 <p><em>Motion: To approve the minutes as presented.</em><br>
 Proposed by: James Miller | Seconded by: Sarah Kim | Result: Passed (10–0)</p>
 
-<h3>3. Q3 Financial Performance Review</h3>
-<p>Robert Davis, CFO, presented the Q3 financial summary. Revenue came in at $12.4M, representing a 14% increase year-over-year. EBITDA margin improved to 22%.</p>
+<h3>3. Financial Performance Review</h3>
+<p>Robert Davis, CFO, presented the financial summary. Revenue came in at $12.4M, representing a 14% increase year-over-year. EBITDA margin improved to 22%.</p>
 <p>Key highlights:</p>
 <ul>
   <li>Revenue: $12.4M (+14% YoY)</li>

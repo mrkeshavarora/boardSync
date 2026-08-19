@@ -888,7 +888,7 @@ export default function ActionsContent({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Review & Approve Q3 Financial Statements"
+                  placeholder="e.g. Review & Approve Financial Statements"
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"

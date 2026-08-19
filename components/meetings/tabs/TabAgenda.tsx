@@ -5,8 +5,8 @@ import { Clock, Download, FileText } from "lucide-react";
 export default function TabAgenda() {
   const agendaItems = [
     { id: 1, title: "Call to Order & Welcome", presenter: "James Miller", duration: 5, docs: [] },
-    { id: 2, title: "Approval of Previous Minutes", presenter: "Sarah Kim", duration: 10, docs: ["Minutes_Q2.pdf"] },
-    { id: 3, title: "Q3 Financial Performance Review", presenter: "Robert Davis", duration: 45, docs: ["Q3_Financials.xlsx", "Q3_Summary.pdf"] },
+    { id: 2, title: "Approval of Previous Minutes", presenter: "Sarah Kim", duration: 10, docs: ["Minutes_Previous.pdf"] },
+    { id: 3, title: "Financial Performance Review", presenter: "Robert Davis", duration: 45, docs: ["Financials.xlsx", "Summary_Report.pdf"] },
     { id: 4, title: "Operational Highlights", presenter: "Alexandra Chen", duration: 30, docs: [] },
     { id: 5, title: "Any Other Business (AOB)", presenter: "James Miller", duration: 15, docs: [] },
     { id: 6, title: "Meeting Adjournment", presenter: "James Miller", duration: 5, docs: [] },
