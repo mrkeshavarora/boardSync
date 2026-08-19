@@ -156,16 +156,49 @@ Rules:
 - Format responses clearly using markdown.`;
   }
 
-  // 6. Call LLM (OpenAI-compatible client works with OpenAI, Groq, and custom gateways)
+  // 6. Resolve client and model with auto-matching based on key format
+  let apiKey = aiConfig.apiKey;
+  let baseURL = aiConfig.baseUrl;
+  let modelName = aiConfig.model || "";
+  let provider = aiConfig.provider;
+
+  // Auto-detect provider from API Key prefix
+  if (apiKey.startsWith("gsk_")) {
+    provider = "grok";
+    baseURL = "https://api.groq.com/openai/v1";
+    if (!modelName || modelName.startsWith("gpt-") || modelName.startsWith("gemini-")) {
+      modelName = "llama-3.3-70b-versatile";
+    }
+  } else if (apiKey.startsWith("sk-") || apiKey.startsWith("sk-proj-")) {
+    // OpenAI Key
+    provider = "openai";
+    baseURL = undefined;
+    if (!modelName || modelName.startsWith("llama-") || modelName.startsWith("mixtral-") || modelName.startsWith("gemini-")) {
+      modelName = "gpt-4o-mini";
+    }
+  } else if (apiKey.startsWith("AIzaSy")) {
+    // Google Gemini Key
+    provider = "gemini";
+    baseURL = "https://generativelanguage.googleapis.com/v1beta/openai/";
+    if (!modelName || modelName.startsWith("gpt-") || modelName.startsWith("llama-")) {
+      modelName = "gemini-1.5-flash";
+    }
+  } else {
+    if (provider === "grok") {
+      baseURL = "https://api.groq.com/openai/v1";
+      if (!modelName) modelName = "llama-3.3-70b-versatile";
+    } else if (provider === "openai") {
+      if (!modelName) modelName = "gpt-4o-mini";
+    }
+  }
+
+  const promptContent = `DOCUMENT EXCERPTS:\n${contextText}\n\nUSER REQUEST:\n${question}`;
+
   try {
     const client = new OpenAI({
-      apiKey: aiConfig.apiKey,
-      baseURL: aiConfig.baseUrl || (aiConfig.provider === "grok" ? "https://api.groq.com/openai/v1" : undefined),
+      apiKey,
+      baseURL: baseURL || undefined,
     });
-
-    const modelName = aiConfig.model || (aiConfig.provider === "grok" ? "llama-3.3-70b-versatile" : "gpt-4o-mini");
-
-    const promptContent = `DOCUMENT EXCERPTS:\n${contextText}\n\nUSER REQUEST:\n${question}`;
 
     const completion = await client.chat.completions.create({
       model: modelName,
@@ -183,10 +216,40 @@ Rules:
       answer,
       sources,
       modelUsed: modelName,
-      providerUsed: aiConfig.provider,
+      providerUsed: provider,
     };
   } catch (err: any) {
-    console.error("[RAG Engine Error]:", err);
+    console.error("[RAG Engine Primary Attempt Failed]:", err?.message || err);
+
+    // If model failed with 404 on Groq, try standard llama-3.1-8b-instant or gpt-4o-mini fallback
+    if (provider === "grok" && (err?.status === 404 || err?.message?.includes("404") || err?.message?.includes("model"))) {
+      try {
+        console.log("[RAG Engine] Retrying with Groq fallback model 'llama-3.1-8b-instant'...");
+        const fallbackClient = new OpenAI({
+          apiKey,
+          baseURL: "https://api.groq.com/openai/v1",
+        });
+        const fallbackRes = await fallbackClient.chat.completions.create({
+          model: "llama-3.1-8b-instant",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: promptContent },
+          ],
+          temperature: 0.2,
+          max_tokens: 2000,
+        });
+
+        return {
+          answer: fallbackRes.choices[0]?.message?.content || "No response received from AI.",
+          sources,
+          modelUsed: "llama-3.1-8b-instant",
+          providerUsed: "grok",
+        };
+      } catch (fallbackErr: any) {
+        console.error("[RAG Engine Fallback also failed]:", fallbackErr);
+      }
+    }
+
     throw new Error(err?.message || "Failed to generate AI response from document.");
   }
 }

@@ -21,7 +21,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { keyName, apiKey, model, baseUrl, isActive } = body;
+    const { provider, keyName, apiKey, model, baseUrl, isActive } = body;
 
     await connectDB();
     const existingKey = await ApiKey.findById(id);
@@ -30,6 +30,7 @@ export async function PUT(
       return NextResponse.json({ error: "API key configuration not found" }, { status: 404 });
     }
 
+    if (provider !== undefined) existingKey.provider = provider;
     if (keyName !== undefined) existingKey.keyName = keyName.trim();
     if (apiKey && apiKey.trim() && !apiKey.includes("••••")) {
       existingKey.apiKey = apiKey.trim();

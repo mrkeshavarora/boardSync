@@ -20,38 +20,55 @@ interface ApiKeyItem {
   updatedAt: string;
 }
 
-const PROVIDERS: { id: ApiProvider; name: string; icon: string; defaultModel: string; placeholder: string; docUrl: string }[] = [
+const PROVIDERS: {
+  id: ApiProvider;
+  name: string;
+  icon: string;
+  defaultModel: string;
+  defaultBaseUrl?: string;
+  placeholder: string;
+  docUrl: string;
+  modelPresets: string[];
+}[] = [
   {
     id: "openai",
     name: "OpenAI",
     icon: "⚡",
     defaultModel: "gpt-4o-mini",
+    defaultBaseUrl: "",
     placeholder: "sk-proj-...",
     docUrl: "https://platform.openai.com/api-keys",
+    modelPresets: ["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"],
   },
   {
     id: "grok",
     name: "Grok / Groq",
     icon: "🚀",
     defaultModel: "llama-3.3-70b-versatile",
+    defaultBaseUrl: "https://api.groq.com/openai/v1",
     placeholder: "gsk_...",
     docUrl: "https://console.groq.com/keys",
+    modelPresets: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
   },
   {
     id: "gemini",
     name: "Google Gemini",
     icon: "✨",
-    defaultModel: "gemini-1.5-pro",
+    defaultModel: "gemini-1.5-flash",
+    defaultBaseUrl: "",
     placeholder: "AIzaSy...",
     docUrl: "https://aistudio.google.com/app/apikey",
+    modelPresets: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
   },
   {
     id: "custom",
     name: "Custom OpenAI-compatible",
     icon: "🔧",
     defaultModel: "custom-model",
+    defaultBaseUrl: "https://your-api-endpoint.com/v1",
     placeholder: "sk-custom-...",
     docUrl: "",
+    modelPresets: ["custom-model"],
   },
 ];
 
@@ -114,7 +131,7 @@ export default function ApiKeySettings() {
     setFormName(item.keyName);
     setFormKey(""); // Leave empty unless changing
     setFormModel(item.model || "");
-    setFormBaseUrl(item.baseUrl || "");
+    setFormBaseUrl(item.baseUrl || (item.provider === "grok" ? "https://api.groq.com/openai/v1" : ""));
     setFormActive(item.isActive);
     setIsModalOpen(true);
   }
@@ -125,6 +142,9 @@ export default function ApiKeySettings() {
     if (!editingKey) {
       setFormName(`Primary ${pInfo?.name} Key`);
       setFormModel(pInfo?.defaultModel || "");
+      setFormBaseUrl(pInfo?.defaultBaseUrl || "");
+    } else if (prov === "grok" && !formBaseUrl) {
+      setFormBaseUrl("https://api.groq.com/openai/v1");
     }
   }
 
@@ -141,10 +161,13 @@ export default function ApiKeySettings() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            provider: formProvider,
             keyName: formName,
             apiKey: formKey || undefined,
             model: formModel,
-            baseUrl: formBaseUrl,
+            baseUrl: formProvider === "grok" && (!formBaseUrl || formBaseUrl.includes("api.groq.com"))
+              ? "https://api.groq.com/openai/v1"
+              : formBaseUrl,
             isActive: formActive,
           }),
         });
@@ -461,7 +484,6 @@ export default function ApiKeySettings() {
                     <button
                       key={p.id}
                       type="button"
-                      disabled={Boolean(editingKey)}
                       onClick={() => handleProviderChange(p.id)}
                       className={cn(
                         "flex items-center gap-2 p-2.5 rounded-xl border text-xs font-600 transition-all text-left",
@@ -522,7 +544,7 @@ export default function ApiKeySettings() {
               </div>
 
               {/* Model & Base URL Grid */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-xs font-600 text-white/70">Model (Optional)</label>
                   <input
@@ -532,6 +554,26 @@ export default function ApiKeySettings() {
                     placeholder={PROVIDERS.find((p) => p.id === formProvider)?.defaultModel || "e.g. gpt-4o-mini"}
                     className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/60 font-mono"
                   />
+                  {/* Model Presets */}
+                  {PROVIDERS.find((p) => p.id === formProvider)?.modelPresets && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {PROVIDERS.find((p) => p.id === formProvider)?.modelPresets.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setFormModel(m)}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] border transition-colors cursor-pointer",
+                            formModel === m
+                              ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/40 font-500"
+                              : "bg-white/[0.03] text-white/40 border-white/10 hover:text-white/70"
+                          )}
+                        >
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-xs font-600 text-white/70">Base URL (Optional)</label>
@@ -539,9 +581,14 @@ export default function ApiKeySettings() {
                     type="text"
                     value={formBaseUrl}
                     onChange={(e) => setFormBaseUrl(e.target.value)}
-                    placeholder="https://api.openai.com/v1"
+                    placeholder={PROVIDERS.find((p) => p.id === formProvider)?.defaultBaseUrl || "https://api.openai.com/v1"}
                     className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/60 font-mono"
                   />
+                  {formProvider === "grok" && (
+                    <p className="text-[10px] text-white/40">
+                      Endpoint: <span className="font-mono text-indigo-300">https://api.groq.com/openai/v1</span>
+                    </p>
+                  )}
                 </div>
               </div>
 

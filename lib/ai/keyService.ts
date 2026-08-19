@@ -15,6 +15,22 @@ export function maskApiKey(key: string): string {
   return `${key.slice(0, 4)}••••••••${key.slice(-4)}`;
 }
 
+export function normalizeBaseUrl(provider: ApiProvider, rawBaseUrl?: string): string | undefined {
+  if (provider === "grok") {
+    if (!rawBaseUrl || !rawBaseUrl.trim()) return "https://api.groq.com/openai/v1";
+    const trimmed = rawBaseUrl.trim().replace(/\/+$/, "");
+    if (trimmed.includes("api.groq.com")) {
+      return "https://api.groq.com/openai/v1";
+    }
+    return trimmed;
+  }
+  if (provider === "openai") {
+    if (!rawBaseUrl || !rawBaseUrl.trim() || rawBaseUrl.includes("api.openai.com")) return undefined;
+    return rawBaseUrl.trim().replace(/\/+$/, "");
+  }
+  return rawBaseUrl?.trim() || undefined;
+}
+
 export async function getResolvedApiKey(provider: ApiProvider): Promise<ResolvedKey> {
   try {
     await connectDB();
@@ -28,7 +44,7 @@ export async function getResolvedApiKey(provider: ApiProvider): Promise<Resolved
       return {
         apiKey: dbKey.apiKey.trim(),
         model: dbKey.model?.trim() || undefined,
-        baseUrl: dbKey.baseUrl?.trim() || undefined,
+        baseUrl: normalizeBaseUrl(provider, dbKey.baseUrl),
         source: "database",
         keyName: dbKey.keyName,
       };
@@ -52,6 +68,7 @@ export async function getResolvedApiKey(provider: ApiProvider): Promise<Resolved
   if (envKey.trim()) {
     return {
       apiKey: envKey.trim(),
+      baseUrl: normalizeBaseUrl(provider, undefined),
       source: "env",
       keyName: "Environment Variable (.env)",
     };
@@ -76,11 +93,26 @@ export async function getActiveAiConfig(): Promise<ActiveAiConfig> {
       .lean();
 
     if (dbKey && dbKey.apiKey?.trim()) {
+      let provider = dbKey.provider;
+      let model = dbKey.model?.trim() || "";
+      const rawKey = dbKey.apiKey.trim();
+
+      // Auto-detect provider to prevent routing Groq models to OpenAI
+      if (rawKey.startsWith("gsk_") || model.startsWith("llama-") || model.startsWith("mixtral-") || model.startsWith("gemma")) {
+        provider = "grok";
+        if (!model) model = "llama-3.3-70b-versatile";
+      } else if (rawKey.startsWith("AIzaSy") || model.startsWith("gemini-")) {
+        provider = "gemini";
+        if (!model) model = "gemini-1.5-flash";
+      } else if (!model) {
+        model = "gpt-4o-mini";
+      }
+
       return {
-        provider: dbKey.provider,
-        apiKey: dbKey.apiKey.trim(),
-        model: dbKey.model?.trim() || undefined,
-        baseUrl: dbKey.baseUrl?.trim() || (dbKey.provider === "grok" ? "https://api.groq.com/openai/v1" : undefined),
+        provider,
+        apiKey: rawKey,
+        model,
+        baseUrl: normalizeBaseUrl(provider, dbKey.baseUrl),
         source: "database",
         keyName: dbKey.keyName,
       };
@@ -94,7 +126,7 @@ export async function getActiveAiConfig(): Promise<ActiveAiConfig> {
   if (openai.apiKey) return { ...openai, provider: "openai", model: openai.model || "gpt-4o-mini" };
 
   const grok = await getResolvedApiKey("grok");
-  if (grok.apiKey) return { ...grok, provider: "grok", model: grok.model || "llama-3.3-70b-versatile", baseUrl: grok.baseUrl || "https://api.groq.com/openai/v1" };
+  if (grok.apiKey) return { ...grok, provider: "grok", model: grok.model || "llama-3.3-70b-versatile", baseUrl: "https://api.groq.com/openai/v1" };
 
   const gemini = await getResolvedApiKey("gemini");
   if (gemini.apiKey) return { ...gemini, provider: "gemini", model: gemini.model || "gemini-1.5-flash" };
