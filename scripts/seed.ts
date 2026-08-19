@@ -52,7 +52,7 @@ async function main() {
 
   const password = await bcrypt.hash("Admin@123", 12);
   await User.create({
-    name: "Super Admin",
+    name: "Admin",
     email: "admin@boardsync.com",
     password,
     role: "super_admin",
