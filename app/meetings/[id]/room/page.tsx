@@ -27,7 +27,8 @@ const pcConfig: RTCConfiguration = {
 interface MeetingInfo {
   _id: string;
   title: string;
-  organizerId: { _id: string; name: string; email: string };
+  organizerId: { _id: string; name: string; email: string } | string;
+  createdBy?: { _id: string; name: string; email: string } | string;
   status: string;
   startTime: string;
   endTime: string;
@@ -63,6 +64,23 @@ export default function MeetingRoomPage() {
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   const [mutedPeers, setMutedPeers] = useState<Record<string, boolean>>({});
+
+  // Resolve whether current user is the host/organizer who conducted the meeting
+  const organizerIdStr = typeof meeting?.organizerId === "object" && meeting?.organizerId !== null
+    ? (meeting.organizerId as any)._id?.toString() || (meeting.organizerId as any).toString()
+    : meeting?.organizerId?.toString();
+
+  const createdByIdStr = typeof (meeting as any)?.createdBy === "object" && (meeting as any)?.createdBy !== null
+    ? ((meeting as any).createdBy as any)._id?.toString() || ((meeting as any).createdBy as any).toString()
+    : (meeting as any)?.createdBy?.toString();
+
+  const isOrganizer = Boolean(
+    session?.user?.id && (
+      (organizerIdStr && organizerIdStr === session.user.id) ||
+      (createdByIdStr && createdByIdStr === session.user.id) ||
+      session.user.role === "super_admin"
+    )
+  );
 
   // Meeting Group Chat & Document Chat states
   const [chatMessages, setChatMessages] = useState<{ id: string; senderId: string; senderName: string; text: string; timestamp: string }[]>([]);
@@ -100,8 +118,12 @@ export default function MeetingRoomPage() {
     }
   };
 
-  // Host Controls
+  // Host Controls (Strictly for meeting organizer / host)
   const sendHostControl = (action: "mute-mic" | "mute-camera" | "kick", targetPeerId: string = "*") => {
+    if (!isOrganizer) {
+      console.warn("Unauthorized host-control action attempted by non-organizer.");
+      return;
+    }
     if (socketRef.current) {
       socketRef.current.emit("host-control", {
         meetingId,
@@ -126,19 +148,23 @@ export default function MeetingRoomPage() {
   };
 
   const handleMuteAll = () => {
+    if (!isOrganizer) return;
     if (!confirm("Mute microphones for all participants?")) return;
     sendHostControl("mute-mic", "*");
   };
 
   const handleMuteUserMic = (peerId: string) => {
+    if (!isOrganizer) return;
     sendHostControl("mute-mic", peerId);
   };
 
   const handleMuteUserCamera = (peerId: string) => {
+    if (!isOrganizer) return;
     sendHostControl("mute-camera", peerId);
   };
 
   const handleKickUser = (peerId: string) => {
+    if (!isOrganizer) return;
     const peerName = participantNames[peerId] || "Participant";
     if (!confirm(`Are you sure you want to remove ${peerName} from the meeting?`)) return;
     sendHostControl("kick", peerId);
@@ -1072,6 +1098,10 @@ export default function MeetingRoomPage() {
   };
 
   const handleEndMeeting = async () => {
+    if (!isOrganizer) {
+      alert("Only the host who conducted this video call can end it for everyone.");
+      return;
+    }
     if (!confirm("Are you sure you want to end this meeting totally for everyone?")) return;
     setEnding(true);
     try {
@@ -1080,11 +1110,9 @@ export default function MeetingRoomPage() {
         socketRef.current.emit("call-ended", { meetingId });
       }
 
-      // 2. Mark meeting as completed in database
-      await fetch(`/api/meetings/${meetingId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "Completed" }),
+      // 2. Mark meeting as completed in database via dedicated /end endpoint
+      await fetch(`/api/meetings/${meetingId}/end`, {
+        method: "POST",
       });
 
       // 3. Generate AI Minutes from live transcript segments in background
@@ -1097,6 +1125,8 @@ export default function MeetingRoomPage() {
       }
 
       handleLeave();
+    } catch (err) {
+      console.error("Failed to end meeting:", err);
     } finally {
       setEnding(false);
     }
@@ -1161,9 +1191,6 @@ export default function MeetingRoomPage() {
       </div>
     );
   }
-
-  const isOrganizer = meeting?.organizerId?._id === session?.user?.id ||
-    (meeting?.organizerId as any)?.toString() === session?.user?.id;
 
   const totalParticipants = remoteStreams.length + 1;
 
@@ -1633,7 +1660,7 @@ export default function MeetingRoomPage() {
               <div className="flex-1 flex flex-col min-h-0">
                 <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
                   <h4 className="text-xs font-600 text-white/80">Joined Participants ({totalParticipants})</h4>
-                  {remoteStreams.length > 0 && (
+                  {isOrganizer && remoteStreams.length > 0 && (
                     <button
                       onClick={handleMuteAll}
                       className="px-2.5 py-1 rounded-md text-[11px] font-600 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors flex items-center gap-1"
@@ -1650,7 +1677,14 @@ export default function MeetingRoomPage() {
                       {getInitials(session?.user?.name || "Y")}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-500 text-white truncate">{session?.user?.name} (You)</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-sm font-500 text-white truncate">{session?.user?.name} (You)</p>
+                        {isOrganizer && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-indigo-500/25 text-indigo-300 border border-indigo-500/30">
+                            Host
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {isLocalSpeaking && (
@@ -1684,33 +1718,31 @@ export default function MeetingRoomPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => handleMuteUserMic(peerId)}
-                            className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
-                            title={`Mute ${displayName}'s microphone`}
-                          >
-                            <MicOff size={13} />
-                          </button>
-                          {isOrganizer && (
-                            <>
-                              <button
-                                onClick={() => handleMuteUserCamera(peerId)}
-                                className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
-                                title={`Turn off ${displayName}'s camera`}
-                              >
-                                <VideoOff size={13} />
-                              </button>
-                              <button
-                                onClick={() => handleKickUser(peerId)}
-                                className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
-                                title={`Remove ${displayName} from meeting`}
-                              >
-                                <UserX size={13} />
-                              </button>
-                            </>
-                          )}
-                        </div>
+                        {isOrganizer && (
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleMuteUserMic(peerId)}
+                              className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
+                              title={`Mute ${displayName}'s microphone`}
+                            >
+                              <MicOff size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleMuteUserCamera(peerId)}
+                              className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
+                              title={`Turn off ${displayName}'s camera`}
+                            >
+                              <VideoOff size={13} />
+                            </button>
+                            <button
+                              onClick={() => handleKickUser(peerId)}
+                              className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
+                              title={`Remove ${displayName} from meeting`}
+                            >
+                              <UserX size={13} />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1795,16 +1827,18 @@ export default function MeetingRoomPage() {
             <span className="hidden sm:inline">Leave</span>
           </button>
 
-          <button
-            id="end-meeting-btn"
-            onClick={handleEndMeeting}
-            disabled={ending}
-            className="flex flex-col items-center justify-center gap-1 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 disabled:opacity-60 cursor-pointer"
-            title="End meeting totally for everyone"
-          >
-            <PhoneOff size={16} />
-            <span className="hidden sm:inline">{ending ? "Ending..." : "End Meeting"}</span>
-          </button>
+          {isOrganizer && (
+            <button
+              id="end-meeting-btn"
+              onClick={handleEndMeeting}
+              disabled={ending}
+              className="flex flex-col items-center justify-center gap-1 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 disabled:opacity-60 cursor-pointer"
+              title="End meeting totally for everyone (Host Only)"
+            >
+              <PhoneOff size={16} />
+              <span className="hidden sm:inline">{ending ? "Ending..." : "End Meeting"}</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

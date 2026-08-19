@@ -61,9 +61,25 @@ export async function PUT(
     return NextResponse.json({ error: "Validation failed", details: parsed.error.flatten() }, { status: 400 });
   }
 
-  const meeting = await Meeting.findByIdAndUpdate(meetingId, parsed.data, { new: true });
-  
+  const meeting = await Meeting.findById(meetingId);
   if (!meeting) return NextResponse.json({ error: "Meeting not found" }, { status: 404 });
+
+  const isOrganizer =
+    meeting.organizerId?.toString() === session.user.id ||
+    meeting.createdBy?.toString() === session.user.id;
+  const isSuperAdmin = session.user.role === "super_admin";
+
+  if (parsed.data.status && parsed.data.status !== meeting.status) {
+    if (!isOrganizer && !isSuperAdmin) {
+      return NextResponse.json(
+        { error: "Only the host who conducted this meeting can change the meeting status." },
+        { status: 403 }
+      );
+    }
+  }
+
+  Object.assign(meeting, parsed.data);
+  await meeting.save();
 
   return NextResponse.json({ meeting });
 }
