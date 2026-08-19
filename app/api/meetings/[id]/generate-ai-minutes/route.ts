@@ -9,6 +9,7 @@ import { hasPermission } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
 import mongoose from "mongoose";
 import OpenAI from "openai";
+import { getResolvedApiKey } from "@/lib/ai/keyService";
 
 export const maxDuration = 120; // 2 minutes timeout for AI
 
@@ -115,12 +116,18 @@ Generate the structured JSON analysis:`;
 
     let rawContent = "";
 
+    const openaiResolved = await getResolvedApiKey("openai");
+    const grokResolved = await getResolvedApiKey("grok");
+
     // 1. Primary Attempt: OpenAI
-    if (process.env.OPENAI_API_KEY) {
+    if (openaiResolved.apiKey) {
       try {
-        const openai = getOpenAIClient();
+        const openai = new OpenAI({
+          apiKey: openaiResolved.apiKey,
+          baseURL: openaiResolved.baseUrl || undefined,
+        });
         const response = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: openaiResolved.model || "gpt-4o-mini",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: userPrompt },
@@ -135,11 +142,14 @@ Generate the structured JSON analysis:`;
     }
 
     // 2. Fallback Attempt: Groq Llama-3.3-70b-versatile
-    if (!rawContent) {
+    if (!rawContent && grokResolved.apiKey) {
       try {
-        const groqClient = getGroqClient();
+        const groqClient = new OpenAI({
+          apiKey: grokResolved.apiKey,
+          baseURL: grokResolved.baseUrl || "https://api.groq.com/openai/v1",
+        });
         const response = await groqClient.chat.completions.create({
-          model: "llama-3.3-70b-versatile",
+          model: grokResolved.model || "llama-3.3-70b-versatile",
           messages: [
             { role: "system", content: SYSTEM_PROMPT },
             { role: "user", content: userPrompt },
@@ -152,6 +162,10 @@ Generate the structured JSON analysis:`;
         console.error("[AI Minutes Fallback] Groq failed:", groqErr?.message || groqErr);
         throw new Error(`AI minutes generation failed on both OpenAI and Groq fallback: ${groqErr?.message || "Unknown error"}`);
       }
+    }
+
+    if (!rawContent) {
+      throw new Error("No AI API keys configured. Please add an API Key under Admin Dashboard -> Settings -> API Keys.");
     }
 
     const generated = JSON.parse(rawContent);

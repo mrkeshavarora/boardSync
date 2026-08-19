@@ -1,36 +1,10 @@
 /**
- * Server-side only: transcribes audio using OpenAI Whisper API.
+ * Server-side only: transcribes audio using OpenAI Whisper API or Groq Whisper.
  * NEVER import this file in client-side code.
  */
 
 import OpenAI from "openai";
-import { Readable } from "stream";
-
-let _openaiClient: OpenAI | null = null;
-let _groqClient: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!_openaiClient) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY environment variable is not set.");
-    }
-    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return _openaiClient;
-}
-
-function getGroqClient(): OpenAI {
-  if (!_groqClient) {
-    if (!process.env.GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY environment variable is not set.");
-    }
-    _groqClient = new OpenAI({
-      apiKey: process.env.GROQ_API_KEY,
-      baseURL: "https://api.groq.com/openai/v1",
-    });
-  }
-  return _groqClient;
-}
+import { getResolvedApiKey } from "@/lib/ai/keyService";
 
 /**
  * Transcribes an audio buffer using OpenAI Whisper, falling back to Groq Whisper API.
@@ -45,12 +19,18 @@ export async function transcribeAudio(
 ): Promise<string> {
   const file = new File([new Uint8Array(audioBuffer)], filename, { type: mimeType });
 
+  const openaiResolved = await getResolvedApiKey("openai");
+  const grokResolved = await getResolvedApiKey("grok");
+
   // 1. Primary Attempt: OpenAI Whisper-1
-  if (process.env.OPENAI_API_KEY) {
+  if (openaiResolved.apiKey) {
     try {
-      const client = getOpenAIClient();
+      const client = new OpenAI({
+        apiKey: openaiResolved.apiKey,
+        baseURL: openaiResolved.baseUrl || undefined,
+      });
       const transcription = await client.audio.transcriptions.create({
-        model: "whisper-1",
+        model: openaiResolved.model || "whisper-1",
         file,
         language: "en",
         response_format: "text",
@@ -62,18 +42,25 @@ export async function transcribeAudio(
   }
 
   // 2. Fallback Attempt: Groq Whisper Large v3
-  try {
-    const groqClient = getGroqClient();
-    const groqFile = new File([new Uint8Array(audioBuffer)], filename, { type: mimeType });
-    const transcription = await groqClient.audio.transcriptions.create({
-      model: "whisper-large-v3",
-      file: groqFile,
-      language: "en",
-      response_format: "text",
-    });
-    return transcription as unknown as string;
-  } catch (groqErr: any) {
-    console.error("[Transcription Fallback] Groq Whisper failed:", groqErr?.message || groqErr);
-    throw new Error(`Audio transcription failed on both OpenAI and Groq fallback: ${groqErr?.message || "Unknown error"}`);
+  if (grokResolved.apiKey) {
+    try {
+      const groqClient = new OpenAI({
+        apiKey: grokResolved.apiKey,
+        baseURL: grokResolved.baseUrl || "https://api.groq.com/openai/v1",
+      });
+      const groqFile = new File([new Uint8Array(audioBuffer)], filename, { type: mimeType });
+      const transcription = await groqClient.audio.transcriptions.create({
+        model: grokResolved.model || "whisper-large-v3",
+        file: groqFile,
+        language: "en",
+        response_format: "text",
+      });
+      return transcription as unknown as string;
+    } catch (groqErr: any) {
+      console.error("[Transcription Fallback] Groq Whisper failed:", groqErr?.message || groqErr);
+      throw new Error(`Audio transcription failed on both OpenAI and Groq fallback: ${groqErr?.message || "Unknown error"}`);
+    }
   }
+
+  throw new Error("No AI API keys configured for transcription. Please configure an API Key under Admin Dashboard -> Settings -> API Keys.");
 }

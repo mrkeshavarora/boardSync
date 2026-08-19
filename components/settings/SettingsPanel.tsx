@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon, Camera, Upload, Trash2 } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon, Camera, Upload, Trash2, Key } from "lucide-react";
 import { cn, capitalizeName } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
+import ApiKeySettings from "@/components/settings/ApiKeySettings";
 
-type SettingsSection = "profile" | "connections" | "notifications" | "security" | "appearance";
+type SettingsSection = "profile" | "connections" | "notifications" | "security" | "appearance" | "apikeys";
 
 type ConnectionUser = {
   id: string;
@@ -57,19 +58,30 @@ function FormField({ label, id, children, hint }: { label: string; id: string; c
 
 const inputClass = "w-full px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.1] text-xs text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-colors";
 
-export default function SettingsPanel({ user }: { user: { name?: string | null; email?: string | null; title?: string | null; department?: string | null; bio?: string | null; avatar?: string | null } }) {
+export default function SettingsPanel({ user }: { user: { name?: string | null; email?: string | null; title?: string | null; department?: string | null; bio?: string | null; avatar?: string | null; role?: string | null } }) {
   const searchParams = useSearchParams();
   const [section, setSection] = useState<SettingsSection>("profile");
   const [showPassword, setShowPassword] = useState(false);
   const [saved, setSaved] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
+  const isAdminUser = user?.role === "admin" || user?.role === "super_admin";
+
+  const navItems = useMemo(() => {
+    const items = [...NAV_ITEMS];
+    if (isAdminUser) {
+      items.push({ id: "apikeys", label: "API Keys", icon: Key, desc: "AI provider keys & models" });
+    }
+    return items;
+  }, [isAdminUser]);
+
   useEffect(() => {
     const sec = searchParams?.get("section");
-    if (sec && ["profile", "connections", "notifications", "security", "appearance"].includes(sec)) {
+    if (sec && ["profile", "connections", "notifications", "security", "appearance", "apikeys"].includes(sec)) {
+      if (sec === "apikeys" && !isAdminUser) return;
       setSection(sec as SettingsSection);
     }
-  }, [searchParams]);
+  }, [searchParams, isAdminUser]);
 
   // Profile state
   const [profileName, setProfileName] = useState(user?.name ?? "");
@@ -222,7 +234,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
         <aside className="w-full lg:w-56 shrink-0 flex flex-col">
           <div className="p-1.5 rounded-2xl border border-white/[0.06] space-y-1 h-full flex flex-col" style={{ background: "var(--bg-card)" }}>
             <div className="space-y-1">
-              {NAV_ITEMS.map((item) => {
+              {navItems.map((item) => {
                 const isActive = section === item.id;
                 return (
                   <button
@@ -574,8 +586,13 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
             </>
           )}
 
+          {/* API Keys Section (Admin Only) */}
+          {section === "apikeys" && isAdminUser && (
+            <ApiKeySettings />
+          )}
+
           {/* Save Button */}
-          {section !== "connections" && (
+          {section !== "connections" && section !== "apikeys" && (
             <div className="pt-4 border-t border-white/[0.06] flex items-center justify-between">
               {saved && <span className="text-sm text-emerald-400 font-500">✓ Changes saved</span>}
               <div className="ml-auto">

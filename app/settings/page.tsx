@@ -26,6 +26,7 @@ export default async function SettingsPage() {
         department: dbUser.department,
         bio: dbUser.bio,
         avatar: dbUser.avatar,
+        role: dbUser.role || session.user.role,
       }} />
     </AppShell>
   );

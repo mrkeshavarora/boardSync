@@ -1,35 +1,10 @@
 /**
- * Server-side only: generates structured Minutes of Meeting (MoM) using OpenAI GPT-4.
+ * Server-side only: generates structured Minutes of Meeting (MoM) using OpenAI / Groq.
  * NEVER import this file in client-side code.
  */
 
 import OpenAI from "openai";
-
-let _openaiClient: OpenAI | null = null;
-let _groqClient: OpenAI | null = null;
-
-function getOpenAIClient(): OpenAI {
-  if (!_openaiClient) {
-    if (!process.env.OPENAI_API_KEY) {
-      throw new Error("OPENAI_API_KEY environment variable is not set.");
-    }
-    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  }
-  return _openaiClient;
-}
-
-function getGroqClient(): OpenAI {
-  if (!_groqClient) {
-    if (!process.env.GROQ_API_KEY) {
-      throw new Error("GROQ_API_KEY environment variable is not set.");
-    }
-    _groqClient = new OpenAI({
-      apiKey: process.env.GROQ_API_KEY,
-      baseURL: "https://api.groq.com/openai/v1",
-    });
-  }
-  return _groqClient;
-}
+import { getResolvedApiKey } from "@/lib/ai/keyService";
 
 export interface MeetingMeta {
   title: string;
@@ -41,95 +16,110 @@ export interface MeetingMeta {
 }
 
 export interface GeneratedMoM {
-  meetingSummary: string;
-  callToOrder: string;
-  quorum: string;
-  attendees: Array<{
-    name: string;
-    role: string;
-    attendanceStatus: "Present" | "Absent" | "Excused";
+  summary?: string;
+  meetingSummary?: string;
+  callToOrder?: string;
+  quorum?: string;
+  attendees?: Array<{ name: string; status?: string; role?: string }>;
+  absentees?: Array<{ name: string; reason?: string }>;
+  agendaItems?: Array<{ title: string; discussion?: string; outcome?: string }>;
+  keyDiscussionPoints?: Array<{
+    topic: string;
+    discussion: string;
+    outcome?: string;
   }>;
-  absentees: string[];
-  agendaItems: Array<{
-    title: string;
-    discussionSummary: string;
+  decisions?: Array<{
     decision: string;
+    votingResult?: string;
+    rationale?: string;
   }>;
-  keyDecisions: string[];
-  resolutions: Array<{
+  keyDecisions?: Array<any>;
+  resolutions?: Array<any>;
+  actionItems?: Array<{
     title: string;
-    description: string;
-    status: string;
+    assigneeName?: string;
+    dueDate?: string;
+    priority?: "High" | "Medium" | "Low";
   }>;
-  actionItems: Array<{
-    task: string;
-    assignedTo: string;
-    dueDate: string;
-    priority: "Low" | "Medium" | "High";
-    status: "Open" | "Completed";
-  }>;
-  nextMeeting: string;
-  closingRemarks: string;
+  nextMeeting?: string;
+  nextMeetingDate?: string;
+  closingRemarks?: string;
 }
 
-const SYSTEM_PROMPT = `You are a professional corporate secretary assistant. Your task is to generate structured, formal Minutes of Meeting (MoM) based on a meeting transcript and meeting metadata.
+const SYSTEM_PROMPT = `You are an expert executive board secretary specializing in writing formal Minutes of Meeting (MoM) for corporate boards and high-stakes executive teams.
 
-CRITICAL RULES:
-1. Include all discussion items, key points, and captions captured in the transcript into the generated minutes.
-2. Only extract and summarize what was ACTUALLY discussed in the transcript. Do NOT invent, hallucinate, or add any facts, names, decisions, or resolutions that are not in the transcript.
-3. For attendees, use ONLY the participant list provided in the metadata — do not infer additional attendees from the transcript.
-4. If a section cannot be filled from the transcript, use an empty string or empty array — never make up content.
-5. Keep language formal, professional, and concise.
-6. Always respond with ONLY valid JSON matching the exact schema below.
+You will be given:
+1. Meeting Metadata (title, date, organizer, participants, agenda items)
+2. Raw transcript or text summary of what occurred in the meeting.
 
-SCHEMA:
+Your job is to generate a comprehensive, professional, structured Minutes of Meeting document.
+
+Respond ONLY with a valid JSON object adhering strictly to the following structure:
 {
-  "meetingSummary": "string — 2-4 sentence overview of the meeting",
-  "callToOrder": "string — who called the meeting to order and when",
-  "quorum": "string — quorum statement",
-  "attendees": [{"name": "string", "role": "string", "attendanceStatus": "Present|Absent|Excused"}],
-  "absentees": ["string"],
-  "agendaItems": [{"title": "string", "discussionSummary": "string", "decision": "string"}],
-  "keyDecisions": ["string"],
-  "resolutions": [{"title": "string", "description": "string", "status": "string"}],
-  "actionItems": [{"task": "string", "assignedTo": "string", "dueDate": "string", "priority": "Low|Medium|High", "status": "Open|Completed"}],
-  "nextMeeting": "string",
-  "closingRemarks": "string"
-}`;
+  "summary": "Executive summary paragraph...",
+  "meetingSummary": "Executive summary paragraph...",
+  "callToOrder": "Meeting called to order...",
+  "quorum": "Quorum present...",
+  "attendees": [{ "name": "..." }],
+  "absentees": [{ "name": "..." }],
+  "agendaItems": [{ "title": "...", "discussion": "..." }],
+  "keyDiscussionPoints": [{ "topic": "...", "discussion": "...", "outcome": "..." }],
+  "decisions": [{ "decision": "...", "votingResult": "...", "rationale": "..." }],
+  "keyDecisions": [{ "decision": "..." }],
+  "resolutions": [{ "title": "..." }],
+  "actionItems": [{ "title": "...", "assigneeName": "...", "dueDate": "YYYY-MM-DD", "priority": "High" }],
+  "nextMeeting": "YYYY-MM-DD",
+  "closingRemarks": "Meeting adjourned..."
+}
+
+Do NOT wrap response in markdown backticks or extra text outside JSON.`;
 
 /**
- * Generates a structured MoM from a transcript + meeting metadata.
- * Uses OpenAI as primary, automatically falling back to Groq API (Llama-3.3-70b).
+ * Main function: accepts meeting metadata and raw text/transcript,
+ * returns structured JSON MoM.
  */
-export async function generateMoM(
-  transcript: string,
-  meta: MeetingMeta
+export async function generateMoMFromTranscript(
+  arg1: any,
+  arg2?: any
 ): Promise<GeneratedMoM> {
-  const userPrompt = `
-MEETING METADATA:
-Title: ${meta.title}
-Date: ${meta.date}
-Location: ${meta.location || "Not specified"}
-Organized by: ${meta.organizerName}
-Registered Participants:
-${meta.participants.map((p) => `- ${p.name} (${p.role})`).join("\n")}
+  let meta: Partial<MeetingMeta> = {};
+  let transcript = "";
 
-AGENDA ITEMS:
-${meta.agendaItems.map((a, i) => `${i + 1}. ${a.title}${a.description ? ": " + a.description : ""}`).join("\n")}
+  if (typeof arg1 === "string") {
+    transcript = arg1;
+    if (typeof arg2 === "object" && arg2 !== null) meta = arg2;
+  } else if (typeof arg1 === "object" && arg1 !== null) {
+    meta = arg1;
+    if (typeof arg2 === "string") transcript = arg2;
+  }
+
+  const userPrompt = `MEETING METADATA:
+Title: ${meta.title || "Board Meeting"}
+Date: ${meta.date || new Date().toISOString()}
+Organizer: ${meta.organizerName || "Admin"}
+Participants: ${meta.participants ? meta.participants.map((p) => `${p.name} (${p.role})`).join(", ") : ""}
+Agenda Items: ${meta.agendaItems ? meta.agendaItems.map((a) => a.title).join("; ") : ""}
 
 MEETING TRANSCRIPT:
-${transcript.trim().slice(0, 12000)}
+${(transcript || "").trim().slice(0, 12000)}
 
 Generate the structured Minutes of Meeting in valid JSON only.`;
 
   let raw = "";
 
-  // 1. Primary Attempt: OpenAI GPT-4o-mini
-  if (process.env.OPENAI_API_KEY) {
+  // Resolve API keys dynamically from DB (with .env fallback)
+  const openaiResolved = await getResolvedApiKey("openai");
+  const grokResolved = await getResolvedApiKey("grok");
+
+  // 1. Primary Attempt: OpenAI
+  if (openaiResolved.apiKey) {
     try {
-      const client = getOpenAIClient();
+      const client = new OpenAI({
+        apiKey: openaiResolved.apiKey,
+        baseURL: openaiResolved.baseUrl || undefined,
+      });
       const response = await client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: openaiResolved.model || "gpt-4o-mini",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
@@ -144,12 +134,15 @@ Generate the structured Minutes of Meeting in valid JSON only.`;
     }
   }
 
-  // 2. Fallback Attempt: Groq Llama-3.3-70b-versatile
-  if (!raw) {
+  // 2. Fallback Attempt: Groq / Grok
+  if (!raw && grokResolved.apiKey) {
     try {
-      const groqClient = getGroqClient();
+      const groqClient = new OpenAI({
+        apiKey: grokResolved.apiKey,
+        baseURL: grokResolved.baseUrl || "https://api.groq.com/openai/v1",
+      });
       const response = await groqClient.chat.completions.create({
-        model: "llama-3.3-70b-versatile",
+        model: grokResolved.model || "llama-3.3-70b-versatile",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
@@ -165,27 +158,31 @@ Generate the structured Minutes of Meeting in valid JSON only.`;
     }
   }
 
+  if (!raw) {
+    throw new Error("No AI API keys configured. Please add an API Key under Admin Dashboard -> Settings -> API Keys.");
+  }
+
   let parsed: GeneratedMoM;
   try {
     parsed = JSON.parse(raw) as GeneratedMoM;
   } catch {
-    throw new Error("AI returned invalid JSON format. Please try again.");
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]) as GeneratedMoM;
+    } else {
+      throw new Error("Failed to parse AI output into valid Minutes structure.");
+    }
   }
 
-  // Minimal validation
-  if (typeof parsed.meetingSummary !== "string") {
-    parsed.meetingSummary = "Meeting summary unavailable.";
-  }
-  if (!Array.isArray(parsed.attendees)) parsed.attendees = [];
-  if (!Array.isArray(parsed.agendaItems)) parsed.agendaItems = [];
-  if (!Array.isArray(parsed.keyDecisions)) parsed.keyDecisions = [];
-  if (!Array.isArray(parsed.resolutions)) parsed.resolutions = [];
-  if (!Array.isArray(parsed.actionItems)) parsed.actionItems = [];
-  if (!Array.isArray(parsed.absentees)) parsed.absentees = [];
-  if (!parsed.nextMeeting) parsed.nextMeeting = "";
-  if (!parsed.closingRemarks) parsed.closingRemarks = "";
-  if (!parsed.callToOrder) parsed.callToOrder = "";
-  if (!parsed.quorum) parsed.quorum = "";
+  // Ensure default arrays if undefined
+  if (!parsed.attendees) parsed.attendees = [];
+  if (!parsed.absentees) parsed.absentees = [];
+  if (!parsed.agendaItems) parsed.agendaItems = [];
+  if (!parsed.actionItems) parsed.actionItems = [];
+  if (!parsed.keyDecisions) parsed.keyDecisions = parsed.decisions || [];
+  if (!parsed.resolutions) parsed.resolutions = [];
 
   return parsed;
 }
+
+export const generateMoM = generateMoMFromTranscript;

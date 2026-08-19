@@ -137,7 +137,7 @@ export async function POST(
   }
 
   // --- 7. Map attendees with userIds ---
-  const attendeesWithIds = generated.attendees.map((a) => {
+  const attendeesWithIds = (generated.attendees || []).map((a: any) => {
     const match = participants.find(
       (p: any) => p.userId?.name?.toLowerCase() === a.name.toLowerCase()
     );
@@ -160,7 +160,7 @@ export async function POST(
     callToOrder: generated.callToOrder,
     quorum: generated.quorum,
     attendees: attendeesWithIds,
-    absentees: generated.absentees,
+    absentees: (generated.absentees || []).map((a: any) => typeof a === "string" ? a : a.name || ""),
     agendaItems: generated.agendaItems,
     keyDecisions: generated.keyDecisions,
     resolutions: generated.resolutions,
