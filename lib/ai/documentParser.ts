@@ -10,6 +10,7 @@ export async function extractTextFromDocumentUrl(
 ): Promise<string> {
   if (!url) return "";
 
+  try {
     const typeLower = (fileType || "").toLowerCase();
     const urlLower = url.toLowerCase();
 
