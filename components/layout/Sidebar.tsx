@@ -29,7 +29,6 @@ const navItems = [
   { label: "Minutes", href: "/minutes", icon: BookOpen },
   { label: "Chat", href: "/chat", icon: MessageSquare },
   { label: "Users", href: "/users", icon: Users },
-  { label: "Notifications", href: "/notifications", icon: Bell },
 ];
 
 const bottomItems = [
