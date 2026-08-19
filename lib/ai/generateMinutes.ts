@@ -5,16 +5,30 @@
 
 import OpenAI from "openai";
 
-let _client: OpenAI | null = null;
+let _openaiClient: OpenAI | null = null;
+let _groqClient: OpenAI | null = null;
 
-function getClient(): OpenAI {
-  if (!_client) {
+function getOpenAIClient(): OpenAI {
+  if (!_openaiClient) {
     if (!process.env.OPENAI_API_KEY) {
       throw new Error("OPENAI_API_KEY environment variable is not set.");
     }
-    _client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
-  return _client;
+  return _openaiClient;
+}
+
+function getGroqClient(): OpenAI {
+  if (!_groqClient) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY environment variable is not set.");
+    }
+    _groqClient = new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+  }
+  return _groqClient;
 }
 
 export interface MeetingMeta {
@@ -61,11 +75,12 @@ export interface GeneratedMoM {
 const SYSTEM_PROMPT = `You are a professional corporate secretary assistant. Your task is to generate structured, formal Minutes of Meeting (MoM) based on a meeting transcript and meeting metadata.
 
 CRITICAL RULES:
-1. Only extract and summarize what was ACTUALLY discussed in the transcript. Do NOT invent, hallucinate, or add any facts, names, decisions, or resolutions that are not in the transcript.
-2. For attendees, use ONLY the participant list provided in the metadata — do not infer additional attendees from the transcript.
-3. If a section cannot be filled from the transcript, use an empty string or empty array — never make up content.
-4. Keep language formal, professional, and concise.
-5. Always respond with ONLY valid JSON matching the exact schema below.
+1. Include all discussion items, key points, and captions captured in the transcript into the generated minutes.
+2. Only extract and summarize what was ACTUALLY discussed in the transcript. Do NOT invent, hallucinate, or add any facts, names, decisions, or resolutions that are not in the transcript.
+3. For attendees, use ONLY the participant list provided in the metadata — do not infer additional attendees from the transcript.
+4. If a section cannot be filled from the transcript, use an empty string or empty array — never make up content.
+5. Keep language formal, professional, and concise.
+6. Always respond with ONLY valid JSON matching the exact schema below.
 
 SCHEMA:
 {
@@ -84,16 +99,12 @@ SCHEMA:
 
 /**
  * Generates a structured MoM from a transcript + meeting metadata.
- * @param transcript - Full Whisper transcription text
- * @param meta - Meeting metadata (title, date, participants, agenda)
- * @returns Validated GeneratedMoM structure
+ * Uses OpenAI as primary, automatically falling back to Groq API (Llama-3.3-70b).
  */
 export async function generateMoM(
   transcript: string,
   meta: MeetingMeta
 ): Promise<GeneratedMoM> {
-  const client = getClient();
-
   const userPrompt = `
 MEETING METADATA:
 Title: ${meta.title}
@@ -111,29 +122,59 @@ ${transcript.trim().slice(0, 12000)}
 
 Generate the structured Minutes of Meeting in valid JSON only.`;
 
-  const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userPrompt },
-    ],
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    max_tokens: 3000,
-  });
+  let raw = "";
 
-  const raw = response.choices[0]?.message?.content ?? "{}";
+  // 1. Primary Attempt: OpenAI GPT-4o-mini
+  if (process.env.OPENAI_API_KEY) {
+    try {
+      const client = getOpenAIClient();
+      const response = await client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        max_tokens: 3000,
+      });
+      raw = response.choices[0]?.message?.content ?? "";
+    } catch (openaiErr: any) {
+      console.warn("[AI MoM Fallback] OpenAI failed. Falling back to Groq API...", openaiErr?.message || openaiErr);
+    }
+  }
+
+  // 2. Fallback Attempt: Groq Llama-3.3-70b-versatile
+  if (!raw) {
+    try {
+      const groqClient = getGroqClient();
+      const response = await groqClient.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        max_tokens: 3000,
+      });
+      raw = response.choices[0]?.message?.content ?? "{}";
+    } catch (groqErr: any) {
+      console.error("[AI MoM Fallback] Groq API also failed:", groqErr?.message || groqErr);
+      throw new Error(`AI MoM generation failed on both OpenAI and Groq fallback: ${groqErr?.message || "Unknown error"}`);
+    }
+  }
 
   let parsed: GeneratedMoM;
   try {
     parsed = JSON.parse(raw) as GeneratedMoM;
   } catch {
-    throw new Error("AI returned invalid JSON. Please try again.");
+    throw new Error("AI returned invalid JSON format. Please try again.");
   }
 
   // Minimal validation
   if (typeof parsed.meetingSummary !== "string") {
-    throw new Error("AI response failed validation: missing meetingSummary.");
+    parsed.meetingSummary = "Meeting summary unavailable.";
   }
   if (!Array.isArray(parsed.attendees)) parsed.attendees = [];
   if (!Array.isArray(parsed.agendaItems)) parsed.agendaItems = [];

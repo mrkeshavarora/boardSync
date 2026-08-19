@@ -127,10 +127,8 @@ export async function POST(
     generated = await generateMoM(transcriptText, meta);
   } catch (err: any) {
     let errorMsg = err.message || "Unknown error";
-    if (!process.env.OPENAI_API_KEY || errorMsg.includes("OPENAI_API_KEY")) {
-      errorMsg = "OpenAI API Key Missing: OPENAI_API_KEY is not set in environment variables. Please add OPENAI_API_KEY to your .env.local file.";
-    } else if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
-      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits or rate limit was reached. Please add billing credits at platform.openai.com.";
+    if (errorMsg.includes("both OpenAI and Groq")) {
+      errorMsg = "AI Provider Failure: Both primary OpenAI and fallback Groq APIs failed to respond. Please check your API keys and network connection.";
     }
     return NextResponse.json(
       { error: errorMsg },

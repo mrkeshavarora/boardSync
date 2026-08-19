@@ -12,11 +12,30 @@ import OpenAI from "openai";
 
 export const maxDuration = 120; // 2 minutes timeout for AI
 
+let _openaiClient: OpenAI | null = null;
+let _groqClient: OpenAI | null = null;
+
 function getOpenAIClient(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set.");
+  if (!_openaiClient) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not set.");
+    }
+    _openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
-  return new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  return _openaiClient;
+}
+
+function getGroqClient(): OpenAI {
+  if (!_groqClient) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error("GROQ_API_KEY is not set.");
+    }
+    _groqClient = new OpenAI({
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
+    });
+  }
+  return _groqClient;
 }
 
 export async function POST(
@@ -64,8 +83,6 @@ export async function POST(
   };
 
   try {
-    const openai = getOpenAIClient();
-
     const SYSTEM_PROMPT = `You are a professional corporate secretary assistant. Your task is to generate a structured, formal AI Meeting Analysis based on a meeting transcript and metadata.
 Only extract facts from the transcript. Do NOT hallucinate or invent decisions, actions, or tasks.
 Always respond with ONLY valid JSON matching this schema:
@@ -96,17 +113,47 @@ ${formattedTranscript}
 
 Generate the structured JSON analysis:`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-    });
+    let rawContent = "";
 
-    const rawContent = response.choices[0]?.message?.content ?? "{}";
+    // 1. Primary Attempt: OpenAI
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const openai = getOpenAIClient();
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+        });
+        rawContent = response.choices[0]?.message?.content ?? "";
+      } catch (openaiErr: any) {
+        console.warn("[AI Minutes Fallback] OpenAI failed. Falling back to Groq API...", openaiErr?.message || openaiErr);
+      }
+    }
+
+    // 2. Fallback Attempt: Groq Llama-3.3-70b-versatile
+    if (!rawContent) {
+      try {
+        const groqClient = getGroqClient();
+        const response = await groqClient.chat.completions.create({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.2,
+          response_format: { type: "json_object" },
+        });
+        rawContent = response.choices[0]?.message?.content ?? "{}";
+      } catch (groqErr: any) {
+        console.error("[AI Minutes Fallback] Groq failed:", groqErr?.message || groqErr);
+        throw new Error(`AI minutes generation failed on both OpenAI and Groq fallback: ${groqErr?.message || "Unknown error"}`);
+      }
+    }
+
     const generated = JSON.parse(rawContent);
 
     // Update the Meeting document
@@ -176,10 +223,8 @@ Generate the structured JSON analysis:`;
   } catch (err: any) {
     console.error("AI minutes generation failed:", err);
     let errorMsg = err.message || "Failed to generate AI minutes";
-    if (!process.env.OPENAI_API_KEY || errorMsg.includes("OPENAI_API_KEY")) {
-      errorMsg = "OpenAI API Key Missing: OPENAI_API_KEY is not set in environment variables. Please add OPENAI_API_KEY to your .env.local file.";
-    } else if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
-      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits or rate limit was reached. Please add billing credits at platform.openai.com.";
+    if (errorMsg.includes("both OpenAI and Groq")) {
+      errorMsg = "AI Provider Failure: Both primary OpenAI and fallback Groq APIs failed to respond. Please check your API keys and network connection.";
     }
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
