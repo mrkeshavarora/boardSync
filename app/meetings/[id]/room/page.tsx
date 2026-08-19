@@ -1968,6 +1968,7 @@ export default function MeetingRoomPage() {
                   {/* Render the Reusable DocumentChat component */}
                   <DocumentChat
                     documentNames={meetingDocs.map((d) => d.fileName)}
+                    meetingId={meetingId}
                     placeholder={
                       meetingDocs.length > 0
                         ? "Ask questions about this meeting's documents..."
