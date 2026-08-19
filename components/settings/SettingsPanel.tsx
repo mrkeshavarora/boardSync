@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon, Camera, Upload, Trash2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, capitalizeName } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 
 type SettingsSection = "profile" | "connections" | "notifications" | "security" | "appearance";
@@ -314,8 +314,9 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                     id="fullName"
                     className={inputClass}
                     value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
+                    onChange={(e) => setProfileName(capitalizeName(e.target.value))}
                     placeholder="Your full name"
+                    autoCapitalize="words"
                   />
                 </FormField>
                 <FormField label="Email Address" id="email" hint="Contact admin to change your email">

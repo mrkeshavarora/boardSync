@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { getRoleLabel, getRoleColor } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
-import { getInitials, cn } from "@/lib/utils";
+import { getInitials, cn, capitalizeName } from "@/lib/utils";
 
 interface UserType {
   _id: string;
@@ -388,8 +388,9 @@ export default function UsersContent() {
                     type="text"
                     required
                     value={inviteForm.name}
-                    onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                    onChange={(e) => setInviteForm({ ...inviteForm, name: capitalizeName(e.target.value) })}
                     className="w-full px-3 py-2 bg-white/[0.03] border border-white/[0.08] rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                    autoCapitalize="words"
                   />
                 </div>
                 <div>

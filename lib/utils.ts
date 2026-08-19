@@ -32,6 +32,11 @@ export function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+export function capitalizeName(str: string): string {
+  if (!str) return "";
+  return str.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
 export function slugify(text: string): string {
   return text.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
 }

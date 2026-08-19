@@ -8,6 +8,8 @@ import {
   Eye, EyeOff, AlertCircle, CheckCircle2, ArrowLeft, Check
 } from "lucide-react";
 
+import { getInitials, capitalizeName } from "@/lib/utils";
+
 // Password strength checker
 function getStrength(password: string) {
   let score = 0;
@@ -158,9 +160,10 @@ export default function RegisterPage() {
                   type="text"
                   required
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => setName(capitalizeName(e.target.value))}
                   placeholder="Alexandra Chen"
                   className={inputClass}
+                  autoCapitalize="words"
                 />
               </div>
             </div>
