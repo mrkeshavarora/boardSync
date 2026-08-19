@@ -90,46 +90,57 @@ export default async function MeetingDetailsPage(
         </div>
 
         {/* Meeting Header */}
-        <div className="rounded-3xl border border-white/[0.06] p-8 bg-white/[0.02] relative overflow-hidden">
-          {/* Background decoration */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2 pointer-events-none" />
+        <div className="meeting-header-card rounded-3xl border border-white/[0.14] p-7 relative overflow-hidden"
+          style={{ background: "linear-gradient(135deg, rgba(51,65,85,0.75) 0%, rgba(30,41,59,0.85) 100%)", backdropFilter: "blur(24px)", boxShadow: "0 0 0 1px rgba(148,163,184,0.12), 0 20px 40px -12px rgba(0,0,0,0.35)" }}>
+          {/* Ambient glow orbs */}
+          <div className="absolute top-0 right-0 w-80 h-80 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)", transform: "translate(30%, -30%)" }} />
+          <div className="absolute bottom-0 left-0 w-60 h-60 rounded-full pointer-events-none" style={{ background: "radial-gradient(circle, rgba(124,58,237,0.07) 0%, transparent 70%)", transform: "translate(-30%, 30%)" }} />
           
-          <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
-            <div className="space-y-4 max-w-3xl">
-              <div className="flex items-center gap-3">
-                <span className="badge bg-indigo-500/20 text-indigo-300 border-indigo-500/30 font-600">{meeting.status}</span>
-                <span className="badge bg-white/[0.04] text-white/60 border-white/[0.1]">{meeting.meetingType}</span>
+          <div className="relative z-10 flex flex-col lg:flex-row lg:items-start justify-between gap-7">
+            {/* Left: Meta */}
+            <div className="space-y-5 flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="meeting-status-badge inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-600 tracking-wide" style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                  {meeting.status}
+                </span>
+                <span className="meeting-type-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-500" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.5)" }}>
+                  {meeting.meetingType}
+                </span>
               </div>
               
-              <h1 className="text-3xl font-700 text-white tracking-tight">{meeting.title}</h1>
-              <p className="text-white/60 text-base leading-relaxed">{meeting.description || "No description provided."}</p>
+              <div>
+                <h1 className="text-3xl font-700 text-white tracking-tight leading-tight">{meeting.title}</h1>
+                <p className="text-white/50 text-sm leading-relaxed mt-2">{meeting.description || "No description provided."}</p>
+              </div>
               
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-4">
-                <div className="flex items-center gap-2.5 text-sm text-white/70">
-                  <div className="w-8 h-8 rounded-full bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                    <Calendar size={15} />
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-1">
+                <div className="flex items-center gap-2.5 text-sm text-white/60">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(99,102,241,0.12)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                    <Calendar size={13} className="text-indigo-400" />
                   </div>
-                  <span>{new Date(meeting.date).toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                  <span className="font-400">{new Date(meeting.date).toLocaleDateString("en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-white/70">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-                    <Clock size={15} />
+                <div className="flex items-center gap-2.5 text-sm text-white/60">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                    <Clock size={13} className="text-emerald-400" />
                   </div>
-                  <span>{meeting.startTime} - {meeting.endTime} ({meeting.timezone})</span>
+                  <span className="font-400">{meeting.startTime} – {meeting.endTime} <span className="text-white/30">({meeting.timezone})</span></span>
                 </div>
                 {meeting.location && (
-                  <div className="flex items-center gap-2.5 text-sm text-white/70">
-                    <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400">
-                      <MapPin size={15} />
+                  <div className="flex items-center gap-2.5 text-sm text-white/60">
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)" }}>
+                      <MapPin size={13} className="text-amber-400" />
                     </div>
-                    <span>{meeting.location}</span>
+                    <span className="font-400">{meeting.location}</span>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 min-w-[240px]">
-              {/* Send Meeting Invite button — only seen by who created the meeting */}
+            {/* Right: Action Buttons */}
+            <div className="flex flex-col gap-2 min-w-[200px] lg:max-w-[210px] w-full lg:w-auto">
+              {/* Send Invite */}
               {isOrganizer && (
                 <SendInviteBtn
                   meetingId={params.id}
@@ -138,26 +149,27 @@ export default async function MeetingDetailsPage(
                   hasBeenSentBefore={hasBeenSent}
                 />
               )}
-              {/* Start Meeting button — only for organizer */}
+              {/* Start Meeting */}
               {organizer?._id?.toString() === session.user.id && (
                 <StartMeetingBtn meetingId={params.id} currentStatus={meeting.status} />
               )}
-              {/* Re-join Meeting button — for organizer when meeting is In Progress */}
+              {/* Re-join for organizer */}
               {meeting.status === "In Progress" && organizer?._id?.toString() === session.user.id && (
                 <RejoinMeetingBtn meetingId={params.id} />
               )}
-              {/* Delete Meeting button — for organizer or admin */}
+              {/* Delete */}
               {(organizer?._id?.toString() === session.user.id || hasPermission(role, "meetings:delete")) && (
                 <DeleteMeetingBtn meetingId={params.id} />
               )}
               
-              {/* MoM Actions: View Minutes OR Generate Minutes */}
+              {/* Minutes */}
               {existingMinutes ? (
                 <Link
                   href={`/minutes/${existingMinutes._id}`}
-                  className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 text-sm bg-indigo-500 hover:bg-indigo-600 text-white transition-all shadow-lg shadow-indigo-500/20"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-600 text-white transition-all"
+                  style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", boxShadow: "0 4px 14px rgba(79,70,229,0.35)" }}
                 >
-                  <FileText size={16} /> View Minutes ({existingMinutes.status})
+                  <FileText size={13} /> View Minutes <span className="opacity-60 text-[10px]">({existingMinutes.status})</span>
                 </Link>
               ) : (
                 <>
@@ -167,36 +179,45 @@ export default async function MeetingDetailsPage(
                 </>
               )}
               
-              {/* Re-join Room button — for participants when meeting is In Progress */}
+              {/* Re-join for participants */}
               {meeting.status === "In Progress" && organizer?._id?.toString() !== session.user.id && (
                 <RejoinMeetingBtn meetingId={params.id} />
               )}
+
+              {/* Video link */}
               {meeting.onlineMeeting && (
                 <a 
                   href={meeting.onlineMeeting} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="btn-gradient w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 shadow-lg shadow-indigo-500/20"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-600 text-white transition-all"
+                  style={{ background: "linear-gradient(135deg, #0ea5e9, #3b82f6)", boxShadow: "0 4px 14px rgba(14,165,233,0.3)" }}
                 >
-                  <Video size={18} /> Join Video Meeting
+                  <Video size={13} /> Join Video Meeting
                 </a>
               )}
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0">
+
+              {/* Divider */}
+              <div className="h-px w-full mt-1 mb-1" style={{ background: "rgba(255,255,255,0.05)" }} />
+
+              {/* Organizer chip */}
+              <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-[10px] font-700 text-white shrink-0 shadow-md">
                   {organizer?.avatar ? (
                     <img src={organizer.avatar} alt={organizer.name} className="w-full h-full rounded-full object-cover" />
                   ) : (
                     getInitials(organizer?.name || "U")
                   )}
                 </div>
-                <div className="overflow-hidden">
-                  <p className="text-xs text-white/50 mb-0.5">Organizer</p>
-                  <p className="text-sm font-500 text-white truncate">{organizer?.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] text-white/35 font-500 uppercase tracking-wider">Organizer</p>
+                  <p className="text-xs font-600 text-white/80 truncate">{organizer?.name}</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
 
         {/* Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -62,35 +62,28 @@ export default function SendInviteBtn({
   };
 
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-1.5">
       {/* Main Action Button */}
       {isSent ? (
-        <div className="space-y-2">
-          <div className="w-full py-2.5 px-4 rounded-xl flex items-center justify-between gap-2 text-xs font-600 text-emerald-300 bg-emerald-500/10 border border-emerald-500/20">
-            <span className="flex items-center gap-2">
-              <Check size={16} className="text-emerald-400" />
-              Invite Sent ({sentCount}/{totalParticipants} Members)
+        <div className="space-y-1.5">
+          <div className="w-full px-3 py-2 rounded-xl flex items-center justify-between gap-2 text-[11px] font-600 text-emerald-300" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
+            <span className="flex items-center gap-1.5">
+              <Check size={12} className="text-emerald-400" />
+              Invite Sent ({sentCount}/{totalParticipants})
             </span>
-            <span className="badge bg-emerald-500/20 text-emerald-300 border-0 text-[10px]">
-              Sent
-            </span>
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full font-600" style={{ background: "rgba(16,185,129,0.15)", color: "#6ee7b7" }}>Sent</span>
           </div>
 
           <button
             onClick={handleSendInvite}
             disabled={status === "sending"}
-            className="w-full py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 font-500 text-xs text-white/70 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] transition-all disabled:opacity-50"
+            className="w-full px-3 py-2 rounded-xl flex items-center justify-center gap-1.5 font-500 text-[11px] text-white/50 hover:text-white/80 transition-all disabled:opacity-50"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
           >
             {status === "sending" ? (
-              <>
-                <Loader2 size={14} className="animate-spin text-indigo-400" />
-                Sending...
-              </>
+              <><Loader2 size={12} className="animate-spin text-indigo-400" /> Sending...</>
             ) : (
-              <>
-                <RefreshCw size={14} />
-                Resend Invite
-              </>
+              <><RefreshCw size={12} /> Resend Invite</>
             )}
           </button>
         </div>
@@ -99,36 +92,29 @@ export default function SendInviteBtn({
           onClick={handleSendInvite}
           disabled={status === "sending"}
           className={cn(
-            "w-full py-3.5 px-6 rounded-xl flex items-center justify-center gap-2.5 font-600 text-sm text-white shadow-lg transition-all",
-            "bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-indigo-500/25",
-            status === "sending" && "opacity-80 cursor-not-allowed"
+            "w-full py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 font-600 text-xs text-white transition-all",
+            status === "sending" && "opacity-70 cursor-not-allowed"
           )}
+          style={{ background: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)", boxShadow: "0 4px 14px rgba(79,70,229,0.4)" }}
         >
           {status === "sending" ? (
-            <>
-              <Loader2 size={18} className="animate-spin" />
-              <span>Sending...</span>
-            </>
+            <><Loader2 size={13} className="animate-spin" /><span>Sending...</span></>
           ) : (
-            <>
-              <Mail size={18} />
-              <span>Send Meeting Invite</span>
-            </>
+            <><Mail size={13} /><span>Send Meeting Invite</span></>
           )}
         </button>
       )}
 
-      {/* Status Feedback Messages */}
+      {/* Status Feedback */}
       {status === "success" && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-xs text-emerald-300 animate-fade-in">
-          <Check size={14} className="shrink-0 text-emerald-400" />
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-emerald-300 animate-fade-in" style={{ background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.2)" }}>
+          <Check size={11} className="shrink-0 text-emerald-400" />
           <span>{message}</span>
         </div>
       )}
-
       {status === "error" && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/30 text-xs text-red-300 animate-fade-in">
-          <AlertCircle size={14} className="shrink-0 text-red-400" />
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-red-300 animate-fade-in" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
+          <AlertCircle size={11} className="shrink-0 text-red-400" />
           <span>{message}</span>
         </div>
       )}

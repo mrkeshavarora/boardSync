@@ -51,12 +51,13 @@ export default function StartMeetingBtn({ meetingId, currentStatus }: StartMeeti
       id="start-meeting-btn"
       onClick={handleStart}
       disabled={loading}
-      className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 transition-all bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/30 disabled:opacity-60 disabled:cursor-not-allowed"
+      className="w-full py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 font-600 text-xs text-white transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+      style={{ background: "linear-gradient(135deg, #059669 0%, #10b981 100%)", boxShadow: "0 4px 14px rgba(16,185,129,0.4)" }}
     >
       {loading ? (
-        <><Loader2 size={18} className="animate-spin" /> Starting…</>
+        <><Loader2 size={13} className="animate-spin" /> Starting…</>
       ) : (
-        <><Play size={18} className="fill-white" /> Start Meeting</>
+        <><Play size={13} className="fill-white" /> Start Meeting</>
       )}
     </button>
   );

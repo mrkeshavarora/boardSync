@@ -38,12 +38,13 @@ export default function DeleteMeetingBtn({ meetingId }: { meetingId: string }) {
     <button
       onClick={handleDelete}
       disabled={loading}
-      className="w-full py-3 rounded-xl flex items-center justify-center gap-2 font-600 text-sm text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all disabled:opacity-60"
+      className="w-full py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 font-600 text-xs transition-all disabled:opacity-60"
+      style={{ color: "#f87171", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}
     >
       {loading ? (
-        <Loader2 size={16} className="animate-spin" />
+        <Loader2 size={13} className="animate-spin" />
       ) : (
-        <Trash2 size={16} />
+        <Trash2 size={13} />
       )}
       {loading ? "Deleting..." : "Delete Meeting"}
     </button>
