@@ -137,7 +137,7 @@ Generate the structured JSON analysis:`;
       status: "Draft" as const,
       draftedBy: new mongoose.Types.ObjectId(session.user.id),
       generatedByAI: true,
-      transcript: formattedTranscript,
+      transcript: formattedTranscript, // Preserves full live captions transcript
       meetingSummary: generated.summary,
       callToOrder: `Meeting called to order by ${meta.organizerName}`,
       quorum: "Quorum verified",
@@ -145,8 +145,8 @@ Generate the structured JSON analysis:`;
       absentees: [],
       agendaItems: meta.agendaItems.map((a) => ({
         title: a.title,
-        discussionSummary: generated.keyDiscussionPoints.join(". "),
-        decision: generated.decisions.join(". "),
+        discussionSummary: (generated.keyDiscussionPoints || []).join(". "),
+        decision: (generated.decisions || []).join(". "),
       })),
       keyDecisions: generated.decisions || [],
       resolutions: (generated.decisions || []).map((d: string) => ({
@@ -161,7 +161,7 @@ Generate the structured JSON analysis:`;
         priority: "Medium" as const,
         status: "Open" as const,
       })),
-      nextMeeting: generated.followUps.join(", ") || "",
+      nextMeeting: (generated.followUps || []).join(", ") || "",
       closingRemarks: "Meeting adjourned.",
     };
 
@@ -171,11 +171,15 @@ Generate the structured JSON analysis:`;
       { upsert: true, new: true }
     );
 
+    return NextResponse.json({ success: true, meeting: { _id: meeting._id.toString() } }, { status: 200 });
+
   } catch (err: any) {
     console.error("AI minutes generation failed:", err);
     let errorMsg = err.message || "Failed to generate AI minutes";
-    if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
-      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits. Please add billing credits at platform.openai.com or update OPENAI_API_KEY.";
+    if (!process.env.OPENAI_API_KEY || errorMsg.includes("OPENAI_API_KEY")) {
+      errorMsg = "OpenAI API Key Missing: OPENAI_API_KEY is not set in environment variables. Please add OPENAI_API_KEY to your .env.local file.";
+    } else if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
+      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits or rate limit was reached. Please add billing credits at platform.openai.com.";
     }
     return NextResponse.json({ error: errorMsg }, { status: 500 });
   }

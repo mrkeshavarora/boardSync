@@ -66,20 +66,33 @@ export async function POST(
     return NextResponse.json({ error: "Failed to parse form data." }, { status: 400 });
   }
 
-  // --- 4. Transcribe audio if provided ---
+  // --- 4. Transcribe audio if provided, or fallback to saved live meeting captions ---
   if (audioBuffer && !transcriptText) {
     try {
       transcriptText = await transcribeAudio(audioBuffer, "meeting_recording.webm");
     } catch (err: any) {
-      return NextResponse.json(
-        { error: `Transcription failed: ${err.message || "Unknown error"}` },
-        { status: 500 }
-      );
+      let errorMsg = err.message || "Unknown transcription error";
+      if (!process.env.OPENAI_API_KEY || errorMsg.includes("OPENAI_API_KEY")) {
+        errorMsg = "OpenAI API Key Missing: OPENAI_API_KEY is not set in environment variables. Please add OPENAI_API_KEY to your .env.local file.";
+      } else if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
+        errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits. Please add billing credits at platform.openai.com.";
+      }
+      return NextResponse.json({ error: `Transcription failed: ${errorMsg}` }, { status: 500 });
     }
   }
 
+  // Fallback to saved live meeting captions if no audio/manual text provided
+  if (!transcriptText && meeting.transcript && meeting.transcript.length > 0) {
+    transcriptText = meeting.transcript
+      .map((seg: any) => `[${seg.timestamp}] ${seg.speakerName}: ${seg.text}`)
+      .join("\n");
+  }
+
   if (!transcriptText || transcriptText.trim().length < 20) {
-    return NextResponse.json({ error: "No transcript or audio provided. Please upload a recording or paste a transcript." }, { status: 400 });
+    return NextResponse.json(
+      { error: "No Transcript Found: No live meeting captions were recorded and no audio file or manual transcript text was provided. Please record audio, upload a file, or paste transcript text." },
+      { status: 400 }
+    );
   }
 
   // --- 5. Load participants & agenda ---
@@ -114,8 +127,10 @@ export async function POST(
     generated = await generateMoM(transcriptText, meta);
   } catch (err: any) {
     let errorMsg = err.message || "Unknown error";
-    if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
-      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits. Please add billing credits at platform.openai.com or update OPENAI_API_KEY.";
+    if (!process.env.OPENAI_API_KEY || errorMsg.includes("OPENAI_API_KEY")) {
+      errorMsg = "OpenAI API Key Missing: OPENAI_API_KEY is not set in environment variables. Please add OPENAI_API_KEY to your .env.local file.";
+    } else if (err.status === 429 || errorMsg.includes("429") || errorMsg.includes("credits") || errorMsg.includes("quota")) {
+      errorMsg = "OpenAI API Quota Exceeded: Your OpenAI account has 0 remaining credits or rate limit was reached. Please add billing credits at platform.openai.com.";
     }
     return NextResponse.json(
       { error: errorMsg },

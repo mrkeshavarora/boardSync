@@ -153,6 +153,52 @@ export default function GenerateMinutesModal({
     }
   };
 
+  const getErrorDetails = (msg: string) => {
+    const isKeyMissing = msg.toLowerCase().includes("key missing") || msg.toLowerCase().includes("not set");
+    const isQuota = msg.toLowerCase().includes("quota") || msg.toLowerCase().includes("credits") || msg.includes("429");
+    const isNoTranscript = msg.toLowerCase().includes("no live transcript") || msg.toLowerCase().includes("no transcript found");
+    const isNotCompleted = msg.toLowerCase().includes("not completed");
+
+    if (isKeyMissing) {
+      return {
+        badge: "🔑 OpenAI Key Missing",
+        badgeClass: "bg-red-500/20 text-red-300 border-red-500/30",
+        title: "API Key Configuration Required",
+        advice: "Please add your OPENAI_API_KEY to your project's .env.local file to enable AI generation.",
+      };
+    }
+    if (isQuota) {
+      return {
+        badge: "💳 OpenAI Quota Exceeded",
+        badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+        title: "Account Credits Depleted",
+        advice: "Your OpenAI billing limit has been reached. Please add billing credits at platform.openai.com.",
+      };
+    }
+    if (isNoTranscript) {
+      return {
+        badge: "📝 No Live Captions Found",
+        badgeClass: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+        title: "No Live Meeting Captions Captured",
+        advice: "No speech captions were recorded during the live call. Try recording audio, uploading an audio file, or pasting transcript text manually.",
+      };
+    }
+    if (isNotCompleted) {
+      return {
+        badge: "⏳ Meeting Incomplete",
+        badgeClass: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+        title: "Meeting Must Be Completed First",
+        advice: "To generate minutes automatically, complete the meeting call or update its status to 'Completed'.",
+      };
+    }
+    return {
+      badge: "⚠️ Error",
+      badgeClass: "bg-red-500/20 text-red-300 border-red-500/30",
+      title: "Generation Failed",
+      advice: "Please review the error message above or try an alternative mode (Audio Upload or Manual Text).",
+    };
+  };
+
   const activeStepIndex = STEPS.findIndex((s) => s.id === step);
   const isProcessing = ["uploading", "transcribing", "generating"].includes(step);
 
@@ -290,9 +336,22 @@ export default function GenerateMinutesModal({
               )}
 
               {errorMsg && (
-                <div className="flex items-start gap-2 p-3 rounded-xl" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                  <XCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
-                  <p className="text-xs text-red-400">{errorMsg}</p>
+                <div className="flex flex-col gap-2 p-3.5 rounded-xl text-left" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-700 px-2 py-0.5 rounded-full border ${getErrorDetails(errorMsg).badgeClass}`}>
+                      {getErrorDetails(errorMsg).badge}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <XCircle size={15} className="text-red-400 mt-0.5 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-600 text-red-300">{getErrorDetails(errorMsg).title}</p>
+                      <p className="text-[11px] leading-relaxed text-red-200/80">{errorMsg}</p>
+                      <p className="text-[10px] leading-relaxed text-amber-300/90 pt-0.5 font-500">
+                        💡 <strong>Next Step:</strong> {getErrorDetails(errorMsg).advice}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -332,14 +391,30 @@ export default function GenerateMinutesModal({
           {/* Error state */}
           {step === "error" && (
             <div className="space-y-4">
-              <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                <XCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-600 text-red-400">Generation Failed</p>
-                  <p className="text-xs mt-1 text-red-400/70">{errorMsg}</p>
+              <div className="flex flex-col gap-3 p-4 rounded-xl text-left" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-700 px-2 py-0.5 rounded-full border ${getErrorDetails(errorMsg).badgeClass}`}>
+                    {getErrorDetails(errorMsg).badge}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <XCircle size={18} className="text-red-400 mt-0.5 shrink-0" />
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-700 text-red-300">{getErrorDetails(errorMsg).title}</p>
+                    <p className="text-xs text-red-200/80 leading-relaxed">{errorMsg}</p>
+                    <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-200/90 leading-relaxed mt-2">
+                      💡 <strong>Next Step:</strong> {getErrorDetails(errorMsg).advice}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <button onClick={() => { setStep("idle"); setErrorMsg(""); }} className="w-full py-2.5 rounded-xl text-sm font-600 text-white/60 hover:text-white border transition-colors" style={{ borderColor: "var(--border-default)" }}>Try Again</button>
+              <button
+                onClick={() => { setStep("idle"); setErrorMsg(""); }}
+                className="w-full py-2.5 rounded-xl text-sm font-600 text-white/70 hover:text-white border transition-colors"
+                style={{ borderColor: "var(--border-default)", background: "var(--bg-secondary)" }}
+              >
+                Try Again / Select Another Mode
+              </button>
             </div>
           )}
 
