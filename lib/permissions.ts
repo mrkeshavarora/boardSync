@@ -23,7 +23,7 @@ export function hasPermission(role: UserRole, permission: string): boolean {
 
 export function getRoleLabel(role: UserRole): string {
   const labels: Record<UserRole, string> = {
-    super_admin: "Super Admin",
+    super_admin: "Admin",
     board_member: "Board Member",
   };
   return labels[role] ?? role;
