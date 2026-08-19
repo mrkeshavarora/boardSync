@@ -4,9 +4,10 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
   FileText, Download, Upload, Eye, FileUp, Database,
   Calendar, Loader2, AlertCircle, FileSpreadsheet, FileCode,
-  Image as ImageIcon, MoreVertical, Trash2, X
+  Image as ImageIcon, MoreVertical, Trash2, X, Check, CheckSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import DocumentChat from "@/components/documents/DocumentChat";
 
 interface IDocument {
   _id: string;
@@ -54,9 +55,30 @@ export default function DocumentsManager() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [documents, setDocuments] = useState<IDocument[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewName, setPreviewName] = useState<string | null>(null);
   const [cloudinaryConfigured, setCloudinaryConfigured] = useState<boolean | null>(null);
+
+  const selectedDocs = useMemo(() => {
+    return documents.filter((d) => selectedDocIds.includes(d._id));
+  }, [documents, selectedDocIds]);
+
+  const isAllSelected = documents.length > 0 && selectedDocIds.length === documents.length;
+
+  const toggleSelectDoc = (id: string) => {
+    setSelectedDocIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedDocIds([]);
+    } else {
+      setSelectedDocIds(documents.map((d) => d._id));
+    }
+  };
 
   // Fetch Cloudinary config & meetings
   useEffect(() => {
@@ -77,7 +99,10 @@ export default function DocumentsManager() {
       const res = await fetch(endpoint);
       if (!res.ok) throw new Error("Failed to load documents");
       const data = await res.json();
-      setDocuments(data.documents || []);
+      const docs = data.documents || [];
+      setDocuments(docs);
+      // By default select all loaded documents
+      setSelectedDocIds(docs.map((d: IDocument) => d._id));
     } catch (err) {
       console.error(err);
     }
@@ -275,13 +300,31 @@ export default function DocumentsManager() {
       {/* Documents Grid / Table */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-600 text-white/80">Meeting Repository</h4>
-          <button
-            onClick={loadDocuments}
-            className="px-2.5 py-1 rounded-lg text-xs font-500 text-white/40 hover:text-white hover:bg-white/[0.04] transition-all"
-          >
-            Refresh
-          </button>
+          <div className="flex items-center gap-3">
+            <h4 className="text-sm font-600 text-white/80">Meeting Repository</h4>
+            {documents.length > 0 && (
+              <span className="text-xs text-white/40">
+                {selectedDocIds.length} of {documents.length} selected
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {documents.length > 0 && (
+              <button
+                onClick={toggleSelectAll}
+                className="px-2.5 py-1 rounded-lg text-xs font-500 text-indigo-300/90 hover:text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/15 border border-indigo-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <CheckSquare size={13} className={isAllSelected ? "text-indigo-400" : "text-white/40"} />
+                {isAllSelected ? "Deselect All" : "Select All"}
+              </button>
+            )}
+            <button
+              onClick={loadDocuments}
+              className="px-2.5 py-1 rounded-lg text-xs font-500 text-white/40 hover:text-white hover:bg-white/[0.04] transition-all cursor-pointer"
+            >
+              Refresh
+            </button>
+          </div>
         </div>
 
         {documents.length === 0 ? (
@@ -293,17 +336,38 @@ export default function DocumentsManager() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {documents.map((doc) => {
               const fileType = getFileTypeDetails(doc.fileType);
+              const isSelected = selectedDocIds.includes(doc._id);
               return (
                 <div
                   key={doc._id}
-                  className="flex items-center justify-between p-4 rounded-xl border border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] transition-all group"
+                  onClick={() => toggleSelectDoc(doc._id)}
+                  className={cn(
+                    "flex items-center justify-between p-4 rounded-xl border transition-all cursor-pointer group relative",
+                    isSelected
+                      ? "border-indigo-500/50 bg-indigo-500/[0.06] shadow-sm shadow-indigo-500/10 ring-1 ring-indigo-500/30"
+                      : "border-white/[0.06] bg-white/[0.01] hover:bg-white/[0.03] hover:border-white/[0.12] opacity-75"
+                  )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
+                    {/* Checkbox indicator */}
+                    <div
+                      className={cn(
+                        "w-5 h-5 rounded-md flex items-center justify-center shrink-0 border transition-all",
+                        isSelected
+                          ? "bg-indigo-600 border-indigo-500 text-white shadow-sm shadow-indigo-500/30"
+                          : "border-white/20 bg-white/[0.03] text-transparent group-hover:border-white/40"
+                      )}
+                    >
+                      <Check size={12} className={cn("stroke-[3]", !isSelected && "opacity-0")} />
+                    </div>
+
                     <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border", fileType.bg)}>
                       <fileType.icon size={18} className={fileType.color} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-600 text-white truncate" title={doc.fileName}>{doc.fileName}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-600 text-white truncate" title={doc.fileName}>{doc.fileName}</p>
+                      </div>
                       <p className="text-xs text-white/40 mt-1 uppercase">
                         {formatBytes(doc.fileSize)} · {new Date(doc.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </p>
@@ -312,7 +376,10 @@ export default function DocumentsManager() {
                   
                   <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
-                      onClick={() => previewDocument(doc)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        previewDocument(doc);
+                      }}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-white/45 hover:text-white hover:bg-white/[0.06] transition-all"
                       title="Preview Document"
                     >
@@ -322,6 +389,7 @@ export default function DocumentsManager() {
                       href={doc.storageUrl}
                       target="_blank"
                       rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-white/45 hover:text-white hover:bg-white/[0.06] transition-all"
                       title="Download File"
                     >
@@ -334,6 +402,9 @@ export default function DocumentsManager() {
           </div>
         )}
       </div>
+
+      {/* Ask About This Document - Reusable AI Assistant Component */}
+      <DocumentChat documentNames={selectedDocs.map((d) => d.fileName)} />
 
       {/* Floating Document Preview Modal */}
       {previewUrl && (
