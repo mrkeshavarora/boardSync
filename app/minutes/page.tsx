@@ -89,14 +89,7 @@ export default async function MinutesPage({
           </div>
         )}
 
-        {/* Status Filters */}
-        <div className="flex gap-3 border-b pb-1 my-2" style={{ borderColor: "var(--border-subtle)" }}>
-          <FilterTab label="All"       active={!params.status}                    href="/minutes" />
-          <FilterTab label="Drafts"    active={params.status === "Draft"}          href="/minutes?status=Draft" />
-          <FilterTab label="In Review" active={params.status === "Review"}         href="/minutes?status=Review" />
-          <FilterTab label="Approved"  active={params.status === "Approved"}       href="/minutes?status=Approved" />
-          <FilterTab label="Published" active={params.status === "Published"}      href="/minutes?status=Published" />
-        </div>
+
 
         {/* List */}
         <div className="space-y-4">

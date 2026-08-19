@@ -6,6 +6,9 @@ if (!MONGODB_URI) {
   throw new Error("Please define the MONGODB_URI environment variable in .env");
 }
 
+// Enable Mongoose command buffering globally
+mongoose.set("bufferCommands", true);
+
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -14,43 +17,51 @@ interface MongooseCache {
 declare global {
   // eslint-disable-next-line no-var
   var mongooseCache: MongooseCache;
+  // eslint-disable-next-line no-var
+  var mongooseCacheListenersAdded: boolean;
 }
 
 const cached: MongooseCache = global.mongooseCache ?? { conn: null, promise: null };
 global.mongooseCache = cached;
 
+// Auto-reset cache if connection drops or resets
+if (!global.mongooseCacheListenersAdded) {
+  mongoose.connection.on("error", () => {
+    cached.conn = null;
+    cached.promise = null;
+  });
+  mongoose.connection.on("disconnected", () => {
+    cached.conn = null;
+    cached.promise = null;
+  });
+  global.mongooseCacheListenersAdded = true;
+}
+
 async function connectDB(): Promise<typeof mongoose> {
-  // Check if connection is currently established and alive
+  // Return active connection if readyState === 1 (Connected)
   if (cached.conn && mongoose.connection.readyState === 1) {
     return cached.conn;
   }
 
-  // If connection is in a disconnected or disconnecting state, reset cache
-  if (mongoose.connection.readyState === 0 || mongoose.connection.readyState === 3) {
+  // Reset cached connection if disconnected or disconnecting
+  if (mongoose.connection.readyState !== 1 && mongoose.connection.readyState !== 2) {
     cached.conn = null;
     cached.promise = null;
   }
 
   if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-      serverSelectionTimeoutMS: 10000,
+    const opts: mongoose.ConnectOptions = {
+      bufferCommands: true,
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 10000,
       socketTimeoutMS: 45000,
       maxPoolSize: 10,
       minPoolSize: 1,
-      heartbeatFrequencyMS: 10000,
+      maxIdleTimeMS: 30000,
+      family: 4,
     };
 
-    cached.promise = mongoose
-      .connect(MONGODB_URI, opts)
-      .then((m) => {
-        return m;
-      })
-      .catch((err) => {
-        cached.conn = null;
-        cached.promise = null;
-        throw err;
-      });
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((m) => m);
   }
 
   try {
@@ -58,16 +69,7 @@ async function connectDB(): Promise<typeof mongoose> {
   } catch (error) {
     cached.conn = null;
     cached.promise = null;
-    // Retry once if connection fails due to socket drop or reset
-    cached.promise = mongoose.connect(MONGODB_URI, {
-      bufferCommands: false,
-      serverSelectionTimeoutMS: 10000,
-      socketTimeoutMS: 45000,
-      maxPoolSize: 10,
-      minPoolSize: 1,
-      heartbeatFrequencyMS: 10000,
-    });
-    cached.conn = await cached.promise;
+    throw error;
   }
 
   return cached.conn;
