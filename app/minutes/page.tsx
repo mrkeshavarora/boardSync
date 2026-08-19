@@ -81,7 +81,7 @@ export default async function MinutesPage({
 
         {/* Stats (admins only) */}
         {userIsAdmin && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-6">
             <StatCard title="Total Minutes" value={total}     icon={BookOpen}     color="text-indigo-400" bg="bg-indigo-500/10" border="border-indigo-500/20" />
             <StatCard title="Drafts"        value={drafts}    icon={FileText}     color="text-gray-400"   bg="bg-gray-500/10"   border="border-gray-500/20" />
             <StatCard title="In Review"     value={review}    icon={Clock}        color="text-amber-400"  bg="bg-amber-500/10"  border="border-amber-500/20" />
@@ -90,7 +90,7 @@ export default async function MinutesPage({
         )}
 
         {/* Status Filters */}
-        <div className="flex gap-2 border-b" style={{ borderColor: "var(--border-subtle)" }}>
+        <div className="flex gap-3 border-b pb-1 my-2" style={{ borderColor: "var(--border-subtle)" }}>
           <FilterTab label="All"       active={!params.status}                    href="/minutes" />
           <FilterTab label="Drafts"    active={params.status === "Draft"}          href="/minutes?status=Draft" />
           <FilterTab label="In Review" active={params.status === "Review"}         href="/minutes?status=Review" />
@@ -99,7 +99,7 @@ export default async function MinutesPage({
         </div>
 
         {/* List */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           {minutesList.length === 0 ? (
             <div
               className="py-20 flex flex-col items-center justify-center text-center rounded-2xl border"
@@ -125,7 +125,7 @@ export default async function MinutesPage({
             minutesList.map((m: any) => (
               <Link key={m._id.toString()} href={`/minutes/${m._id}`}>
                 <div
-                  className="group p-5 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-white/[0.02] cursor-pointer"
+                  className="group p-5 sm:p-6 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-white/[0.02] cursor-pointer shadow-xs"
                   style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
                 >
                   <div className="flex items-start gap-4">

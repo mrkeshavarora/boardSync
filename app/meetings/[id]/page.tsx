@@ -166,10 +166,12 @@ export default async function MeetingDetailsPage(
               {existingMinutes ? (
                 <Link
                   href={`/minutes/${existingMinutes._id}`}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-600 text-white transition-all"
-                  style={{ background: "linear-gradient(135deg, #4f46e5, #7c3aed)", boxShadow: "0 4px 14px rgba(79,70,229,0.35)" }}
+                  className="btn-gradient flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-600 text-white keep-white transition-all shadow-md"
+                  style={{ background: "linear-gradient(135deg, #7C3AED 0%, #A855F7 45%, #C026D3 100%)", color: "#ffffff", boxShadow: "0 8px 24px rgba(192, 38, 211, 0.35)" }}
                 >
-                  <FileText size={13} /> View Minutes <span className="opacity-60 text-[10px]">({existingMinutes.status})</span>
+                  <FileText size={13} className="text-white keep-white stroke-white" />
+                  <span className="text-white keep-white">View Minutes</span>
+                  <span className="opacity-80 text-[10px] text-white keep-white">({existingMinutes.status})</span>
                 </Link>
               ) : (
                 <>

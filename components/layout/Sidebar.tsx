@@ -109,8 +109,8 @@ export default function Sidebar({
       </div>
 
       {/* Navigation list */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
-        <p className={cn("text-[10px] font-600 text-white/25 uppercase tracking-widest px-3 mb-3", collapsed ? "lg:hidden block" : "block")}>
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+        <p className={cn("text-[10px] font-600 text-white/25 uppercase tracking-widest px-3 mb-2.5", collapsed ? "lg:hidden block" : "block")}>
           Main Menu
         </p>
         {visibleNavItems.map((item) => {
@@ -122,11 +122,11 @@ export default function Sidebar({
               onClick={() => setMobileOpen(false)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "sidebar-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-500 transition-all duration-150 group relative",
+                "sidebar-nav-item flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-500 transition-all duration-150 group relative border-0",
                 isActive
                   ? "sidebar-nav-active text-white font-600"
                   : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]",
-                collapsed ? "lg:justify-center lg:px-2 px-3" : "justify-start px-3"
+                collapsed ? "lg:justify-center lg:px-2 px-3.5" : "justify-start px-3.5"
               )}
             >
               {/* Active indicator background in dark mode */}
@@ -163,7 +163,7 @@ export default function Sidebar({
       </nav>
 
       {/* Settings bottom navigation */}
-      <div className="px-2 py-4 border-t border-white/[0.06] space-y-0.5">
+      <div className="px-3 py-3 pb-6 border-t border-white/[0.06] space-y-1">
         {bottomItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -173,11 +173,11 @@ export default function Sidebar({
               onClick={() => setMobileOpen(false)}
               title={collapsed ? item.label : undefined}
               className={cn(
-                "sidebar-nav-item flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-500 transition-all duration-150",
+                "sidebar-nav-item flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-500 transition-all duration-150 border-0",
                 isActive
                   ? "sidebar-nav-active text-white bg-white/[0.06] font-600"
                   : "text-white/50 hover:text-white/80 hover:bg-white/[0.04]",
-                collapsed ? "lg:justify-center lg:px-2 px-3" : "justify-start px-3"
+                collapsed ? "lg:justify-center lg:px-2 px-3.5" : "justify-start px-3.5"
               )}
             >
               <item.icon size={18} />

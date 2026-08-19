@@ -93,16 +93,6 @@ export default function Header({
 
       {/* Right side items */}
       <div className="flex items-center gap-3">
-        {/* Search Input (Hidden on Mobile) */}
-        <div className="relative hidden md:flex items-center">
-          <Search className="absolute left-3 w-4 h-4 text-white/30" />
-          <input
-            type="text"
-            placeholder="Search..."
-            className="pl-9 pr-4 py-2 rounded-lg text-sm bg-white/[0.04] border border-white/[0.08] text-white/70 placeholder-white/25 focus:outline-none focus:border-indigo-500/50 focus:bg-white/[0.06] transition-all w-56"
-          />
-        </div>
-
         {/* Theme Switcher Button */}
         <button
           onClick={toggleTheme}
@@ -116,7 +106,10 @@ export default function Header({
         <Link href="/notifications" className="relative w-9 h-9 rounded-lg flex items-center justify-center bg-white/[0.04] border border-white/[0.08] text-white/50 hover:text-white hover:bg-white/[0.08] transition-all">
           <Bell size={16} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-indigo-500 rounded-full ring-2 ring-[#0a0f1e] flex items-center justify-center text-[10px] font-700 text-white">
+            <span 
+              className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full ring-2 ring-white dark:ring-[#0a0f1e] flex items-center justify-center text-[10px] font-700 text-white keep-white shadow-sm"
+              style={{ background: "linear-gradient(135deg, #7C3AED 0%, #C026D3 100%)", color: "#ffffff" }}
+            >
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           )}
@@ -143,10 +136,10 @@ export default function Header({
               </div>
             )}
             <div className="hidden sm:block text-left max-w-[100px] md:max-w-none">
-              <p className="text-xs font-600 text-white leading-tight truncate">{user.name ?? "User"}</p>
-              <p className="text-[10px] text-white/40 leading-tight truncate">{roleLabel}</p>
+              <p className="text-xs font-700 header-user-name leading-tight truncate">{user.name ?? "User"}</p>
+              <p className="text-[10px] font-500 header-user-role leading-tight truncate">{roleLabel}</p>
             </div>
-            <ChevronDown size={14} className={`text-white/40 transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown size={14} className={`header-chevron transition-transform ${dropdownOpen ? "rotate-180" : ""}`} />
           </button>
 
           {dropdownOpen && (
@@ -171,8 +164,8 @@ export default function Header({
                   </div>
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-700 text-white truncate leading-tight">{user.name ?? "User"}</p>
-                  <p className="text-[10px] text-white/50 truncate mt-0.5">{user.email ?? ""}</p>
+                  <p className="text-xs font-700 header-dropdown-name truncate leading-tight">{user.name ?? "User"}</p>
+                  <p className="text-[10px] header-dropdown-email truncate mt-0.5">{user.email ?? ""}</p>
                   <span className="inline-block px-2 py-0.5 mt-1 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/25 text-[9px] font-600">
                     {roleLabel}
                   </span>
