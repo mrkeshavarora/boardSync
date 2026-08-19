@@ -240,100 +240,21 @@ export default function GenerateMinutesModal({
             </p>
           </div>
 
-          {/* Mode tabs */}
+          {/* Main content body when not processing */}
           {(step === "idle" || step === "recording") && !isProcessing && (
             <>
-              <div className="flex gap-1.5 p-1 rounded-xl" style={{ background: "var(--bg-secondary)" }}>
-                {(["ai", "record", "upload", "transcript"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setMode(m)}
-                    className="flex-1 py-2 px-2.5 rounded-lg text-xs font-600 transition-all truncate"
-                    style={
-                      mode === m
-                        ? { background: "var(--bg-card)", color: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.3)" }
-                        : { color: "var(--text-muted)" }
-                    }
-                  >
-                    {m === "ai" ? "✨ Live AI" : m === "record" ? "🎙 Record" : m === "upload" ? "📁 Upload" : "📝 Text"}
-                  </button>
-                ))}
-              </div>
-
               {/* AI Live Transcript Mode */}
-              {mode === "ai" && (
-                <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-center space-y-3">
-                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
-                    <Sparkles size={24} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-700 text-white">Generate from Live Meeting Transcript</h4>
-                    <p className="text-xs text-white/50 mt-1 max-w-sm">
-                      Uses real-time live captions and transcript segments captured during this meeting to produce an AI-summarized Minutes draft.
-                    </p>
-                  </div>
+              <div className="flex flex-col items-center justify-center p-6 rounded-xl border border-indigo-500/20 bg-indigo-500/5 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Sparkles size={24} />
                 </div>
-              )}
-
-              {/* Record mode */}
-              {mode === "record" && (
-                <div className="flex flex-col items-center gap-4 py-4">
-                  {recordedBlob ? (
-                    <div className="flex items-center gap-3 w-full p-4 rounded-xl" style={{ background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                      <FileAudio size={20} className="text-emerald-400" />
-                      <div className="flex-1">
-                        <p className="text-sm font-600 text-emerald-400">Recording ready</p>
-                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{formatTime(recordingSeconds)} recorded</p>
-                      </div>
-                      <button onClick={() => { setRecordedBlob(null); setRecordingSeconds(0); }} className="text-xs text-white/40 hover:text-white">Re-record</button>
-                    </div>
-                  ) : step === "recording" ? (
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="relative">
-                        <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
-                          <div className="w-14 h-14 rounded-full bg-red-500/30 flex items-center justify-center">
-                            <Mic size={24} className="text-red-400" />
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-2xl font-700 text-white font-mono">{formatTime(recordingSeconds)}</p>
-                      <button onClick={stopRecording} className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 text-red-400 text-sm font-600 hover:bg-red-500/30 transition-colors">
-                        <Square size={14} /> Stop Recording
-                      </button>
-                    </div>
-                  ) : (
-                    <button onClick={startRecording} className="flex items-center gap-2 px-6 py-3 rounded-xl btn-gradient text-sm font-600">
-                      <Mic size={16} /> Start Recording
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Upload mode */}
-              {mode === "upload" && (
-                <label className="flex flex-col items-center justify-center gap-3 p-8 rounded-xl border-2 border-dashed cursor-pointer hover:border-indigo-500/50 transition-colors" style={{ borderColor: "var(--border-default)" }}>
-                  <Upload size={24} className="text-indigo-400" />
-                  <div className="text-center">
-                    <p className="text-sm font-600 text-white">{uploadedFile ? uploadedFile.name : "Click to upload audio file"}</p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>MP3, MP4, WAV, WebM supported (max 25MB)</p>
-                  </div>
-                  <input type="file" className="hidden" accept="audio/*,video/webm,video/mp4" onChange={(e) => setUploadedFile(e.target.files?.[0] || null)} />
-                </label>
-              )}
-
-              {/* Transcript mode */}
-              {mode === "transcript" && (
                 <div>
-                  <textarea
-                    className="w-full h-36 px-4 py-3 rounded-xl text-sm resize-none outline-none"
-                    style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-default)", color: "var(--text-primary)" }}
-                    placeholder="Paste your meeting transcript here (minimum 20 characters)…"
-                    value={manualTranscript}
-                    onChange={(e) => setManualTranscript(e.target.value)}
-                  />
-                  <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{manualTranscript.length} characters</p>
+                  <h4 className="text-sm font-700 text-white">Generate from Live Meeting Transcript</h4>
+                  <p className="text-xs text-white/50 mt-1 max-w-sm">
+                    Uses real-time live captions and transcript segments captured during this meeting to produce an AI-summarized Minutes draft.
+                  </p>
                 </div>
-              )}
+              </div>
 
               {errorMsg && (
                 <div className="flex flex-col gap-2 p-3.5 rounded-xl text-left" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
@@ -357,12 +278,7 @@ export default function GenerateMinutesModal({
 
               <button
                 onClick={handleGenerate}
-                disabled={
-                  (mode === "record" && !recordedBlob && step !== "recording") ||
-                  (mode === "upload" && !uploadedFile) ||
-                  (mode === "transcript" && manualTranscript.trim().length < 20)
-                }
-                className="w-full py-3 rounded-xl btn-gradient font-600 text-sm flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3 rounded-xl btn-gradient font-600 text-sm flex items-center justify-center gap-2"
               >
                 <Sparkles size={15} /> Generate AI Draft Minutes
               </button>
