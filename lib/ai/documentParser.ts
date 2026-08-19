@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 
 /**
@@ -63,11 +63,10 @@ export async function extractTextFromDocumentUrl(
       typeLower.includes("sheet") ||
       typeLower.includes("excel") ||
       urlLower.includes(".xlsx") ||
-      urlLower.includes(".xls") ||
-      urlLower.includes(".csv")
+      urlLower.includes(".xls")
     ) {
       const raw = buffer.toString("utf-8");
-      // Extract string tags <t>...</t> and values <v>...</v> from OpenXML/XLSX
+      // Extract string tags <t>...</t> from OpenXML/XLSX zip content
       const xmlMatches = raw.match(/<t[^>]*>([^<]+)<\/t>/g) || [];
       if (xmlMatches.length > 0) {
         const text = xmlMatches.map((m) => m.replace(/<[^>]+>/g, " ")).join(" ");
@@ -76,38 +75,29 @@ export async function extractTextFromDocumentUrl(
       return cleanExtractedText(raw);
     }
 
-    // 6. Plain Text, CSV, JSON, Markdown
+    // 6. CSV
+    if (urlLower.endsWith(".csv") || typeLower.includes("csv")) {
+      return cleanExtractedText(buffer.toString("utf-8"));
+    }
+
+    // 7. Plain Text, JSON, Markdown
     const rawText = buffer.toString("utf-8");
     return cleanExtractedText(rawText);
   } catch (err: any) {
-    console.error("[DocumentParser] Failed to extract text from document:", err);
+    console.error("[DocumentParser] Failed to extract text from document:", err?.message || err);
     return "";
   }
 }
 
 /**
- * Parses PDF buffer using PDFParse with fallback
+ * Parses PDF buffer using pdf-parse v1 (no canvas dependency required).
  */
 async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   try {
-    const parser = new PDFParse({ data: buffer });
-    const textResult = await parser.getText();
-    const text = textResult?.text || "";
-    await parser.destroy();
-    return cleanExtractedText(text);
-  } catch (pdfErr) {
-    console.warn("[DocumentParser] PDFParse failed, trying raw stream extraction:", pdfErr);
-    // Fallback: extract ASCII string streams from PDF buffer
-    try {
-      const raw = buffer.toString("binary");
-      const textMatches = raw.match(/\(([^()]+)\)T[jJ]/g) || [];
-      if (textMatches.length > 0) {
-        const text = textMatches
-          .map((m) => m.replace(/^\(/, "").replace(/\)T[jJ]$/, ""))
-          .join(" ");
-        return cleanExtractedText(text);
-      }
-    } catch { }
+    const result = await pdfParse(buffer);
+    return cleanExtractedText(result.text || "");
+  } catch (pdfErr: any) {
+    console.warn("[DocumentParser] pdf-parse failed:", pdfErr?.message);
     return "";
   }
 }
