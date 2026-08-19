@@ -104,10 +104,19 @@ export default function DocumentChat({
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          res.status === 504 || res.status === 408
+            ? "Request timed out while analyzing documents. Try selecting fewer documents at once."
+            : `Server returned error status (${res.status}). Please check your AI API key in Admin Settings.`
+        );
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to generate answer from documents.");
+        throw new Error(data.error || `Server error (${res.status}): Failed to generate answer from documents.`);
       }
 
       const aiMsg: ChatMessage = {

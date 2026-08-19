@@ -33,9 +33,9 @@ export async function POST(req: Request) {
       query.fileName = documentNames.trim();
     }
 
-    const documents = await MeetingDocument.find(query).lean();
+    const rawDocuments = await MeetingDocument.find(query).lean();
 
-    if (!documents || documents.length === 0) {
+    if (!rawDocuments || rawDocuments.length === 0) {
       return NextResponse.json(
         {
           error: "No matching documents found to analyze. Please select or upload a document first.",
@@ -44,14 +44,29 @@ export async function POST(req: Request) {
       );
     }
 
-    // Extract text from all matched documents concurrently
+    // De-duplicate documents by fileName to avoid processing the same file multiple times
+    const uniqueDocsMap = new Map<string, any>();
+    for (const doc of rawDocuments) {
+      if (doc.fileName && !uniqueDocsMap.has(doc.fileName)) {
+        uniqueDocsMap.set(doc.fileName, doc);
+      }
+    }
+
+    // Take up to 8 documents to ensure fast response without Vercel serverless timeout
+    const documents = Array.from(uniqueDocsMap.values()).slice(0, 8);
+
+    // Extract text from matched documents concurrently with error isolation
     const documentContents = await Promise.all(
       documents.map(async (doc) => {
-        const text = await extractTextFromDocumentUrl(doc.storageUrl, doc.fileType);
-        return {
-          fileName: doc.fileName,
-          text,
-        };
+        try {
+          const text = await extractTextFromDocumentUrl(doc.storageUrl, doc.fileType);
+          return {
+            fileName: doc.fileName,
+            text,
+          };
+        } catch {
+          return { fileName: doc.fileName, text: "" };
+        }
       })
     );
 

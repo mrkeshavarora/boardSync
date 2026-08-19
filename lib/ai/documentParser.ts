@@ -10,7 +10,21 @@ export async function extractTextFromDocumentUrl(
 ): Promise<string> {
   if (!url) return "";
 
-  try {
+    const typeLower = (fileType || "").toLowerCase();
+    const urlLower = url.toLowerCase();
+
+    // Skip image files (cannot be text parsed directly without OCR)
+    if (
+      typeLower.startsWith("image/") ||
+      urlLower.endsWith(".png") ||
+      urlLower.endsWith(".jpg") ||
+      urlLower.endsWith(".jpeg") ||
+      urlLower.endsWith(".webp") ||
+      urlLower.endsWith(".gif")
+    ) {
+      return "";
+    }
+
     let buffer: Buffer;
 
     // 1. Handle base64 Data URI
@@ -19,16 +33,13 @@ export async function extractTextFromDocumentUrl(
       if (!base64Data) return "";
       buffer = Buffer.from(base64Data, "base64");
     } else {
-      // 2. Handle HTTP/HTTPS URL (e.g. Cloudinary, S3)
-      const res = await fetch(url);
+      // 2. Handle HTTP/HTTPS URL (e.g. Cloudinary, S3) with 4s timeout
+      const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
       if (!res.ok) {
         throw new Error(`Failed to fetch document from URL (status ${res.status})`);
       }
       buffer = Buffer.from(await res.arrayBuffer());
     }
-
-    const typeLower = (fileType || "").toLowerCase();
-    const urlLower = url.toLowerCase();
 
     // 3. Parse PDF
     if (typeLower.includes("pdf") || urlLower.includes(".pdf")) {
