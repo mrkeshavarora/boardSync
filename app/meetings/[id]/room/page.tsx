@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  PhoneOff, Users, MessageSquare, ChevronLeft, Loader2, Circle, Download, Sparkles,
-  PictureInPicture2, UserX, VolumeX
+  PhoneOff, Users, MessageSquare, ChevronLeft, ChevronRight, Loader2, Circle, Download, Sparkles,
+  PictureInPicture2, UserX, VolumeX, FileText, Send, X
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { getInitials } from "@/lib/utils";
 import io from "socket.io-client";
 import LiveTranscriptPanel from "@/components/meetings/LiveTranscriptPanel";
 import GenerateMinutesModal from "@/components/minutes/GenerateMinutesModal";
+import DocumentChat from "@/components/documents/DocumentChat";
 
 const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
@@ -50,7 +51,7 @@ export default function MeetingRoomPage() {
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [showSidebar, setShowSidebar] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"chat" | "docs" | "participants" | null>(null);
   const [ending, setEnding] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [showTranscript, setShowTranscript] = useState(true);
@@ -62,6 +63,12 @@ export default function MeetingRoomPage() {
   const [isLocalSpeaking, setIsLocalSpeaking] = useState(false);
   const [speakingPeers, setSpeakingPeers] = useState<Record<string, boolean>>({});
   const [mutedPeers, setMutedPeers] = useState<Record<string, boolean>>({});
+
+  // Meeting Group Chat & Document Chat states
+  const [chatMessages, setChatMessages] = useState<{ id: string; senderId: string; senderName: string; text: string; timestamp: string }[]>([]);
+  const [chatInputText, setChatInputText] = useState("");
+  const [meetingDocs, setMeetingDocs] = useState<{ _id: string; fileName: string }[]>([]);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
   // WebRTC refs and states
   const socketRef = useRef<any>(null);
@@ -154,6 +161,30 @@ export default function MeetingRoomPage() {
     };
     fetchMeeting();
   }, [meetingId]);
+
+  // Fetch meeting documents for Doc Chat
+  useEffect(() => {
+    if (!meetingId) return;
+    const fetchDocs = async () => {
+      try {
+        const res = await fetch(`/api/meetings/${meetingId}/documents`);
+        if (res.ok) {
+          const json = await res.json();
+          setMeetingDocs(json.documents || []);
+        }
+      } catch (err) {
+        console.error("Failed to load meeting documents:", err);
+      }
+    };
+    fetchDocs();
+  }, [meetingId]);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatScrollRef.current) {
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages, sidebarTab]);
 
   // Timer
   useEffect(() => {
@@ -749,6 +780,18 @@ export default function MeetingRoomPage() {
       cleanupPeer(socketId);
     });
 
+    socket.on("meeting-chat", (data: any) => {
+      setChatMessages((prev) => {
+        if (prev.some((m) => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
+    });
+
+    socket.on("call-ended", () => {
+      alert("This meeting has been ended.");
+      handleLeave();
+    });
+
     async function startMedia() {
       let localStream: MediaStream | null = null;
 
@@ -1029,17 +1072,22 @@ export default function MeetingRoomPage() {
   };
 
   const handleEndMeeting = async () => {
-    if (!confirm("Are you sure you want to end this meeting for everyone?")) return;
+    if (!confirm("Are you sure you want to end this meeting totally for everyone?")) return;
     setEnding(true);
     try {
-      // 1. Mark meeting as completed
+      // 1. Notify all participants in real-time via socket that meeting is ended
+      if (socketRef.current) {
+        socketRef.current.emit("call-ended", { meetingId });
+      }
+
+      // 2. Mark meeting as completed in database
       await fetch(`/api/meetings/${meetingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "Completed" }),
       });
 
-      // 2. Generate AI Minutes from live transcript segments
+      // 3. Generate AI Minutes from live transcript segments in background
       try {
         await fetch(`/api/meetings/${meetingId}/generate-ai-minutes`, {
           method: "POST",
@@ -1128,12 +1176,6 @@ export default function MeetingRoomPage() {
       >
         {/* Left */}
         <div className="flex items-center gap-3">
-          <button
-            onClick={handleLeave}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <ChevronLeft size={16} />
-          </button>
           <div>
             <h1 className="text-xs sm:text-sm font-600 text-white leading-tight">{meeting?.title ?? "Meeting"}</h1>
             <div className="flex items-center gap-1.5 mt-0.5">
@@ -1144,30 +1186,62 @@ export default function MeetingRoomPage() {
           </div>
         </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/[0.08] text-xs text-white/70">
+        {/* Right - Group Chat & Doc Chat Options */}
+        <div className="flex items-center gap-2">
+          {/* Option 1: Chat with everyone in meeting */}
+          <button
+            onClick={() => setSidebarTab((curr) => (curr === "chat" ? null : "chat"))}
+            className={cn(
+              "px-3 py-1.5 rounded-xl flex items-center gap-2 border text-xs transition-all cursor-pointer",
+              sidebarTab === "chat"
+                ? "bg-indigo-500/25 border-indigo-500/40 text-indigo-300 shadow-sm shadow-indigo-500/20 font-600"
+                : "bg-white/[0.04] border-white/[0.08] text-white/75 hover:text-white hover:bg-white/[0.08]"
+            )}
+            title="Chat with everyone joined in the meeting"
+          >
+            <MessageSquare size={14} className="text-indigo-400" />
+            <span className="hidden sm:inline">Meeting Chat</span>
+          </button>
+
+          {/* Option 2: Doc Chat for meeting documents */}
+          <button
+            onClick={() => setSidebarTab((curr) => (curr === "docs" ? null : "docs"))}
+            className={cn(
+              "px-3 py-1.5 rounded-xl flex items-center gap-2 border text-xs transition-all cursor-pointer",
+              sidebarTab === "docs"
+                ? "bg-indigo-500/25 border-indigo-500/40 text-indigo-300 shadow-sm shadow-indigo-500/20 font-600"
+                : "bg-white/[0.04] border-white/[0.08] text-white/75 hover:text-white hover:bg-white/[0.08]"
+            )}
+            title="Ask AI about meeting documents"
+          >
+            <FileText size={14} className="text-cyan-400" />
+            <span className="hidden sm:inline">Doc Chat</span>
+            <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              AI
+            </span>
+          </button>
+
+          {/* Participants Counter Pill */}
+          <button
+            onClick={() => setSidebarTab((curr) => (curr === "participants" ? null : "participants"))}
+            className={cn(
+              "px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 border text-xs transition-all cursor-pointer",
+              sidebarTab === "participants"
+                ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+                : "bg-white/[0.04] border-white/[0.08] text-white/60 hover:text-white"
+            )}
+            title="View participants"
+          >
             <Users size={13} />
             <span className="font-500">{totalParticipants}</span>
-          </div>
-          <button
-            onClick={() => setShowSidebar((s) => !s)}
-            className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center border transition-all",
-              showSidebar
-                ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-400"
-                : "bg-white/[0.04] border-white/[0.08] text-white/50 hover:text-white"
-            )}
-          >
-            <MessageSquare size={15} />
           </button>
         </div>
       </div>
 
       {/* Main area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Live Transcript Panel (Left Side) */}
-        {showTranscript && (
+        {showTranscript ? (
           <LiveTranscriptPanel
             socket={socketInstance}
             meetingId={meetingId}
@@ -1175,7 +1249,18 @@ export default function MeetingRoomPage() {
             isListening={isSttListening}
             statusText={sttStatusText}
             statusColorClass={sttStatusColor}
+            onClose={() => setShowTranscript(false)}
           />
+        ) : (
+          <button
+            onClick={() => setShowTranscript(true)}
+            className="absolute left-3 top-3 z-30 px-3 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-white/80 hover:text-white hover:bg-black/90 transition-all flex items-center gap-1.5 text-xs shadow-2xl group cursor-pointer"
+            title="Show Live Transcript"
+          >
+            <Sparkles size={13} className="text-indigo-400" />
+            <span className="font-500">Live Transcript</span>
+            <ChevronRight size={14} className="text-white/40 group-hover:translate-x-0.5 transition-transform" />
+          </button>
         )}
 
         {/* Streams Container */}
@@ -1371,107 +1456,276 @@ export default function MeetingRoomPage() {
           )}
         </div>
 
-        {/* Sidebar */}
-        {showSidebar && (
+        {/* Right Sidebar */}
+        {sidebarTab && (
           <div
-            className="w-72 border-l border-white/[0.06] flex flex-col shrink-0 animate-fade-in absolute right-0 top-0 bottom-0 z-20 lg:relative lg:z-0 h-full shadow-2xl"
+            className="w-80 sm:w-96 border-l border-white/[0.08] flex flex-col shrink-0 animate-fade-in absolute right-0 top-0 bottom-0 z-30 lg:relative lg:z-0 h-full shadow-2xl"
             style={{ background: "#080d1a" }}
           >
-            <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between">
-              <h3 className="text-sm font-600 text-white">Participants ({totalParticipants})</h3>
-              {remoteStreams.length > 0 && (
+            {/* Sidebar Header & Tab Navigation */}
+            <div className="px-4 py-3 border-b border-white/[0.08] flex items-center justify-between bg-black/40 backdrop-blur-md">
+              <div className="flex items-center gap-1 bg-white/[0.04] p-1 rounded-xl border border-white/[0.06]">
                 <button
-                  onClick={handleMuteAll}
-                  className="px-2.5 py-1 rounded-md text-[11px] font-600 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors flex items-center gap-1"
-                  title="Mute all participants"
-                >
-                  <VolumeX size={12} /> Mute All
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-              {/* Show current user */}
-              <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.03]">
-                <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
-                  {getInitials(session?.user?.name || "Y")}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-500 text-white truncate">{session?.user?.name} (You)</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {isLocalSpeaking && (
-                    <span className="flex items-center gap-0.5 mr-1" title="Speaking">
-                      <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
-                      <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
-                      <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
-                    </span>
+                  onClick={() => setSidebarTab("chat")}
+                  className={cn(
+                    "px-3 py-1 rounded-lg text-xs font-500 transition-all flex items-center gap-1.5 cursor-pointer",
+                    sidebarTab === "chat"
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
+                      : "text-white/50 hover:text-white"
                   )}
-                  {isMuted ? <MicOff size={12} className="text-red-400" /> : <Mic size={12} className="text-emerald-400" />}
-                  {isCameraOff ? <VideoOff size={12} className="text-red-400" /> : <Video size={12} className="text-emerald-400" />}
-                </div>
+                >
+                  <MessageSquare size={13} />
+                  <span>Chat</span>
+                </button>
+                <button
+                  onClick={() => setSidebarTab("docs")}
+                  className={cn(
+                    "px-3 py-1 rounded-lg text-xs font-500 transition-all flex items-center gap-1.5 cursor-pointer",
+                    sidebarTab === "docs"
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
+                      : "text-white/50 hover:text-white"
+                  )}
+                >
+                  <FileText size={13} />
+                  <span>Doc Chat</span>
+                </button>
+                <button
+                  onClick={() => setSidebarTab("participants")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg text-xs font-500 transition-all flex items-center gap-1.5 cursor-pointer",
+                    sidebarTab === "participants"
+                      ? "bg-indigo-600 text-white shadow-sm shadow-indigo-500/30"
+                      : "text-white/50 hover:text-white"
+                  )}
+                  title="Participants"
+                >
+                  <Users size={13} />
+                  <span>({totalParticipants})</span>
+                </button>
               </div>
 
-              {/* Show other participants */}
-              {remoteStreams.map(({ peerId, name }) => {
-                const displayName = participantNames[peerId] || name || "Participant";
-                return (
-                  <div key={peerId} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-white/[0.03] group">
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
-                        {getInitials(displayName)}
+              <button
+                onClick={() => setSidebarTab(null)}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.06] transition-all cursor-pointer"
+                title="Close"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* TAB 1: Meeting Group Chat */}
+            {sidebarTab === "chat" && (
+              <div className="flex-1 flex flex-col min-h-0 bg-[#080d1a]">
+                {/* Messages List */}
+                <div
+                  ref={chatScrollRef}
+                  className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar"
+                >
+                  {chatMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-6 text-white/30 space-y-2">
+                      <div className="w-10 h-10 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                        <MessageSquare size={18} />
                       </div>
-                      <p className="text-sm font-500 text-white truncate">{displayName}</p>
-                      {speakingPeers[peerId] && (
-                        <span className="flex items-center gap-0.5 shrink-0" title="Speaking">
+                      <p className="text-xs font-500 text-white/60">No messages yet</p>
+                      <p className="text-[11px] text-white/30 max-w-[200px]">
+                        Send a message to chat with everyone joined in this meeting.
+                      </p>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg) => {
+                      const isMe = msg.senderId === session?.user?.id;
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn("flex flex-col space-y-1", isMe ? "items-end" : "items-start")}
+                        >
+                          <div className="flex items-center gap-1.5 text-[10px] text-white/40 px-1">
+                            <span className="font-500 text-white/60">{isMe ? "You" : msg.senderName}</span>
+                            <span>•</span>
+                            <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                          </div>
+                          <div
+                            className={cn(
+                              "px-3.5 py-2 rounded-2xl text-xs max-w-[85%] break-words",
+                              isMe
+                                ? "bg-indigo-600 text-white rounded-tr-sm shadow-md shadow-indigo-600/20"
+                                : "bg-white/[0.06] border border-white/[0.08] text-white rounded-tl-sm"
+                            )}
+                          >
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Message Input Box */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!chatInputText.trim()) return;
+                    const newMsg = {
+                      id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                      senderId: session?.user?.id || "local",
+                      senderName: session?.user?.name || "You",
+                      text: chatInputText.trim(),
+                      timestamp: new Date().toISOString(),
+                    };
+                    if (socketRef.current) {
+                      socketRef.current.emit("meeting-chat", {
+                        ...newMsg,
+                        meetingId,
+                      });
+                    }
+                    setChatMessages((prev) => [...prev, newMsg]);
+                    setChatInputText("");
+                  }}
+                  className="p-3 border-t border-white/[0.08] bg-black/30 flex items-center gap-2"
+                >
+                  <input
+                    type="text"
+                    value={chatInputText}
+                    onChange={(e) => setChatInputText(e.target.value)}
+                    placeholder="Message everyone..."
+                    className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-3.5 py-2 text-xs text-white placeholder-white/30 focus:outline-none focus:border-indigo-500/50"
+                  />
+                  <button
+                    type="submit"
+                    disabled={!chatInputText.trim()}
+                    className="p-2 rounded-xl btn-gradient text-white shadow-md disabled:opacity-40 transition-all flex items-center justify-center cursor-pointer"
+                    title="Send message"
+                  >
+                    <Send size={14} />
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* TAB 2: Doc Chat */}
+            {sidebarTab === "docs" && (
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-[#080d1a]">
+                <div className="space-y-1">
+                  <h4 className="text-xs font-600 text-white flex items-center gap-1.5">
+                    <FileText size={14} className="text-indigo-400" />
+                    Meeting Document AI Chat
+                  </h4>
+                  <p className="text-[11px] text-white/40">
+                    Ask questions across documents linked to this board meeting.
+                  </p>
+                </div>
+
+                {/* Render the Reusable DocumentChat component */}
+                <DocumentChat
+                  documentNames={meetingDocs.map((d) => d.fileName)}
+                  placeholder={
+                    meetingDocs.length > 0
+                      ? "Ask questions about this meeting's documents..."
+                      : "No documents attached to this meeting..."
+                  }
+                  className="bg-white/[0.02] border-white/[0.08] p-4 sm:p-4 text-xs"
+                />
+              </div>
+            )}
+
+            {/* TAB 3: Joined Participants */}
+            {sidebarTab === "participants" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                  <h4 className="text-xs font-600 text-white/80">Joined Participants ({totalParticipants})</h4>
+                  {remoteStreams.length > 0 && (
+                    <button
+                      onClick={handleMuteAll}
+                      className="px-2.5 py-1 rounded-md text-[11px] font-600 bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors flex items-center gap-1"
+                      title="Mute all participants"
+                    >
+                      <VolumeX size={12} /> Mute All
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-2 custom-scrollbar">
+                  {/* Current User */}
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.03]">
+                    <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
+                      {getInitials(session?.user?.name || "Y")}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-500 text-white truncate">{session?.user?.name} (You)</p>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {isLocalSpeaking && (
+                        <span className="flex items-center gap-0.5 mr-1" title="Speaking">
                           <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
                           <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
                           <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
                         </span>
                       )}
-                    </div>
-
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleMuteUserMic(peerId)}
-                        className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
-                        title={`Mute ${displayName}'s microphone`}
-                      >
-                        <MicOff size={13} />
-                      </button>
-                      {isOrganizer && (
-                        <>
-                          <button
-                            onClick={() => handleMuteUserCamera(peerId)}
-                            className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
-                            title={`Turn off ${displayName}'s camera`}
-                          >
-                            <VideoOff size={13} />
-                          </button>
-                          <button
-                            onClick={() => handleKickUser(peerId)}
-                            className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
-                            title={`Remove ${displayName} from meeting`}
-                          >
-                            <UserX size={13} />
-                          </button>
-                        </>
-                      )}
+                      {isMuted ? <MicOff size={12} className="text-red-400" /> : <Mic size={12} className="text-emerald-400" />}
+                      {isCameraOff ? <VideoOff size={12} className="text-red-400" /> : <Video size={12} className="text-emerald-400" />}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-            <div className="p-4 border-t border-white/[0.06]">
-              <p className="text-xs text-white/30 text-center">
-                Share meeting link for others to join
-              </p>
-              <button
-                onClick={() => { navigator.clipboard.writeText(window.location.href); }}
-                className="w-full mt-2 py-2 rounded-lg text-xs font-500 text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors"
-              >
-                Copy Meeting Link
-              </button>
-            </div>
+
+                  {/* Remote Participants */}
+                  {remoteStreams.map(({ peerId, name }) => {
+                    const displayName = participantNames[peerId] || name || "Participant";
+                    return (
+                      <div key={peerId} className="flex items-center justify-between gap-2 p-2 rounded-lg hover:bg-white/[0.03] group">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center text-xs font-700 text-indigo-300 shrink-0">
+                            {getInitials(displayName)}
+                          </div>
+                          <p className="text-sm font-500 text-white truncate">{displayName}</p>
+                          {speakingPeers[peerId] && (
+                            <span className="flex items-center gap-0.5 shrink-0" title="Speaking">
+                              <span className="w-0.5 h-2 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite]" />
+                              <span className="w-0.5 h-3 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.2s]" />
+                              <span className="w-0.5 h-1.5 bg-emerald-400 rounded-full animate-[bounce_0.8s_infinite_0.4s]" />
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => handleMuteUserMic(peerId)}
+                            className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/20 text-white/50 hover:text-red-400 transition-colors"
+                            title={`Mute ${displayName}'s microphone`}
+                          >
+                            <MicOff size={13} />
+                          </button>
+                          {isOrganizer && (
+                            <>
+                              <button
+                                onClick={() => handleMuteUserCamera(peerId)}
+                                className="p-1.5 rounded-md bg-white/[0.05] hover:bg-amber-500/20 text-white/50 hover:text-amber-400 transition-colors"
+                                title={`Turn off ${displayName}'s camera`}
+                              >
+                                <VideoOff size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleKickUser(peerId)}
+                                className="p-1.5 rounded-md bg-white/[0.05] hover:bg-red-500/30 text-white/50 hover:text-red-400 transition-colors"
+                                title={`Remove ${displayName} from meeting`}
+                              >
+                                <UserX size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="p-4 border-t border-white/[0.06]">
+                  <p className="text-xs text-white/30 text-center">Share meeting link for others to join</p>
+                  <button
+                    onClick={() => { navigator.clipboard.writeText(window.location.href); }}
+                    className="w-full mt-2 py-2 rounded-lg text-xs font-500 text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors cursor-pointer"
+                  >
+                    Copy Meeting Link
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -1511,22 +1765,6 @@ export default function MeetingRoomPage() {
           <span className="hidden sm:inline">{isCameraOff ? "Start Video" : "Stop Video"}</span>
         </button>
 
-        {/* Transcript Toggle */}
-        <button
-          id="toggle-transcript-btn"
-          onClick={() => setShowTranscript((s) => !s)}
-          className={cn(
-            "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
-            showTranscript
-              ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/35"
-              : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
-          )}
-          title={showTranscript ? "Hide Transcript" : "Show Transcript"}
-        >
-          <Sparkles size={16} />
-          <span className="hidden sm:inline">{showTranscript ? "Hide CC" : "Show CC"}</span>
-        </button>
-
         {/* Screen Share */}
         <button
           id="toggle-screenshare-btn"
@@ -1542,75 +1780,32 @@ export default function MeetingRoomPage() {
           <span className="hidden sm:inline">{isScreenSharing ? "Stop Share" : "Share Screen"}</span>
         </button>
 
-        {/* Record */}
-        {isOrganizer && (
-          <button
-            onClick={toggleRecording}
-            className={cn(
-              "flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px]",
-              isRecording
-                ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 animate-pulse"
-                : "bg-white/[0.06] text-white/80 border border-white/[0.1] hover:bg-white/[0.10] hover:text-white"
-            )}
-          >
-            <Circle size={16} className={isRecording ? "text-red-400" : ""} />
-            <span className="hidden sm:inline">{isRecording ? "Stop Record" : "Record"}</span>
-          </button>
-        )}
-
-        {/* Generate MoM */}
-        <button
-          id="generate-mom-btn"
-          onClick={() => setShowGenerateMinutesModal(true)}
-          className="flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl transition-all font-500 text-[10px] sm:text-[11px] shrink-0 min-w-[56px] sm:min-w-[68px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30"
-          title="Generate Meeting Minutes"
-        >
-          <Sparkles size={16} className="text-indigo-400" />
-          <span className="hidden sm:inline">Generate MoM</span>
-        </button>
-
-        {showGenerateMinutesModal && (
-          <GenerateMinutesModal
-            meetingId={meetingId}
-            meetingTitle={meeting?.title || "Live Meeting"}
-            onClose={() => setShowGenerateMinutesModal(false)}
-          />
-        )}
-
         {/* Divider */}
         <div className="w-px h-6 sm:h-8 bg-white/[0.08] mx-0.5 sm:mx-1 shrink-0" />
 
-        {/* Leave / End */}
-        {isOrganizer ? (
-          <div className="flex gap-1.5 sm:gap-2 shrink-0">
-            <button
-              id="leave-meeting-btn"
-              onClick={handleLeave}
-              className="flex flex-col items-center justify-center gap-1 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-500 text-[10px] sm:text-[11px] transition-all border border-white/10"
-            >
-              <PhoneOff size={16} />
-              <span className="hidden sm:inline">Leave</span>
-            </button>
-            <button
-              id="end-meeting-btn"
-              onClick={handleEndMeeting}
-              disabled={ending}
-              className="flex flex-col items-center justify-center gap-1 px-3 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 disabled:opacity-60"
-            >
-              <PhoneOff size={16} />
-              <span className="hidden sm:inline">{ending ? "Ending..." : "End Meeting"}</span>
-            </button>
-          </div>
-        ) : (
+        {/* Leave & End Meeting Controls */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <button
             id="leave-meeting-btn"
             onClick={handleLeave}
-            className="flex flex-col items-center justify-center gap-1 px-4 sm:px-6 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 shrink-0"
+            className="flex flex-col items-center justify-center gap-1 px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-500 text-[10px] sm:text-[11px] transition-all border border-white/10 cursor-pointer"
+            title="Leave this meeting (just for you)"
           >
             <PhoneOff size={16} />
-            <span>Leave</span>
+            <span className="hidden sm:inline">Leave</span>
           </button>
-        )}
+
+          <button
+            id="end-meeting-btn"
+            onClick={handleEndMeeting}
+            disabled={ending}
+            className="flex flex-col items-center justify-center gap-1 px-3.5 sm:px-5 py-1.5 sm:py-2 rounded-xl bg-red-500 hover:bg-red-400 text-white font-600 text-[10px] sm:text-[11px] transition-all shadow-md shadow-red-500/30 disabled:opacity-60 cursor-pointer"
+            title="End meeting totally for everyone"
+          >
+            <PhoneOff size={16} />
+            <span className="hidden sm:inline">{ending ? "Ending..." : "End Meeting"}</span>
+          </button>
+        </div>
       </div>
     </div>
   );

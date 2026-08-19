@@ -61,7 +61,7 @@ io.on('connection', (socket) => {
       .filter(([id]) => id !== socket.id)
       .map(([id, info]) => ({ socketId: id, name: info.name, userId: info.userId }));
     socket.emit('current-participants', { participants });
-  });
+    });
 
   socket.on('offer', ({ to, from, description, userName, userId, user }) => {
     const finalName = userName || user?.name || 'Participant';
@@ -84,6 +84,12 @@ io.on('connection', (socket) => {
 
   socket.on('speech-caption', ({ meetingId, senderName, text }) => {
     socket.to(meetingId).emit('speech-caption', { senderName, text, timestamp: new Date().toISOString() });
+  });
+
+  socket.on('meeting-chat', (data) => {
+    if (data?.meetingId) {
+      io.to(data.meetingId).emit('meeting-chat', data);
+    }
   });
 
   socket.on('speaking', ({ meetingId, isSpeaking }) => {
