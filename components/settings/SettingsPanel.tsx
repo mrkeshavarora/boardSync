@@ -336,22 +336,22 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                     className={cn(
                       "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer group",
                       isActive
-                        ? "btn-gradient keep-white font-600 shadow-md shadow-purple-500/25"
-                        : "hover:bg-purple-500/10 dark:hover:bg-white/[0.04]"
+                        ? "btn-gradient keep-white font-600 shadow-lg shadow-purple-500/25"
+                        : "bg-transparent hover:bg-purple-500/10 dark:hover:bg-white/[0.06]"
                     )}
                   >
                     <item.icon
                       size={16}
                       className={cn(
                         "shrink-0 transition-colors",
-                        isActive ? "text-white" : "text-slate-500 dark:text-white/40 group-hover:text-purple-600 dark:group-hover:text-white"
+                        isActive ? "text-white" : "text-[#64748b] dark:text-white/50 group-hover:text-purple-600 dark:group-hover:text-white"
                       )}
                     />
                     <div className="min-w-0">
                       <div
                         className={cn(
                           "text-xs font-600 truncate transition-colors",
-                          isActive ? "text-white" : "text-slate-800 dark:text-white/90 group-hover:text-purple-700 dark:group-hover:text-white"
+                          isActive ? "text-white" : "text-[#0f172a] dark:text-white group-hover:text-purple-700 dark:group-hover:text-white"
                         )}
                       >
                         {item.label}
@@ -359,7 +359,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                       <div
                         className={cn(
                           "text-[10px] truncate transition-colors",
-                          isActive ? "text-white/80" : "text-slate-500 dark:text-white/50 group-hover:text-purple-600/80 dark:group-hover:text-white/70"
+                          isActive ? "text-white/80" : "text-[#64748b] dark:text-white/50 group-hover:text-purple-600/80 dark:group-hover:text-white/70"
                         )}
                       >
                         {item.desc}

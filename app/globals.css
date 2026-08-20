@@ -544,6 +544,19 @@ html[data-theme="light"] p:not(.btn-gradient *):not(.btn-primary *):not(.btn-tea
   color: #585B68 !important;
 }
 
+/* ─── Light Mode Inactive Tabs & Buttons High-Contrast Text Fix ─── */
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) div[class*="text-xs"],
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) span[class*="text-xs"],
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) p[class*="text-xs"] {
+  color: #0f172a !important;
+}
+
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) div[class*="text-\[10px\]"],
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) span[class*="text-\[10px\]"],
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) p[class*="text-\[10px\]"] {
+  color: #64748b !important;
+}
+
 /* Avatar Placeholders & Initials Circles in Light Mode */
 html[data-theme="light"] [class*="rounded-full"][class*="bg-white/"] {
   background-color: #E5DCFB !important;
