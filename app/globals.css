@@ -557,6 +557,17 @@ html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-te
   color: #64748b !important;
 }
 
+/* Light Mode Inactive Button SVG Icon Visibility Guarantee */
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]) svg {
+  color: #475569 !important;
+  stroke: #475569 !important;
+}
+
+html[data-theme="light"] button:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not(.keep-white):not([class*="from-purple"]):not([class*="bg-indigo-600"]):hover svg {
+  color: #7C3AED !important;
+  stroke: #7C3AED !important;
+}
+
 /* Avatar Placeholders & Initials Circles in Light Mode */
 html[data-theme="light"] [class*="rounded-full"][class*="bg-white/"] {
   background-color: #E5DCFB !important;

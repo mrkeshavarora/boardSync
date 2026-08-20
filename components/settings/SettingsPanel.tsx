@@ -344,7 +344,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                       size={16}
                       className={cn(
                         "shrink-0 transition-colors",
-                        isActive ? "text-white" : "text-[#64748b] dark:text-white/50 group-hover:text-purple-600 dark:group-hover:text-white"
+                        isActive ? "text-white" : "text-slate-600 dark:text-slate-400 group-hover:text-purple-600 dark:group-hover:text-white"
                       )}
                     />
                     <div className="min-w-0">
