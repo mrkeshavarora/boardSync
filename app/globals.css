@@ -310,8 +310,8 @@ html[data-theme="light"] .glass-hover:hover {
 
 /* Inner item rows inside cards */
 html[data-theme="light"] [class*="bg-white/"] {
-  background-color: #FAF5FA !important;
-  border-color: rgba(226, 223, 237, 0.5) !important;
+  background-color: #F4F6FF !important;
+  border-color: rgba(218, 224, 247, 0.5) !important;
 }
 
 html[data-theme="light"] [class*="bg-white/"]:hover {
@@ -445,11 +445,12 @@ html[data-theme="light"] .sidebar-nav-active span[class*="absolute"] {
 
 /* Header Navbar Light Mode — Floating Bar */
 html[data-theme="light"] header {
-  background-color: rgba(255, 255, 255, 0.85) !important;
+  background-color: #F4F6FF !important;
+  background: #F4F6FF !important;
   backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
-  border-bottom: 1px solid #E2DFED !important;
-  box-shadow: 0 10px 30px rgba(72, 60, 120, 0.06) !important;
+  border-bottom: 1px solid rgba(218, 224, 247, 0.8) !important;
+  box-shadow: 0 4px 20px rgba(72, 60, 120, 0.04) !important;
 }
 
 html[data-theme="light"] header button,
@@ -469,12 +470,7 @@ html[data-theme="light"] header a[href="/notifications"]:hover {
 
 /* Buttons in Light Mode — Reference Match Electric Purple-Magenta Gradient Pills */
 html[data-theme="light"] .btn-gradient,
-html[data-theme="light"] .btn-primary,
-html[data-theme="light"] button[class*="bg-indigo"]:not(.sidebar-nav-item),
-html[data-theme="light"] button[class*="bg-blue"]:not(.sidebar-nav-item),
-html[data-theme="light"] button[class*="bg-sky"]:not(.sidebar-nav-item),
-html[data-theme="light"] a[class*="bg-indigo"]:not(.sidebar-nav-item),
-html[data-theme="light"] a[class*="bg-blue"]:not(.sidebar-nav-item) {
+html[data-theme="light"] .btn-primary {
   background: linear-gradient(135deg, #7C3AED 0%, #A855F7 45%, #C026D3 100%) !important;
   color: #FFFFFF !important;
   border-radius: 999px !important;
@@ -483,12 +479,7 @@ html[data-theme="light"] a[class*="bg-blue"]:not(.sidebar-nav-item) {
 }
 
 html[data-theme="light"] .btn-gradient:hover,
-html[data-theme="light"] .btn-primary:hover,
-html[data-theme="light"] button[class*="bg-indigo"]:hover:not(.sidebar-nav-item),
-html[data-theme="light"] button[class*="bg-blue"]:hover:not(.sidebar-nav-item),
-html[data-theme="light"] button[class*="bg-sky"]:hover:not(.sidebar-nav-item),
-html[data-theme="light"] a[class*="bg-indigo"]:hover:not(.sidebar-nav-item),
-html[data-theme="light"] a[class*="bg-blue"]:hover:not(.sidebar-nav-item) {
+html[data-theme="light"] .btn-primary:hover {
   background: linear-gradient(135deg, #6D28D9 0%, #9333EA 45%, #A21CAF 100%) !important;
   transform: translateY(-2px) !important;
   box-shadow: 0 12px 28px rgba(192, 38, 211, 0.42) !important;

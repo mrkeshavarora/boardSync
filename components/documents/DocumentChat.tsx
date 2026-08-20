@@ -1,144 +1,101 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
-  Sparkles, Lock, Send, FileText, Loader2, Copy, Check, HelpCircle,
-  ListOrdered, RefreshCw, AlertCircle, Bot, User, Trash2
+  Sparkles, Send, Bot, User, Lock, AlertCircle, FileText,
+  Trash2, Loader2, HelpCircle, ListOrdered, Copy, Check
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export interface DocumentChatProps {
-  /** Single document name or multiple document names */
-  documentName?: string | string[] | null;
-  /** Explicit array or string of selected document names */
-  documentNames?: string[] | string | null;
-  /** Optional meetingId to limit document search */
-  meetingId?: string;
-  /** Optional placeholder text for the input */
-  placeholder?: string;
-  /** Optional handler triggered when submitting a question */
-  onSendMessage?: (question: string, selectedDocs: string[]) => void;
-  /** Optional container class overrides */
-  className?: string;
-}
-
-interface ChatMessage {
+export interface DocumentChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
   sources?: string[];
-  modelUsed?: string;
-  timestamp: Date;
+  timestamp: string;
+}
+
+interface DocumentChatProps {
+  selectedDocIds?: string[];
+  documents?: Array<{ _id: string; title: string; filename?: string }>;
+  documentNames?: string[];
+  meetingId?: string;
+  placeholder?: string;
+  defaultPlaceholder?: string;
+  className?: string;
 }
 
 export default function DocumentChat({
-  documentName,
-  documentNames,
+  selectedDocIds = [],
+  documents = [],
+  documentNames = [],
   meetingId,
   placeholder,
-  onSendMessage,
+  defaultPlaceholder = "Ask questions across selected documents...",
   className,
 }: DocumentChatProps) {
+  const [messages, setMessages] = useState<DocumentChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Normalize selected document names
-  const selectedList: string[] = React.useMemo(() => {
-    const rawList = documentNames ?? documentName;
-    if (!rawList) return [];
-    if (Array.isArray(rawList)) {
-      return rawList.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
-    }
-    if (typeof rawList === "string" && rawList.trim().length > 0) {
-      return [rawList.trim()];
-    }
-    return [];
-  }, [documentName, documentNames]);
-
-  const count = selectedList.length;
-
-  const defaultPlaceholder =
-    placeholder ||
-    (count > 1
-      ? "Ask questions across selected documents..."
-      : count === 1
-      ? "Ask something about this document..."
-      : "Select documents to start asking questions...");
+  const count = selectedDocIds.length || documentNames.length;
+  const selectedList = documents.length > 0
+    ? documents.filter((d) => selectedDocIds.includes(d._id)).map((d) => d.title || d.filename || "Untitled")
+    : documentNames;
+  const activePlaceholder = placeholder || defaultPlaceholder;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const executeQuery = async (queryText: string, mode: "qa" | "generate-questions" | "summary" | "key-points" = "qa") => {
-    if (!queryText.trim() || count === 0) return;
-    setErrorMsg(null);
+  const executeQuery = async (queryText: string, mode: "qa" | "summary" | "generate-questions" | "key-points") => {
+    if (!queryText.trim() || count === 0 || loading) return;
 
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
+    setErrorMsg(null);
+    const userMsgId = Date.now().toString();
+    const userMessage: DocumentChatMessage = {
+      id: userMsgId,
       role: "user",
-      content: queryText.trim(),
-      timestamp: new Date(),
+      content: queryText,
+      timestamp: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMessage]);
     setChatInput("");
     setLoading(true);
-
-    if (onSendMessage) {
-      onSendMessage(queryText.trim(), selectedList);
-    }
 
     try {
       const res = await fetch("/api/documents/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          question: queryText.trim(),
-          documentNames: selectedList,
-          meetingId,
+          documentIds: selectedDocIds,
+          message: queryText,
           mode,
         }),
       });
 
-      let data: any = {};
-      try {
-        data = await res.json();
-      } catch {
-        throw new Error(
-          res.status === 504 || res.status === 408
-            ? "Request timed out while analyzing documents. Try selecting fewer documents at once."
-            : `Server returned error status (${res.status}). Please check your AI API key in Admin Settings.`
-        );
-      }
-
       if (!res.ok) {
-        throw new Error(data.error || `Server error (${res.status}): Failed to generate answer from documents.`);
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to query document AI.");
       }
 
-      const aiMsg: ChatMessage = {
-        id: `ai-${Date.now()}`,
+      const data = await res.json();
+      const botMessage: DocumentChatMessage = {
+        id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.answer || "No response received.",
+        content: data.reply || "No answer generated.",
         sources: data.sources || [],
-        modelUsed: data.modelUsed,
-        timestamp: new Date(),
+        timestamp: new Date().toISOString(),
       };
 
-      setMessages((prev) => [...prev, aiMsg]);
+      setMessages((prev) => [...prev, botMessage]);
     } catch (err: any) {
-      console.error("Document Chat RAG Error:", err);
-      setErrorMsg(err.message || "Failed to get AI answer from document.");
-      const errorResponse: ChatMessage = {
-        id: `error-${Date.now()}`,
-        role: "assistant",
-        content: `⚠️ ${err.message || "An error occurred while analyzing the document."}`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorResponse]);
+      console.error(err);
+      setErrorMsg(err.message || "Failed to query documents.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +103,6 @@ export default function DocumentChat({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || loading) return;
     executeQuery(chatInput, "qa");
   };
 
@@ -164,18 +120,18 @@ export default function DocumentChat({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-white/[0.08] p-4 sm:p-5 bg-white/[0.015] backdrop-blur-sm space-y-3.5 shadow-xl flex flex-col",
+        "rounded-2xl border border-slate-200/80 dark:border-white/[0.08] p-4 sm:p-5 bg-white dark:bg-white/[0.02] shadow-xs space-y-3.5 flex flex-col",
         className
       )}
     >
       {/* Header & Badges */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-white/[0.06]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-slate-200/80 dark:border-white/[0.06]">
         <div className="flex flex-wrap items-center gap-2">
-          <h4 className="text-sm sm:text-base font-600 text-white flex items-center gap-1.5">
+          <h4 className="text-sm sm:text-base font-700 text-slate-900 dark:text-white flex items-center gap-1.5">
             Ask about {count > 1 ? "these documents" : "this document"}
           </h4>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-500/15 border border-indigo-500/25 text-indigo-300">
-            <Sparkles size={11} className="text-indigo-400" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10.5px] font-700 uppercase tracking-wider bg-purple-100 text-purple-700 border border-purple-200 dark:bg-indigo-500/15 dark:border-indigo-500/25 dark:text-indigo-300">
+            <Sparkles size={11} className="text-purple-600 dark:text-indigo-400" />
             AI Assistant
           </span>
         </div>
@@ -184,7 +140,7 @@ export default function DocumentChat({
           {messages.length > 0 && (
             <button
               onClick={clearChat}
-              className="p-1 px-2 rounded-lg text-[11px] font-500 text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-colors flex items-center gap-1 cursor-pointer"
+              className="p-1 px-2 rounded-lg text-[11px] font-600 text-slate-500 hover:text-slate-900 dark:text-white/40 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors flex items-center gap-1 cursor-pointer"
               title="Clear conversation"
             >
               <Trash2 size={12} />
@@ -192,8 +148,8 @@ export default function DocumentChat({
             </button>
           )}
 
-          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-[11px] font-medium text-white/50 bg-white/[0.03] border border-white/[0.08]">
-            <Lock size={11} className="text-white/40" />
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-600 text-slate-700 dark:text-white/60 bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/[0.08]">
+            <Lock size={11} className="text-slate-500 dark:text-white/40" />
             {count > 1
               ? `${count} Docs Selected`
               : count === 1
@@ -206,20 +162,20 @@ export default function DocumentChat({
       {/* Selected Document List Indicator */}
       <div className="space-y-1.5">
         {count === 0 ? (
-          <div className="inline-flex items-center gap-1.5 text-xs text-amber-300/80 bg-amber-500/10 px-2.5 py-1 rounded-md border border-amber-500/20">
-            <AlertCircle size={13} className="shrink-0" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-600 text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-500/20">
+            <AlertCircle size={14} className="shrink-0 text-amber-600 dark:text-amber-400" />
             <span>Select one or more documents to ask questions or generate review questions.</span>
           </div>
         ) : (
           <div className="flex flex-wrap items-center gap-1.5 max-h-20 overflow-y-auto pr-1 custom-scrollbar">
-            <span className="text-[11px] text-white/40 font-500">Target:</span>
+            <span className="text-[11px] text-slate-500 dark:text-white/50 font-600">Target:</span>
             {selectedList.map((name, idx) => (
               <span
                 key={idx}
-                className="inline-flex items-center gap-1 text-[10.5px] font-500 text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-md border border-indigo-500/20 max-w-[200px] truncate"
+                className="inline-flex items-center gap-1 text-[11px] font-600 text-purple-800 bg-purple-100/90 border border-purple-200 dark:text-indigo-300 dark:bg-indigo-500/15 dark:border-indigo-500/20 px-2.5 py-0.5 rounded-md max-w-[200px] truncate"
                 title={name}
               >
-                <FileText size={10} className="shrink-0 text-indigo-400" />
+                <FileText size={11} className="shrink-0 text-purple-600 dark:text-indigo-400" />
                 <span className="truncate">{name}</span>
               </span>
             ))}
@@ -230,32 +186,32 @@ export default function DocumentChat({
       {/* Quick Action Suggestion Chips */}
       {count > 0 && messages.length === 0 && (
         <div className="space-y-1.5 pt-1">
-          <p className="text-[11px] text-white/40 font-500">Quick Prompts:</p>
+          <p className="text-[11px] text-slate-500 dark:text-white/50 font-600">Quick Prompts:</p>
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => executeQuery("Generate 5 critical analytical review questions and answers based on this document.", "generate-questions")}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-500 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/25 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl text-xs font-600 bg-purple-100 hover:bg-purple-200 text-purple-800 border border-purple-200 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 dark:text-indigo-300 dark:border-indigo-500/30 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
             >
-              <HelpCircle size={12} className="text-indigo-400" />
+              <HelpCircle size={13} className="text-purple-600 dark:text-indigo-400" />
               <span>🎯 Generate 5 Review Questions</span>
             </button>
 
             <button
               onClick={() => executeQuery("Provide an executive summary of this document with key takeaways and numbers.", "summary")}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-500 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-500/25 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl text-xs font-600 bg-cyan-100 hover:bg-cyan-200 text-cyan-900 border border-cyan-200 dark:bg-cyan-500/15 dark:hover:bg-cyan-500/25 dark:text-cyan-300 dark:border-cyan-500/30 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
             >
-              <ListOrdered size={12} className="text-cyan-400" />
+              <ListOrdered size={13} className="text-cyan-700 dark:text-cyan-400" />
               <span>📋 Summarize Document</span>
             </button>
 
             <button
               onClick={() => executeQuery("Extract all key decisions, action items, financial metrics, and deadlines from this document.", "key-points")}
               disabled={loading}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-500 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/25 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl text-xs font-600 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-200 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 dark:text-emerald-300 dark:border-emerald-500/30 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-2xs"
             >
-              <Sparkles size={12} className="text-emerald-400" />
+              <Sparkles size={13} className="text-emerald-700 dark:text-emerald-400" />
               <span>⚡ Key Decisions & Action Items</span>
             </button>
           </div>
@@ -272,15 +228,15 @@ export default function DocumentChat({
                 key={msg.id}
                 className={cn("flex flex-col space-y-1", isUser ? "items-end" : "items-start")}
               >
-                <div className="flex items-center gap-1 text-[10px] text-white/40 px-1">
+                <div className="flex items-center gap-1 text-[10px] font-600 text-slate-500 dark:text-white/40 px-1">
                   {isUser ? (
                     <>
-                      <User size={10} className="text-indigo-300" />
+                      <User size={10} className="text-purple-600 dark:text-indigo-300" />
                       <span>You</span>
                     </>
                   ) : (
                     <>
-                      <Bot size={10} className="text-cyan-300" />
+                      <Bot size={10} className="text-cyan-600 dark:text-cyan-300" />
                       <span>AI Assistant</span>
                     </>
                   )}
@@ -290,30 +246,30 @@ export default function DocumentChat({
 
                 <div
                   className={cn(
-                    "px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed max-w-[92%] break-words whitespace-pre-wrap",
+                    "px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed max-w-[92%] break-words whitespace-pre-wrap font-500",
                     isUser
-                      ? "bg-indigo-600 text-white rounded-tr-sm shadow-md shadow-indigo-600/20"
-                      : "bg-white/[0.05] border border-white/[0.08] text-white/90 rounded-tl-sm shadow-inner"
+                      ? "btn-gradient keep-white rounded-tr-sm shadow-md shadow-purple-500/20"
+                      : "bg-slate-100 text-slate-900 border border-slate-200 dark:bg-white/[0.05] dark:border-white/[0.08] dark:text-white/90 rounded-tl-sm shadow-2xs"
                   )}
                 >
                   {msg.content}
 
                   {/* Sources & Copy */}
                   {!isUser && (
-                    <div className="mt-2 pt-2 border-t border-white/[0.08] flex items-center justify-between gap-2 flex-wrap text-[10px]">
+                    <div className="mt-2 pt-2 border-t border-slate-200 dark:border-white/[0.08] flex items-center justify-between gap-2 flex-wrap text-[10px]">
                       {msg.sources && msg.sources.length > 0 && (
-                        <div className="flex items-center gap-1 text-white/40 truncate">
-                          <FileText size={10} className="shrink-0 text-indigo-400" />
+                        <div className="flex items-center gap-1 text-slate-500 dark:text-white/40 truncate">
+                          <FileText size={10} className="shrink-0 text-purple-600 dark:text-indigo-400" />
                           <span className="truncate">Sources: {msg.sources.join(", ")}</span>
                         </div>
                       )}
 
                       <button
                         onClick={() => copyToClipboard(msg.id, msg.content)}
-                        className="p-1 rounded hover:bg-white/10 text-white/50 hover:text-white transition-colors ml-auto flex items-center gap-1 cursor-pointer"
+                        className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-600 dark:text-white/50 hover:text-slate-900 dark:hover:text-white transition-colors ml-auto flex items-center gap-1 cursor-pointer"
                         title="Copy answer"
                       >
-                        {copiedId === msg.id ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                        {copiedId === msg.id ? <Check size={11} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={11} />}
                         <span>{copiedId === msg.id ? "Copied" : "Copy"}</span>
                       </button>
                     </div>
@@ -326,12 +282,12 @@ export default function DocumentChat({
           {/* Loading Indicator */}
           {loading && (
             <div className="flex flex-col items-start space-y-1">
-              <div className="flex items-center gap-1 text-[10px] text-white/40 px-1">
-                <Bot size={10} className="text-cyan-300" />
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-white/40 px-1">
+                <Bot size={10} className="text-cyan-600 dark:text-cyan-300" />
                 <span>Reading document & thinking...</span>
               </div>
-              <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-white/[0.05] border border-white/[0.08] text-xs text-white/70 flex items-center gap-2">
-                <Loader2 size={13} className="animate-spin text-indigo-400" />
+              <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-slate-100 dark:bg-white/[0.05] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-800 dark:text-white/70 flex items-center gap-2">
+                <Loader2 size={13} className="animate-spin text-purple-600 dark:text-indigo-400" />
                 <span>Searching document chunks...</span>
               </div>
             </div>
@@ -344,29 +300,29 @@ export default function DocumentChat({
       {/* Horizontal Chat Input */}
       <form
         onSubmit={handleSubmit}
-        className="relative flex items-center rounded-xl border border-white/[0.1] bg-[#0b1021]/80 shadow-inner focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/30 transition-all group"
+        className="relative flex items-center rounded-xl border border-slate-300 dark:border-white/10 bg-white dark:bg-[#0b1021]/80 shadow-2xs focus-within:border-purple-500 focus-within:ring-2 focus-within:ring-purple-500/20 transition-all group p-1"
       >
         <input
           type="text"
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
-          placeholder={defaultPlaceholder}
+          placeholder={activePlaceholder}
           disabled={count === 0 || loading}
-          className="w-full bg-transparent px-3.5 py-2.5 sm:py-3 text-xs sm:text-sm text-white placeholder-white/30 focus:outline-none pr-11 disabled:cursor-not-allowed disabled:placeholder-white/20"
+          className="w-full bg-transparent px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-white/30 focus:outline-none pr-12 disabled:cursor-not-allowed font-500"
         />
         <button
           type="submit"
           disabled={count === 0 || !chatInput.trim() || loading}
           aria-label="Send question"
-          className="absolute right-1.5 p-1.5 sm:p-2 rounded-lg btn-gradient text-white shadow-md hover:opacity-90 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+          className="absolute right-1.5 p-2 rounded-xl btn-gradient keep-white shadow-md shadow-purple-500/25 hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:scale-100 disabled:cursor-not-allowed"
         >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          {loading ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} className="text-white" />}
         </button>
       </form>
 
       {/* Scope Information */}
-      <div className="flex items-center gap-1.5 text-[10.5px] text-white/40">
-        <Lock size={11} className="text-white/30 shrink-0" />
+      <div className="flex items-center gap-1.5 text-[11px] font-500 text-slate-500 dark:text-white/40">
+        <Lock size={11} className="text-slate-400 dark:text-white/30 shrink-0" />
         <span>
           Answers are strictly generated from the extracted content of the selected document{count > 1 ? "s" : ""}.
         </span>
