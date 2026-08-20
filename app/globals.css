@@ -501,27 +501,51 @@ html[data-theme="light"] a[class*="bg-blue"] * {
 }
 
 /* Text Colors in Light Mode */
-html[data-theme="light"] .text-white:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/90:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/80:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/70:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] h1:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *):not(button *),
-html[data-theme="light"] h2:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *):not(button *),
-html[data-theme="light"] h3:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *):not(button *),
-html[data-theme="light"] h4:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *):not(button *) {
+html[data-theme="light"] .text-white:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *):not(a[class*="bg-indigo"] *):not(a[class*="bg-purple"] *),
+html[data-theme="light"] .text-white\/90:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *):not(a[class*="bg-indigo"] *):not(a[class*="bg-purple"] *),
+html[data-theme="light"] .text-white\/80:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *):not(a[class*="bg-indigo"] *):not(a[class*="bg-purple"] *),
+html[data-theme="light"] .text-white\/70:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *):not(a[class*="bg-indigo"] *):not(a[class*="bg-purple"] *),
+html[data-theme="light"] h1:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *),
+html[data-theme="light"] h2:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *),
+html[data-theme="light"] h3:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *),
+html[data-theme="light"] h4:not(.btn-gradient *):not(.btn-primary *):not(aside a *):not(.keep-white):not(.keep-white *) {
   color: #121829 !important;
 }
 
-html[data-theme="light"] .text-white\/60:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/50:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/45:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/40:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/35:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/30:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/25:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] .text-white\/20:not(.keep-white):not(.keep-white *):not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(button *):not(a[class*="bg-"] *),
-html[data-theme="light"] p:not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(.badge *):not(aside a *):not(.keep-white):not(.keep-white *):not(button *) {
+html[data-theme="light"] .text-white\/60:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/50:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/45:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/40:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/35:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/30:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/25:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] .text-white\/20:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
+html[data-theme="light"] p:not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(.badge *):not(aside a *):not(.keep-white):not(.keep-white *) {
   color: #585B68 !important;
+}
+
+/* Avatar Placeholders & Initials Circles in Light Mode */
+html[data-theme="light"] [class*="rounded-full"][class*="bg-white/"] {
+  background-color: #E5DCFB !important;
+  color: #574ADE !important;
+  border: 1px solid #D8B4FE !important;
+}
+
+html[data-theme="light"] [class*="rounded-full"][class*="bg-white/"] * {
+  color: #574ADE !important;
+}
+
+/* Selected list items & active selection cards in Light Mode */
+html[data-theme="light"] [class*="bg-indigo-500/10"] {
+  background-color: #E5DCFB !important;
+  border-color: #C084FC !important;
+  color: #574ADE !important;
+}
+
+html[data-theme="light"] [class*="bg-indigo-500/10"] p,
+html[data-theme="light"] [class*="bg-indigo-500/10"] span,
+html[data-theme="light"] [class*="bg-indigo-500/10"] div {
+  color: #574ADE !important;
 }
 
 /* Accent text links in Light Mode */
