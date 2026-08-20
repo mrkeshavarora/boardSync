@@ -493,10 +493,16 @@ html[data-theme="light"] .btn-soft {
 }
 
 /* ─── FORCE White Text & Icons on Dark Tone Buttons & Badges ─────────────────── */
+html[data-theme="light"] .btn-gradient,
 html[data-theme="light"] .btn-gradient *,
+html[data-theme="light"] .btn-primary,
 html[data-theme="light"] .btn-primary *,
+html[data-theme="light"] .btn-teal,
 html[data-theme="light"] .btn-teal *,
+html[data-theme="light"] .btn-cyan,
 html[data-theme="light"] .btn-cyan *,
+html[data-theme="light"] .keep-white,
+html[data-theme="light"] .keep-white *,
 html[data-theme="light"] .icon-gradient-purple,
 html[data-theme="light"] .icon-gradient-purple *,
 html[data-theme="light"] .icon-gradient-teal,
@@ -504,6 +510,9 @@ html[data-theme="light"] .icon-gradient-teal *,
 html[data-theme="light"] button[class*="bg-indigo"] *,
 html[data-theme="light"] button[class*="bg-purple"] *,
 html[data-theme="light"] button[class*="bg-blue"] *,
+html[data-theme="light"] button[class*="from-purple"] *,
+html[data-theme="light"] button[class*="from-indigo"] *,
+html[data-theme="light"] button[class*="bg-gradient"] *,
 html[data-theme="light"] a[class*="bg-indigo"] *,
 html[data-theme="light"] a[class*="bg-purple"] *,
 html[data-theme="light"] a[class*="bg-blue"] * {
