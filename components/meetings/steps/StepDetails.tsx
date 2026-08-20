@@ -148,21 +148,6 @@ export default function StepDetails({ data, updateData, errors = {} }: StepDetai
           </div>
         </div>
 
-        <div>
-          <label className="text-xs font-600 text-white/60 uppercase tracking-wider mb-1.5 block">Video meeting link</label>
-          <div className="relative">
-            <Globe size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
-            <input
-              type="url"
-              value={data.onlineMeeting}
-              onChange={(e) => updateData({ onlineMeeting: e.target.value })}
-              placeholder="https://zoom.us/j/123456789"
-              aria-invalid={!!errors.onlineMeeting}
-              className={cn("w-full pl-10 pr-4 py-2.5 rounded-lg text-sm bg-white/[0.04] border border-white/[0.1] text-white placeholder-white/25 focus:outline-none focus:border-indigo-500/60 transition-all", errors.onlineMeeting && "border-red-500/60")}
-            />
-            <FieldError message={errors.onlineMeeting} />
-          </div>
-        </div>
         
         <div>
           <label className="text-xs font-600 text-white/60 uppercase tracking-wider mb-1.5 block">Description / Notes</label>
