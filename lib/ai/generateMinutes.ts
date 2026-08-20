@@ -46,28 +46,29 @@ export interface GeneratedMoM {
   closingRemarks?: string;
 }
 
-const SYSTEM_PROMPT = `You are an expert executive board secretary specializing in writing formal Minutes of Meeting (MoM) for corporate boards and high-stakes executive teams.
+const SYSTEM_PROMPT = `You are an expert secretary specializing in writing structured Minutes of Meeting (MoM) drafts.
 
 You will be given:
 1. Meeting Metadata (title, date, organizer, participants, agenda items)
 2. Raw transcript or text summary of what occurred in the meeting.
 
 Your job is to generate a comprehensive, professional, structured Minutes of Meeting document.
+You MUST summarize EVERYTHING that has been written in the transcript, including casual talk, greetings, brief questions, and informal chats. Do not ignore or filter out any parts of the dialogue. Ensure that the summary/meetingSummary fields contain a proper, complete summary of all activities.
 
 Respond ONLY with a valid JSON object adhering strictly to the following structure:
 {
-  "summary": "Executive summary paragraph...",
-  "meetingSummary": "Executive summary paragraph...",
+  "summary": "Thorough, complete summary of everything discussed or typed in the meeting transcript, including informal chats, topics, greetings, and all activities.",
+  "meetingSummary": "Thorough, complete summary of everything discussed or typed in the meeting transcript, including informal chats, topics, greetings, and all activities.",
   "callToOrder": "Meeting called to order...",
-  "quorum": "Quorum present...",
-  "attendees": [{ "name": "..." }],
-  "absentees": [{ "name": "..." }],
-  "agendaItems": [{ "title": "...", "discussion": "..." }],
-  "keyDiscussionPoints": [{ "topic": "...", "discussion": "...", "outcome": "..." }],
-  "decisions": [{ "decision": "...", "votingResult": "...", "rationale": "..." }],
+  "quorum": "Quorum status...",
+  "attendees": [{ "name": "...", "status": "Present", "role": "..." }],
+  "absentees": [{ "name": "...", "reason": "..." }],
+  "agendaItems": [{ "title": "...", "discussion": "Detailed summary of discussion including any informal comments or chat segments related to this topic", "outcome": "..." }],
+  "keyDiscussionPoints": [{ "topic": "...", "discussion": "Detailed discussion summary covering greetings, casual chat, or formal topics", "outcome": "..." }],
+  "decisions": [{ "decision": "List any decisions, agreements, or general conclusions made. If none, list key agreements/greetings.", "votingResult": "...", "rationale": "..." }],
   "keyDecisions": [{ "decision": "..." }],
   "resolutions": [{ "title": "..." }],
-  "actionItems": [{ "title": "...", "assigneeName": "...", "dueDate": "YYYY-MM-DD", "priority": "High" }],
+  "actionItems": [{ "title": "Action item or question to follow up", "assigneeName": "...", "dueDate": "YYYY-MM-DD", "priority": "Medium" }],
   "nextMeeting": "YYYY-MM-DD",
   "closingRemarks": "Meeting adjourned..."
 }
