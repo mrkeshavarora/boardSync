@@ -359,6 +359,17 @@ html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active):hover svg {
   stroke: #574ADE !important;
 }
 
+/* Light mode hover state text contrast fix for items & buttons */
+html[data-theme="light"] button:hover:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not([class*="from-purple"]):not([class*="bg-indigo-600"]) [class*="hover\:text-white"],
+html[data-theme="light"] [class*="hover\:text-white"]:hover:not(.btn-gradient):not(.btn-primary):not(.btn-teal):not(.btn-cyan):not([class*="from-purple"]):not([class*="bg-indigo-600"]) {
+  color: #6D28D9 !important;
+}
+
+html[data-theme="light"] .group:hover .group-hover\:text-purple-700,
+html[data-theme="light"] .group:hover .group-hover\:text-purple-600 {
+  color: #6D28D9 !important;
+}
+
 /* ACTIVE Nav Item ONLY — Soft Lavender Pill */
 html[data-theme="light"] .sidebar-nav-active {
   background: #E5DCFB !important;

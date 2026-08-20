@@ -334,14 +334,36 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                     key={item.id}
                     onClick={() => setSection(item.id)}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left transition-all cursor-pointer",
-                      isActive ? "bg-indigo-500/10 text-indigo-400 font-600" : "text-white/50 hover:text-white hover:bg-white/[0.04]"
+                      "w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all cursor-pointer group",
+                      isActive
+                        ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-fuchsia-600 text-white font-600 shadow-md shadow-purple-500/25"
+                        : "hover:bg-purple-500/10 dark:hover:bg-white/[0.04]"
                     )}
                   >
-                    <item.icon size={16} className={isActive ? "text-indigo-400 shrink-0" : "text-white/30 shrink-0"} />
+                    <item.icon
+                      size={16}
+                      className={cn(
+                        "shrink-0 transition-colors",
+                        isActive ? "text-white" : "text-white/40 group-hover:text-purple-600 dark:group-hover:text-white"
+                      )}
+                    />
                     <div className="min-w-0">
-                      <div className="text-xs font-600 truncate">{item.label}</div>
-                      <div className="text-[10px] opacity-60 truncate">{item.desc}</div>
+                      <div
+                        className={cn(
+                          "text-xs font-600 truncate transition-colors",
+                          isActive ? "text-white" : "text-slate-700 dark:text-white/80 group-hover:text-purple-700 dark:group-hover:text-white"
+                        )}
+                      >
+                        {item.label}
+                      </div>
+                      <div
+                        className={cn(
+                          "text-[10px] truncate transition-colors",
+                          isActive ? "text-white/80" : "text-slate-500 dark:text-white/40 group-hover:text-purple-600/80 dark:group-hover:text-white/70"
+                        )}
+                      >
+                        {item.desc}
+                      </div>
                     </div>
                   </button>
                 );

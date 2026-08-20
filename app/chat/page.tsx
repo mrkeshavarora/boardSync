@@ -1237,28 +1237,48 @@ export default function ChatPage() {
                         key={contact.id}
                         onClick={() => { setSelectedContact(contact); setSelectedGroup(null); }}
                         className={cn(
-                          "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all",
+                          "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all group cursor-pointer",
                           isSelected
-                            ? "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
-                            : "border border-transparent hover:bg-white/[0.03] text-white/70 hover:text-white"
+                            ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/20"
+                            : "border border-transparent hover:bg-purple-500/10 dark:hover:bg-white/[0.04]"
                         )}
                       >
-                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-600 text-white shrink-0 relative">
+                        <div className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center text-sm font-600 shrink-0 relative transition-all",
+                          isSelected
+                            ? "bg-white/20 text-white ring-2 ring-white/30"
+                            : "bg-purple-100 text-purple-700 dark:bg-white/10 dark:text-white"
+                        )}>
                           {contact.avatar ? (
                             <img src={contact.avatar} alt={contact.name} className="w-full h-full rounded-full object-cover" />
                           ) : (
                             getInitials(contact.name)
                           )}
-                          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-[#1e293b]" />
+                          {contact.isOnline && (
+                            <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-gradient-to-r from-purple-500 via-pink-500 to-fuchsia-500 ring-2 ring-white dark:ring-[#1e293b] shadow-xs" />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-1 mb-0.5">
-                            <p className="text-sm font-600 truncate text-white">{contact.name}</p>
+                            <p className={cn(
+                              "text-sm font-600 truncate transition-colors",
+                              isSelected ? "text-white" : "text-slate-800 dark:text-white group-hover:text-purple-700 dark:group-hover:text-white"
+                            )}>
+                              {contact.name}
+                            </p>
                             {timeStr && (
-                              <span className="text-[10px] font-500 text-white/40 shrink-0">{timeStr}</span>
+                              <span className={cn(
+                                "text-[10px] font-500 shrink-0 transition-colors",
+                                isSelected ? "text-white/80" : "text-slate-400 dark:text-white/40 group-hover:text-purple-600 dark:group-hover:text-white/60"
+                              )}>
+                                {timeStr}
+                              </span>
                             )}
                           </div>
-                          <p className="text-xs text-white/40 truncate">
+                          <p className={cn(
+                            "text-xs truncate transition-colors",
+                            isSelected ? "text-white/80" : "text-slate-500 dark:text-white/40 group-hover:text-purple-600/80 dark:group-hover:text-white/70"
+                          )}>
                             {previewText}
                           </p>
                         </div>
@@ -1438,8 +1458,8 @@ export default function ChatPage() {
                   <div>
                     <h3 className="text-xs md:text-sm font-600 text-white leading-tight">{selectedContact.name}</h3>
                     {selectedContact.isOnline && (
-                      <p className="text-[9px] md:text-[10px] text-emerald-400 font-500 mt-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+                      <p className="text-[9px] md:text-[10px] text-fuchsia-500 dark:text-fuchsia-400 font-500 mt-0.5 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 shrink-0 animate-pulse" />
                         Online
                       </p>
                     )}
