@@ -17,6 +17,9 @@ export interface IUser extends Document {
   bio?: string;
   lastLogin?: Date;
   emailVerified?: Date;
+  twoFactorEnabled?: boolean;
+  twoFactorCode?: string;
+  twoFactorExpires?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +46,9 @@ const UserSchema = new Schema<IUser>(
     bio: { type: String },
     lastLogin: { type: Date },
     emailVerified: { type: Date },
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorCode: { type: String, select: false },
+    twoFactorExpires: { type: Date, select: false },
   },
   { timestamps: true }
 );

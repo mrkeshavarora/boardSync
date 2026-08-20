@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
-import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon, Camera, Upload, Trash2, Key } from "lucide-react";
+import { User, Bell, Shield, Palette, Globe, Save, Eye, EyeOff, Users, Check, X as XIcon, Camera, Upload, Trash2, Key, Loader2, AlertCircle } from "lucide-react";
 import { cn, capitalizeName } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import ApiKeySettings from "@/components/settings/ApiKeySettings";
@@ -64,6 +64,100 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
   const [showPassword, setShowPassword] = useState(false);
   const [saved, setSaved] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [loading2FA, setLoading2FA] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [otpInput, setOtpInput] = useState("");
+  const [otpError, setOtpError] = useState("");
+  const [otpNotice, setOtpNotice] = useState("");
+  const [sendingOTP, setSendingOTP] = useState(false);
+  const [verifyingOTP, setVerifyingOTP] = useState(false);
+
+  useEffect(() => {
+    fetch2FAStatus();
+  }, []);
+
+  const fetch2FAStatus = async () => {
+    try {
+      const res = await fetch("/api/user/2fa/status");
+      if (res.ok) {
+        const data = await res.json();
+        setTwoFactorEnabled(!!data.twoFactorEnabled);
+      }
+    } catch (e) {
+      console.error("Failed to fetch 2FA status", e);
+    }
+  };
+
+  const handleStartEnable2FA = async () => {
+    setSendingOTP(true);
+    setOtpError("");
+    setOtpNotice("");
+    try {
+      const res = await fetch("/api/user/2fa/send-otp", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setOtpNotice(data.message || "Verification code sent to your email.");
+        setShow2FAModal(true);
+      } else {
+        setOtpError(data.error || "Failed to send verification code.");
+      }
+    } catch {
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setSendingOTP(false);
+    }
+  };
+
+  const handleVerifyAndEnable2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpInput || otpInput.trim().length < 6) {
+      setOtpError("Please enter the 6-digit verification code.");
+      return;
+    }
+    setVerifyingOTP(true);
+    setOtpError("");
+    try {
+      const res = await fetch("/api/user/2fa/enable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ otp: otpInput.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setTwoFactorEnabled(true);
+        setShow2FAModal(false);
+        setOtpInput("");
+        setSaved(true);
+        setTimeout(() => setSaved(false), 4000);
+      } else {
+        setOtpError(data.error || "Verification failed.");
+      }
+    } catch {
+      setOtpError("Network error. Please try again.");
+    } finally {
+      setVerifyingOTP(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (!confirm("Are you sure you want to disable Two-Factor Authentication?")) return;
+    setLoading2FA(true);
+    try {
+      const res = await fetch("/api/user/2fa/disable", { method: "POST" });
+      if (res.ok) {
+        setTwoFactorEnabled(false);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 4000);
+      }
+    } catch (e) {
+      console.error("Disable 2FA error", e);
+    } finally {
+      setLoading2FA(false);
+    }
+  };
 
   const isAdminUser = user?.role === "admin" || user?.role === "super_admin";
 
@@ -506,13 +600,96 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-sm font-600 text-white">Two-Factor Authentication</div>
-                    <div className="text-xs text-white/40 mt-0.5">Add an extra layer of security</div>
+                    <div className="text-xs text-white/40 mt-0.5">Receive a 6-digit security code on your email when signing in</div>
                   </div>
-                  <span className="badge bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">Not Enabled</span>
+                  {twoFactorEnabled ? (
+                    <span className="badge bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-xs flex items-center gap-1">
+                      <Check size={12} /> Enabled
+                    </span>
+                  ) : (
+                    <span className="badge bg-amber-500/10 text-amber-400 border-amber-500/20 text-xs">Not Enabled</span>
+                  )}
                 </div>
-                <button className="mt-3 px-4 py-2 rounded-lg text-sm font-500 text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors">
-                  Enable 2FA
-                </button>
+
+                {twoFactorEnabled ? (
+                  <button
+                    onClick={handleDisable2FA}
+                    disabled={loading2FA}
+                    className="mt-3 px-4 py-2 rounded-lg text-sm font-500 text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-colors disabled:opacity-60"
+                  >
+                    {loading2FA ? "Disabling..." : "Disable 2FA"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleStartEnable2FA}
+                    disabled={sendingOTP}
+                    className="mt-3 px-4 py-2 rounded-lg text-sm font-500 text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 hover:bg-indigo-500/20 transition-colors flex items-center gap-2 disabled:opacity-60"
+                  >
+                    {sendingOTP ? (
+                      <><Loader2 size={15} className="animate-spin" /> Sending Code...</>
+                    ) : (
+                      "Enable 2FA"
+                    )}
+                  </button>
+                )}
+
+                {/* 2FA Verification Form */}
+                {show2FAModal && (
+                  <div className="mt-4 p-5 rounded-xl border border-indigo-500/30 bg-indigo-500/5 space-y-4 animate-fade-in">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="text-sm font-600 text-white flex items-center gap-2">
+                          <Shield size={16} className="text-indigo-400" />
+                          Verify Email to Enable 2FA
+                        </h4>
+                        <p className="text-xs text-white/60 mt-1">
+                          We sent a 6-digit verification code to <strong>{user?.email}</strong>. Enter it below to finish enabling 2FA.
+                        </p>
+                      </div>
+                      <button onClick={() => setShow2FAModal(false)} className="text-white/40 hover:text-white">
+                        <XIcon size={16} />
+                      </button>
+                    </div>
+
+                    {otpError && (
+                      <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs text-red-400 flex items-center gap-2">
+                        <AlertCircle size={14} className="shrink-0" />
+                        {otpError}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleVerifyAndEnable2FA} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-500 text-white/70 block mb-1">6-Digit Verification Code</label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={otpInput}
+                          onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ""))}
+                          placeholder="123456"
+                          className="w-full px-4 py-2.5 rounded-lg bg-black/40 border border-white/20 text-white text-center text-lg tracking-[0.5em] font-mono focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="submit"
+                          disabled={verifyingOTP || otpInput.length < 6}
+                          className="px-5 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                        >
+                          {verifyingOTP ? "Verifying..." : "Verify & Enable 2FA"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleStartEnable2FA}
+                          disabled={sendingOTP}
+                          className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                        >
+                          Resend Code
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                )}
               </div>
             </>
           )}

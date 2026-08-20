@@ -418,3 +418,84 @@ export async function sendAccountApprovedEmail(params: {
   });
 }
 
+/**
+ * Send a 2FA OTP verification code to a user's email.
+ */
+export async function send2FAOTPEmail(params: {
+  to: string;
+  userName: string;
+  otpCode: string;
+}): Promise<void> {
+  const { to, userName, otpCode } = params;
+
+  console.log(`\n========================================\n[2FA OTP] Verification code for ${to}: ${otpCode}\n========================================\n`);
+
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn("[email] SMTP not configured — logged 2FA code to console for", to);
+    return;
+  }
+
+  const transporter = getTransporter();
+  const formattedOtp = otpCode.split("").join(" ");
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #0f172a; margin: 0; padding: 0; }
+    .container { max-width: 540px; margin: 40px auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+    .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 32px 36px; color: #ffffff; text-align: center; }
+    .header h1 { margin: 0; font-size: 22px; font-weight: 800; }
+    .header p { margin: 6px 0 0; opacity: 0.9; font-size: 14px; }
+    .body { padding: 32px 36px; color: #334155; text-align: center; }
+    .greeting { font-size: 15px; font-weight: 600; color: #0f172a; margin-bottom: 12px; }
+    .intro { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
+    .otp-card { background: #f8fafc; border: 2px dashed #6366f1; border-radius: 14px; padding: 24px; margin: 20px 0; }
+    .otp-code { font-family: 'Courier New', Courier, monospace; font-size: 36px; font-weight: 800; letter-spacing: 12px; color: #4f46e5; margin: 0; text-align: center; }
+    .expiry { font-size: 12px; color: #64748b; margin-top: 10px; font-weight: 500; }
+    .security-notice { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 16px; margin-top: 24px; font-size: 12px; color: #1e40af; line-height: 1.5; text-align: left; }
+    .footer { padding: 20px 36px; background: #f8fafc; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔐 Security Verification Code</h1>
+      <p>BoardSync Two-Factor Authentication</p>
+    </div>
+
+    <div class="body">
+      <div class="greeting">Hello ${userName},</div>
+      <div class="intro">
+        Here is your single-use verification code to complete your security sign-in / 2FA setup:
+      </div>
+
+      <div class="otp-card">
+        <div class="otp-code">${formattedOtp}</div>
+        <div class="expiry">⏱ Valid for 10 minutes</div>
+      </div>
+
+      <div class="security-notice">
+        <strong>🔒 Security Reminder:</strong><br/>
+        Never share this code with anyone. BoardSync staff will never ask for your 2FA verification code. If you did not request this code, please secure your account immediately.
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>This is an automated security notification from BoardSync.</p>
+      <p>© ${new Date().getFullYear()} BoardSync Inc. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await transporter.sendMail({
+    from: `"BoardSync Security" <${process.env.SMTP_USER}>`,
+    to,
+    subject: `[BoardSync] ${otpCode} is your 2FA Verification Code`,
+    html,
+  });
+}
+
