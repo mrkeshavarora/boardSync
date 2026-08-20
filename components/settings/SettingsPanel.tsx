@@ -6,7 +6,7 @@ import { cn, capitalizeName } from "@/lib/utils";
 import { useSearchParams } from "next/navigation";
 import ApiKeySettings from "@/components/settings/ApiKeySettings";
 
-type SettingsSection = "profile" | "connections" | "notifications" | "security" | "appearance" | "apikeys";
+type SettingsSection = "profile" | "connections" | "notifications" | "security" | "apikeys";
 
 type ConnectionUser = {
   id: string;
@@ -23,7 +23,6 @@ const NAV_ITEMS: { id: SettingsSection; label: string; icon: React.ElementType; 
   { id: "connections", label: "Connections", icon: Users, desc: "Manage your network" },
   { id: "notifications", label: "Notifications", icon: Bell, desc: "Email & in-app alerts" },
   { id: "security", label: "Security", icon: Shield, desc: "Password & 2FA" },
-  { id: "appearance", label: "Appearance", icon: Palette, desc: "Theme & display preferences" },
 ];
 
 // ─── Toggle Switch ─────────────────────────────────────────────────────────────
@@ -171,7 +170,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
 
   useEffect(() => {
     const sec = searchParams?.get("section");
-    if (sec && ["profile", "connections", "notifications", "security", "appearance", "apikeys"].includes(sec)) {
+    if (sec && ["profile", "connections", "notifications", "security", "apikeys"].includes(sec)) {
       if (sec === "apikeys" && !isAdminUser) return;
       setSection(sec as SettingsSection);
     }
@@ -694,74 +693,7 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
             </>
           )}
 
-          {/* Appearance Section */}
-          {section === "appearance" && (
-            <>
-              <div>
-                <h2 className="text-lg font-600 text-white">Appearance</h2>
-                <p className="text-sm text-white/50 mt-1">Customize your interface preferences</p>
-              </div>
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">Interface Theme</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(["dark", "light"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => handleThemeChange(t)}
-                        className={cn(
-                          "p-4 rounded-xl border text-left transition-all",
-                          theme === t
-                            ? "border-indigo-500/50 bg-indigo-500/10 text-indigo-400"
-                            : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04] text-white"
-                        )}
-                      >
-                        <div className="text-sm font-600 capitalize mb-1">{t} Mode</div>
-                        <div className="text-xs text-white/40">
-                          {t === "dark" ? "High contrast premium dark layout" : "Sleek clean bright light layout"}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">Display Density</h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {(["comfortable", "compact"] as const).map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDensity(d)}
-                        className={cn(
-                          "p-4 rounded-xl border text-left transition-all",
-                          density === d
-                            ? "border-indigo-500/50 bg-indigo-500/10"
-                            : "border-white/[0.08] bg-white/[0.02] hover:bg-white/[0.04]"
-                        )}
-                      >
-                        <div className={cn("text-sm font-600 capitalize mb-1", density === d ? "text-indigo-400" : "text-white")}>{d}</div>
-                        <div className="text-xs text-white/40">
-                          {d === "comfortable" ? "More spacing, easier to read" : "Tighter layout, see more content"}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xs uppercase tracking-widest text-white/30 font-600 mb-4">Language & Region</h3>
-                  <div className="flex items-center gap-3">
-                    <Globe size={18} className="text-white/40 shrink-0" />
-                    <select className={cn(inputClass, "flex-1")}>
-                      <option value="en">English (US)</option>
-                      <option value="en-gb">English (UK)</option>
-                      <option value="fr">Français</option>
-                      <option value="de">Deutsch</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+
 
           {/* API Keys Section (Admin Only) */}
           {section === "apikeys" && isAdminUser && (
