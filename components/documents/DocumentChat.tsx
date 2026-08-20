@@ -176,7 +176,7 @@ export default function DocumentChat({
           </h4>
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold bg-indigo-500/15 border border-indigo-500/25 text-indigo-300">
             <Sparkles size={11} className="text-indigo-400" />
-            RAG AI Assistant
+            AI Assistant
           </span>
         </div>
 
@@ -281,12 +281,7 @@ export default function DocumentChat({
                   ) : (
                     <>
                       <Bot size={10} className="text-cyan-300" />
-                      <span>AI Document Assistant</span>
-                      {msg.modelUsed && (
-                        <span className="text-[9px] px-1 py-0.2 rounded bg-white/[0.06] text-white/50 border border-white/10">
-                          {msg.modelUsed}
-                        </span>
-                      )}
+                      <span>AI Assistant</span>
                     </>
                   )}
                   <span>•</span>
@@ -337,7 +332,7 @@ export default function DocumentChat({
               </div>
               <div className="px-3.5 py-2.5 rounded-2xl rounded-tl-sm bg-white/[0.05] border border-white/[0.08] text-xs text-white/70 flex items-center gap-2">
                 <Loader2 size={13} className="animate-spin text-indigo-400" />
-                <span>Searching document chunks with RAG...</span>
+                <span>Searching document chunks...</span>
               </div>
             </div>
           )}

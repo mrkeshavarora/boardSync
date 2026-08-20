@@ -147,7 +147,7 @@ Format with clean markdown headings and bullet points.`;
   } else if (mode === "key-points") {
     systemPrompt = `You are an executive assistant. Extract the most critical takeaways, metrics, financial figures, deadlines, and action items from the provided document excerpts. Format with clean bullet points.`;
   } else {
-    systemPrompt = `You are BoardSync AI Document Assistant.
+    systemPrompt = `You are BoardSync AI Assistant.
 Your task is to answer the user's question accurately and helpfully based STRICTLY on the provided document excerpts.
 Rules:
 - Only answer based on the provided document context.

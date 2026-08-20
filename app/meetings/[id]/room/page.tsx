@@ -1966,7 +1966,7 @@ export default function MeetingRoomPage() {
                 <div className="pt-2 border-t border-white/[0.06]">
                   <h4 className="text-xs font-600 text-white flex items-center gap-1.5 mb-1">
                     <Sparkles size={13} className="text-cyan-400" />
-                    AI Document Assistant
+                    AI Assistant
                   </h4>
                   <p className="text-[11px] text-white/40 mb-3">
                     Ask AI questions about the uploaded meeting documents.
