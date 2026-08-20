@@ -40,3 +40,11 @@ export function capitalizeName(str: string): string {
 export function slugify(text: string): string {
   return text.toLowerCase().replace(/\s+/g, "-").replace(/[^\w-]+/g, "");
 }
+
+export function toTitleCase(str: string | undefined | null): string {
+  if (!str) return "";
+  return str
+    .replace(/_/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
