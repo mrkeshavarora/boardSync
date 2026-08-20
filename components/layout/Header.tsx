@@ -77,7 +77,7 @@ export default function Header({
       className={`h-16 fixed top-0 right-0 ${
         collapsed ? "lg:left-[72px]" : "lg:left-[260px]"
       } left-0 z-30 flex items-center justify-between px-4 sm:px-6 border-b border-white/[0.06] transition-all duration-300`}
-      style={{ background: theme === "light" ? "#F4F6FF" : "rgba(10,15,30,0.85)", backdropFilter: "blur(12px)" }}
+      style={{ background: theme === "light" ? "rgba(240, 246, 255, 0.85)" : "rgba(10,15,30,0.85)", backdropFilter: "blur(16px)" }}
     >
       {/* Title & Mobile Toggle Icon */}
       <div className="flex items-center gap-3 min-w-0">
