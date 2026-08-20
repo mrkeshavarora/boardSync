@@ -17,7 +17,7 @@ export default function AppShell({ children, title }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen overflow-x-hidden" style={{ background: "var(--bg-primary)" }}>
+    <div className="flex min-h-screen overflow-x-hidden bg-transparent">
       {/* Sidebar Navigation */}
       <Sidebar 
         collapsed={collapsed} 

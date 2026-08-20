@@ -238,13 +238,13 @@ html[data-theme="light"] select option {
 
 /* ─── Light Theme Variable System & Complete App Overhaul ────────────────────── */
 html[data-theme="light"] {
-  /* Main Backgrounds — Iridescent Holographic Pastel Mesh System */
-  --bg-primary: #FFF8F0;
-  --bg-secondary: #FCE7F3;
+  /* Main Backgrounds — Gemini 3.5 Luminous Silk Blue System */
+  --bg-primary: #F0F6FF;
+  --bg-secondary: #EBF3FF;
   --bg-card: #FFFFFF;
-  --bg-card-hover: #FFF5FA;
-  --bg-sidebar: #FFFFFF;
-  --bg-lavender: #FDF2F8;
+  --bg-card-hover: #F8FAFF;
+  --bg-sidebar: #F4F6FF;
+  --bg-lavender: #F0F6FF;
   --bg-soft-blue: #E0F2FE;
 
   /* Primary Brand Colors */
@@ -269,6 +269,7 @@ html[data-theme="light"] {
 }
 
 /* Light Mode Body Background — Gemini 3.5 Luminous Silk Blue Mesh */
+html[data-theme="light"],
 html[data-theme="light"] body {
   background-color: #F0F6FF !important;
   background-image: 
