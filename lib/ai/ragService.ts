@@ -156,41 +156,26 @@ Rules:
 - Format responses clearly using markdown.`;
   }
 
-  // 6. Resolve client and model with auto-matching based on key format
-  let apiKey = aiConfig.apiKey;
-  let baseURL = aiConfig.baseUrl;
-  let modelName = aiConfig.model || "";
-  let provider = aiConfig.provider;
+  // 6. Use the API key, model, and baseURL exactly as configured in MongoDB by the admin.
+  //    keyService.getActiveAiConfig() already handles auto-detection and DB-first priority.
+  //    We only apply provider-specific defaults here if a model name is completely missing.
+  const apiKey = aiConfig.apiKey;
+  const provider = aiConfig.provider;
 
-  // Auto-detect provider from API Key prefix
-  if (apiKey.startsWith("gsk_")) {
-    provider = "grok";
-    baseURL = "https://api.groq.com/openai/v1";
-    if (!modelName || modelName.startsWith("gpt-") || modelName.startsWith("gemini-")) {
-      modelName = "llama-3.3-70b-versatile";
-    }
-  } else if (apiKey.startsWith("sk-") || apiKey.startsWith("sk-proj-")) {
-    // OpenAI Key
-    provider = "openai";
-    baseURL = undefined;
-    if (!modelName || modelName.startsWith("llama-") || modelName.startsWith("mixtral-") || modelName.startsWith("gemini-")) {
-      modelName = "gpt-4o-mini";
-    }
-  } else if (apiKey.startsWith("AIzaSy")) {
-    // Google Gemini Key
-    provider = "gemini";
-    baseURL = "https://generativelanguage.googleapis.com/v1beta/openai/";
-    if (!modelName || modelName.startsWith("gpt-") || modelName.startsWith("llama-")) {
-      modelName = "gemini-1.5-flash";
-    }
-  } else {
-    if (provider === "grok") {
-      baseURL = "https://api.groq.com/openai/v1";
-      if (!modelName) modelName = "llama-3.3-70b-versatile";
-    } else if (provider === "openai") {
-      if (!modelName) modelName = "gpt-4o-mini";
-    }
+  // Trust the baseURL from keyService; it already normalises per-provider URLs.
+  let baseURL = aiConfig.baseUrl;
+
+  // Trust the model from keyService (set by admin in MongoDB).
+  // Only apply a per-provider safe default if no model was stored at all.
+  let modelName = aiConfig.model?.trim() || "";
+  if (!modelName) {
+    if (provider === "grok")    modelName = "llama-3.3-70b-versatile";
+    else if (provider === "gemini") modelName = "gemini-1.5-flash";
+    else                         modelName = "gpt-4o-mini"; // openai / custom
   }
+
+  console.log(`[RAG] Using provider="${provider}" model="${modelName}" source="${aiConfig.source}" key="${aiConfig.keyName || "env"}"`);
+
 
   const promptContent = `DOCUMENT EXCERPTS:\n${contextText}\n\nUSER REQUEST:\n${question}`;
 
