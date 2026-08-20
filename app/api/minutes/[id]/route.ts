@@ -5,10 +5,10 @@ import Meeting from "@/models/Meeting";
 import MeetingParticipant from "@/models/MeetingParticipant";
 import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
-import { UserRole } from "@/models/User";
+import type { UserRole } from "@/models/User";
 import mongoose from "mongoose";
 
-import { canAccessMeeting } from "@/lib/meetingAccess";
+import { canAccessMeeting, isAdmin } from "@/lib/meetingAccess";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -82,4 +82,36 @@ export async function PATCH(request: Request, { params }: Params) {
     .populate("approvedBy", "name email");
 
   return NextResponse.json({ minutes: updated });
+}
+
+// DELETE /api/minutes/[id] — delete a minutes record (Organizer, Author, or Admin only)
+export async function DELETE(request: Request, { params }: Params) {
+  const session = await auth();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await params;
+  await connectDB();
+
+  const minutes = await Minutes.findById(id).populate("meetingId", "organizerId");
+  if (!minutes) return NextResponse.json({ error: "Minutes not found" }, { status: 404 });
+
+  const role = session.user.role as UserRole;
+  const userId = session.user.id;
+
+  const meetingOrganizerId = (minutes.meetingId as any)?.organizerId?._id?.toString() ?? (minutes.meetingId as any)?.organizerId?.toString();
+  const authorId = (minutes.draftedBy as any)?._id?.toString() ?? minutes.draftedBy?.toString();
+
+  const isOrganizer = meetingOrganizerId === userId;
+  const isAuthor = authorId === userId;
+  const isAdminUser = isAdmin(role) || hasPermission(role, "minutes:delete");
+
+  if (!isOrganizer && !isAuthor && !isAdminUser) {
+    return NextResponse.json(
+      { error: "Forbidden — Only the meeting creator, minutes author, or admin can delete these minutes." },
+      { status: 403 }
+    );
+  }
+
+  await Minutes.findByIdAndDelete(id);
+  return NextResponse.json({ message: "Minutes deleted successfully" });
 }

@@ -5,13 +5,10 @@ import type { Metadata } from "next";
 import { BookOpen, Search, FileText, Sparkles } from "lucide-react";
 import connectDB from "@/lib/mongodb";
 import Minutes from "@/models/Minutes";
-import Meeting from "@/models/Meeting";
-import MeetingParticipant from "@/models/MeetingParticipant";
 import Link from "next/link";
 import { hasPermission } from "@/lib/permissions";
-import { UserRole } from "@/models/User";
-import mongoose from "mongoose";
-
+import type { UserRole } from "@/models/User";
+import DeleteMinutesButton from "@/components/minutes/DeleteMinutesButton";
 import { getAccessibleMeetingIds, isAdmin } from "@/lib/meetingAccess";
 
 export const metadata: Metadata = { title: "Minutes" };
@@ -40,14 +37,15 @@ export default async function MinutesPage({
   }
 
   const minutesList = await Minutes.find(filter)
-    .populate("meetingId", "title date status meetingType")
+    .populate({
+      path: "meetingId",
+      select: "title date status meetingType organizerId",
+      populate: { path: "organizerId", select: "name email" },
+    })
     .populate("draftedBy", "name")
     .populate("approvedBy", "name")
     .sort({ updatedAt: -1 })
     .lean();
-
-  const total = minutesList.length;
-  const drafts = minutesList.filter((m) => m.status === "Draft").length;
 
   return (
     <AppShell title="Meeting Minutes">
@@ -78,18 +76,8 @@ export default async function MinutesPage({
           </div>
         </div>
 
-        {/* Stats (admins only) */}
-        {userIsAdmin && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 lg:gap-6">
-            <StatCard title="Total Minutes" value={total}  icon={BookOpen} color="text-indigo-400" bg="bg-indigo-500/10" border="border-indigo-500/20" />
-            <StatCard title="Drafts"        value={drafts} icon={FileText} color="text-gray-400"   bg="bg-gray-500/10"   border="border-gray-500/20" />
-          </div>
-        )}
-
-
-
         {/* List */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {minutesList.length === 0 ? (
             <div
               className="py-20 flex flex-col items-center justify-center text-center rounded-2xl border"
@@ -112,105 +100,94 @@ export default async function MinutesPage({
               </p>
             </div>
           ) : (
-            minutesList.map((m: any) => (
-              <Link key={m._id.toString()} href={`/minutes/${m._id}`}>
-                <div
-                  className="group p-5 sm:p-6 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-white/[0.02] cursor-pointer shadow-xs"
-                  style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
-                >
-                  <div className="flex items-start gap-4">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-1"
-                      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}
-                    >
-                      <FileText size={20} className="text-white/60" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className="font-600 text-white group-hover:text-indigo-400 transition-colors">
-                          {m.meetingId?.title || "Meeting"}
-                        </h3>
-                        <StatusBadge status={m.status} />
-                        {m.generatedByAI && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-600 uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                            <Sparkles size={10} /> AI Draft
-                          </span>
-                        )}
+            minutesList.map((m: any) => {
+              const meetingObj = m.meetingId as any;
+              const meetingOrganizerId = meetingObj?.organizerId?._id?.toString() ?? meetingObj?.organizerId?.toString();
+              const authorId = (m.draftedBy as any)?._id?.toString() ?? m.draftedBy?.toString();
+
+              const canDelete =
+                meetingOrganizerId === session.user.id ||
+                authorId === session.user.id ||
+                userIsAdmin ||
+                hasPermission(role, "minutes:delete");
+
+              return (
+                <Link key={m._id.toString()} href={`/minutes/${m._id}`} className="block">
+                  <div
+                    className="group p-4 sm:p-5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all hover:bg-purple-500/5 hover:border-purple-500/30 cursor-pointer shadow-xs"
+                    style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
+                  >
+                    <div className="flex items-start gap-3.5 min-w-0">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border-subtle)" }}
+                      >
+                        <FileText size={20} className="text-white/60 group-hover:text-purple-400 transition-colors" />
                       </div>
-                      <div className="flex items-center gap-4 mt-2 text-xs flex-wrap" style={{ color: "var(--text-muted)" }}>
-                        {m.meetingId?.date && (
-                          <span>
-                            {new Date(m.meetingId.date).toLocaleDateString("en-US", {
-                              year: "numeric",
-                              month: "long",
-                              day: "numeric",
-                            })}
-                          </span>
-                        )}
-                        <span className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
-                        <span>Drafted by {(m.draftedBy as any)?.name || "Unknown"}</span>
-                        {m.approvedBy && (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
-                            <span>Approved by {(m.approvedBy as any)?.name}</span>
-                          </>
-                        )}
-                        {m.publishedAt && (
-                          <>
-                            <span className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2.5 flex-wrap mb-1">
+                          <h3 className="font-600 text-white group-hover:text-purple-300 transition-colors truncate">
+                            {meetingObj?.title || "Meeting"}
+                          </h3>
+                          <StatusBadge status={m.status} />
+                          {m.generatedByAI && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-600 uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                              <Sparkles size={10} /> AI Draft
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-xs flex-wrap text-slate-500 dark:text-white/50">
+                          {meetingObj?.date && (
                             <span>
-                              Published{" "}
-                              {new Date(m.publishedAt).toLocaleDateString("en-US", {
+                              {new Date(meetingObj.date).toLocaleDateString("en-US", {
+                                year: "numeric",
                                 month: "short",
                                 day: "numeric",
-                                year: "numeric",
                               })}
                             </span>
-                          </>
-                        )}
+                          )}
+                          <span className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
+                          <span>Drafted by {(m.draftedBy as any)?.name || "Unknown"}</span>
+                          {m.approvedBy && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
+                              <span>Approved by {(m.approvedBy as any)?.name}</span>
+                            </>
+                          )}
+                          {m.publishedAt && (
+                            <>
+                              <span className="w-1 h-1 rounded-full bg-white/20 hidden sm:block" />
+                              <span>
+                                Published{" "}
+                                {new Date(m.publishedAt).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                      <span className="text-xs font-600 text-purple-400 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline">
+                        View Details &rarr;
+                      </span>
+                      <DeleteMinutesButton
+                        minutesId={m._id.toString()}
+                        meetingTitle={meetingObj?.title}
+                        canDelete={canDelete}
+                      />
+                    </div>
                   </div>
-                  <div className="text-sm font-600 text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 shrink-0">
-                    View Details &rarr;
-                  </div>
-                </div>
-              </Link>
-            ))
+                </Link>
+              );
+            })
           )}
         </div>
       </div>
     </AppShell>
-  );
-}
-
-function StatCard({ title, value, icon: Icon, color, bg, border }: any) {
-  return (
-    <div
-      className="p-5 rounded-2xl border"
-      style={{ background: "var(--bg-card)", borderColor: "var(--border-subtle)" }}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-500 text-white/60">{title}</h3>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${bg} ${border} border`}>
-          <Icon size={16} className={color} />
-        </div>
-      </div>
-      <p className="text-3xl font-700 text-white">{value}</p>
-    </div>
-  );
-}
-
-function FilterTab({ label, active, href }: { label: string; active: boolean; href: string }) {
-  return (
-    <Link
-      href={href}
-      className={`px-4 py-3 text-sm font-600 border-b-2 transition-colors ${
-        active ? "border-indigo-500 text-indigo-400" : "border-transparent text-white/50 hover:text-white"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }
 
