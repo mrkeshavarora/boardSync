@@ -106,7 +106,7 @@ export default async function MeetingsPage() {
                         )}>
                           {statusStr}
                         </span>
-                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center gap-1.5">
                           {meeting.onlineMeeting && (
                             <JoinLinkButton href={meeting.onlineMeeting} />
                           )}
