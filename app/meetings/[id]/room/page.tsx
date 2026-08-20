@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
   PhoneOff, Users, MessageSquare, ChevronLeft, ChevronRight, Loader2, Circle, Download, Sparkles,
-  PictureInPicture2, UserX, VolumeX, FileText, Send, X, Paperclip, UploadCloud, File, ExternalLink, Plus, Check
+  PictureInPicture2, UserX, VolumeX, FileText, Send, X, Paperclip, UploadCloud, File, ExternalLink, Plus, Check, Eye
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -1937,16 +1937,27 @@ export default function MeetingRoomPage() {
                           </div>
 
                           {doc.storageUrl && (
-                            <a
-                              href={doc.storageUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              download={doc.fileName}
-                              className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors shrink-0"
-                              title={`Download ${doc.fileName}`}
-                            >
-                              <Download size={13} />
-                            </a>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <a
+                                href={`/documents/view?url=${encodeURIComponent(doc.storageUrl)}&name=${encodeURIComponent(doc.fileName)}&type=${encodeURIComponent(doc.fileType || "")}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
+                                title={`View ${doc.fileName}`}
+                              >
+                                <Eye size={13} />
+                              </a>
+                              <a
+                                href={doc.storageUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                download={doc.fileName}
+                                className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-white/70 hover:text-white transition-colors"
+                                title={`Download ${doc.fileName}`}
+                              >
+                                <Download size={13} />
+                              </a>
+                            </div>
                           )}
                         </div>
                       );

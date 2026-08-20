@@ -212,12 +212,8 @@ export default function DocumentsManager() {
   }
 
   function previewDocument(doc: IDocument) {
-    if (doc.fileType === "application/pdf") {
-      setPreviewUrl(doc.storageUrl);
-      setPreviewName(doc.fileName);
-    } else {
-      window.open(doc.storageUrl, "_blank");
-    }
+    const viewerUrl = `/documents/view?url=${encodeURIComponent(doc.storageUrl)}&name=${encodeURIComponent(doc.fileName)}&type=${encodeURIComponent(doc.fileType)}`;
+    window.open(viewerUrl, "_blank");
   }
 
   return (
@@ -422,28 +418,6 @@ export default function DocumentsManager() {
       {/* Ask About This Document - Reusable AI Assistant Component */}
       <DocumentChat documentNames={selectedDocs.map((d) => d.fileName)} />
 
-      {/* Floating Document Preview Modal */}
-      {previewUrl && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0b1021] border border-white/[0.08] rounded-2xl w-full max-w-5xl h-[85vh] overflow-hidden animate-fade-in flex flex-col shadow-2xl">
-            <div className="px-6 py-4 border-b border-white/[0.06] flex items-center justify-between bg-black/20">
-              <h3 className="font-600 text-white text-sm truncate max-w-md">{previewName || "Document Preview"}</h3>
-              <button
-                onClick={() => {
-                  setPreviewUrl(null);
-                  setPreviewName(null);
-                }}
-                className="text-white/45 hover:text-white p-1 rounded-lg hover:bg-white/[0.05]"
-              >
-                <X size={18} />
-              </button>
-            </div>
-            <div className="flex-1 bg-[#111] relative">
-              <iframe src={previewUrl} className="w-full h-full border-none" title="Document Preview" />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
