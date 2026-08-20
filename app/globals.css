@@ -340,9 +340,8 @@ html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active):hover svg {
 /* Sidebar & Top Nav Header Light Mode Soft Tint Background Override */
 html[data-theme="light"] aside,
 html[data-theme="light"] header {
-  background: rgba(240, 246, 255, 0.85) !important;
-  background-color: rgba(240, 246, 255, 0.85) !important;
-  backdrop-filter: blur(16px) !important;
+  background: #F4F6FF !important;
+  background-color: #F4F6FF !important;
   border-color: rgba(218, 224, 247, 0.8) !important;
   border-bottom-color: rgba(218, 224, 247, 0.8) !important;
 }

@@ -2,11 +2,11 @@
 
 import {
   CalendarDays, CheckSquare, Clock, Users,
-  ArrowUpRight, ArrowRight, TrendingUp, AlertTriangle, Inbox,
+  ArrowRight, TrendingUp, AlertTriangle, Inbox,
 } from "lucide-react";
 import { getRoleLabel } from "@/lib/permissions";
 import { UserRole } from "@/models/User";
-import { cn, capitalizeName, toTitleCase } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
 import Link from "next/link";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -70,14 +70,15 @@ export default function DashboardContent({
   currentUserId,
 }: DashboardContentProps) {
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const rawGreeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
+  const greeting = toTitleCase(rawGreeting);
 
   /* KPI cards built from real data */
   const kpiCards = [
     {
       label: "Upcoming Meetings",
       value: String(upcomingMeetings.length),
-      change: upcomingMeetings.length === 0 ? "None scheduled" : `${upcomingMeetings.length} scheduled`,
+      change: upcomingMeetings.length === 0 ? "None Scheduled" : `${upcomingMeetings.length} Scheduled`,
       trend: upcomingMeetings.length > 0 ? "up" : "neutral",
       icon: CalendarDays,
       gradient: "linear-gradient(135deg, #4f46e5, #7c3aed)",
@@ -87,7 +88,7 @@ export default function DashboardContent({
     {
       label: "Pending RSVPs",
       value: String(pendingRsvpCount),
-      change: pendingRsvpCount === 0 ? "All responded" : `${pendingRsvpCount} awaiting your response`,
+      change: pendingRsvpCount === 0 ? "All Responded" : `${pendingRsvpCount} Awaiting Your Response`,
       trend: pendingRsvpCount > 0 ? "warn" : "neutral",
       icon: Clock,
       gradient: "linear-gradient(135deg, #f59e0b, #d97706)",
@@ -97,7 +98,7 @@ export default function DashboardContent({
     {
       label: "Open Action Items",
       value: String(openActionCount),
-      change: overdueActionCount > 0 ? `${overdueActionCount} overdue` : "All on track",
+      change: overdueActionCount > 0 ? `${overdueActionCount} Overdue` : "All On Track",
       trend: overdueActionCount > 0 ? "down" : openActionCount > 0 ? "warn" : "neutral",
       icon: CheckSquare,
       gradient: overdueActionCount > 0
@@ -109,7 +110,7 @@ export default function DashboardContent({
     {
       label: "Board Members",
       value: String(boardMemberCount),
-      change: boardMemberCount === 1 ? "1 active member" : `${boardMemberCount} active members`,
+      change: boardMemberCount === 1 ? "1 Active Member" : `${boardMemberCount} Active Members`,
       trend: "neutral",
       icon: Users,
       gradient: "linear-gradient(135deg, #10b981, #059669)",
@@ -123,17 +124,17 @@ export default function DashboardContent({
       {/* Greeting */}
       <div className="flex items-start justify-between">
         <div>
-          <h2 className="text-xl sm:text-2xl font-700 text-slate-900 dark:text-white">
-            {greeting}, {capitalizeName(user.name?.split(" ")[0] || "")} 👋
+          <h2 className="text-xl sm:text-2xl font-700 text-slate-900 dark:text-white capitalize">
+            {greeting}, {toTitleCase(user.name?.split(" ")[0] || "")} 👋
           </h2>
-          <p className="text-xs font-500 text-slate-600 dark:text-white/40 mt-0.5">
+          <p className="text-xs font-500 text-slate-600 dark:text-white/40 mt-0.5 capitalize">
             {toTitleCase(getRoleLabel(user.role as UserRole))} ·{" "}
-            {new Date().toLocaleDateString("en-US", {
+            {toTitleCase(new Date().toLocaleDateString("en-US", {
               weekday: "long",
               year: "numeric",
               month: "long",
               day: "numeric",
-            })}
+            }))}
           </p>
         </div>
         <Link
@@ -165,10 +166,10 @@ export default function DashboardContent({
               </div>
               <span className="text-xl font-800 text-slate-900 dark:text-white">{card.value}</span>
             </div>
-            <div className="text-xs font-600 text-slate-800 dark:text-white/90 truncate">{card.label}</div>
+            <div className="text-xs font-600 text-slate-800 dark:text-white/90 truncate capitalize">{toTitleCase(card.label)}</div>
             <div
               className={cn(
-                "text-[10px] font-500 flex items-center gap-1 mt-0.5 truncate",
+                "text-[10px] font-500 flex items-center gap-1 mt-0.5 truncate capitalize",
                 card.trend === "up"
                   ? "text-emerald-600 dark:text-emerald-400"
                   : card.trend === "warn" || card.trend === "down"
@@ -178,7 +179,7 @@ export default function DashboardContent({
             >
               {card.trend === "up" && <TrendingUp size={10} />}
               {(card.trend === "warn" || card.trend === "down") && <AlertTriangle size={10} />}
-              {card.change}
+              {toTitleCase(card.change)}
             </div>
           </Link>
         ))}
@@ -192,19 +193,19 @@ export default function DashboardContent({
           className="rounded-xl p-4 border border-slate-200/80 dark:border-white/[0.06] bg-white dark:bg-[var(--bg-card)] shadow-2xs"
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-700 text-slate-900 dark:text-white text-xs sm:text-sm">Upcoming Meetings</h3>
+            <h3 className="font-700 text-slate-900 dark:text-white text-xs sm:text-sm capitalize">Upcoming Meetings</h3>
             <Link
               href="/meetings"
               className="text-xs font-600 text-purple-600 dark:text-indigo-400 hover:underline flex items-center gap-1 transition-colors"
             >
-              View all <ArrowRight size={12} />
+              View All <ArrowRight size={12} />
             </Link>
           </div>
-          <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
+          <div className="space-y-2 min-h-[280px] max-h-[320px] overflow-y-auto pr-1 custom-scrollbar">
             {upcomingMeetings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-slate-400 dark:text-white/30">
+              <div className="flex flex-col items-center justify-center py-16 gap-2 text-slate-400 dark:text-white/30">
                 <Inbox size={24} />
-                <p className="text-xs">No upcoming meetings</p>
+                <p className="text-xs font-500 capitalize">No Upcoming Meetings</p>
               </div>
             ) : (
               upcomingMeetings.map((m) => (
@@ -220,8 +221,8 @@ export default function DashboardContent({
                     <CalendarDays size={14} className="text-white" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-600 text-slate-900 dark:text-white truncate">{capitalizeName(m.title)}</p>
-                    <p className="text-[11px] text-slate-500 dark:text-white/40">
+                    <p className="text-xs font-600 text-slate-900 dark:text-white truncate capitalize">{toTitleCase(m.title)}</p>
+                    <p className="text-[11px] text-slate-500 dark:text-white/40 capitalize">
                       {m.date} · {m.startTime}
                     </p>
                   </div>
@@ -237,7 +238,7 @@ export default function DashboardContent({
                       {m.status === "In Progress" ? "● Live" : toTitleCase(m.meetingType)}
                     </span>
                     {m.attendees > 0 && (
-                      <p className="text-[10px] text-slate-400 dark:text-white/30 mt-0.5">{m.attendees} attendee{m.attendees !== 1 ? "s" : ""}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-white/30 mt-0.5 capitalize">{m.attendees} Attendee{m.attendees !== 1 ? "s" : ""}</p>
                     )}
                   </div>
                 </Link>
@@ -251,19 +252,19 @@ export default function DashboardContent({
           className="rounded-xl p-4 border border-slate-200/80 dark:border-white/[0.06] bg-white dark:bg-[var(--bg-card)] shadow-2xs flex flex-col"
         >
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-700 text-slate-900 dark:text-white text-xs sm:text-sm">Recent Action Items</h3>
+            <h3 className="font-700 text-slate-900 dark:text-white text-xs sm:text-sm capitalize">Recent Action Items</h3>
             <Link
               href="/actions"
               className="text-xs font-600 text-purple-600 dark:text-indigo-400 hover:underline flex items-center gap-1 transition-colors"
             >
-              View all <ArrowRight size={12} />
+              View All <ArrowRight size={12} />
             </Link>
           </div>
-          <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1 custom-scrollbar">
+          <div className="space-y-2 min-h-[280px] max-h-[320px] overflow-y-auto pr-1 custom-scrollbar flex-1 flex flex-col">
             {recentActions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-slate-400 dark:text-white/30">
+              <div className="flex flex-col items-center justify-center py-16 my-auto gap-2 text-slate-400 dark:text-white/30">
                 <CheckSquare size={24} />
-                <p className="text-xs">No open action items</p>
+                <p className="text-xs font-500 capitalize">No Open Action Items</p>
               </div>
             ) : (
               recentActions.map((a) => {
@@ -282,12 +283,12 @@ export default function DashboardContent({
                       )}
                     />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-600 text-slate-900 dark:text-white/90 truncate">{capitalizeName(a.title)}</p>
-                      <p className="text-[11px] text-slate-500 dark:text-white/40">
+                      <p className="text-xs font-600 text-slate-900 dark:text-white/90 truncate capitalize">{toTitleCase(a.title)}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-white/40 capitalize">
                         {isAssignedToMe ? (
                           <span className="text-purple-600 dark:text-indigo-400 font-600">You</span>
                         ) : (
-                          capitalizeName(a.assigneeName)
+                          toTitleCase(a.assigneeName)
                         )}
                         {a.dueDate && ` · Due ${a.dueDate}`}
                       </p>
