@@ -540,7 +540,7 @@ html[data-theme="light"] .text-white\/35:not(.keep-white):not(.keep-white *):not
 html[data-theme="light"] .text-white\/30:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
 html[data-theme="light"] .text-white\/25:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
 html[data-theme="light"] .text-white\/20:not(.keep-white):not(.keep-white *):not(.btn-gradient):not(.btn-gradient *):not(.btn-primary):not(.btn-primary *):not(.btn-teal):not(.btn-teal *):not(.btn-cyan):not(.btn-cyan *),
-html[data-theme="light"] p:not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(.badge *):not(aside a *):not(.keep-white):not(.keep-white *) {
+html[data-theme="light"] p:not(.btn-gradient *):not(.btn-primary *):not(.btn-teal *):not(.btn-cyan *):not(.badge *):not(aside a *):not(.keep-white):not(.keep-white *):not(button[class*="from-purple"] *):not(button[class*="from-indigo"] *):not(button[class*="bg-gradient"] *) {
   color: #585B68 !important;
 }
 

@@ -1239,14 +1239,14 @@ export default function ChatPage() {
                         className={cn(
                           "w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all group cursor-pointer",
                           isSelected
-                            ? "bg-gradient-to-r from-purple-600 via-indigo-600 to-fuchsia-600 text-white shadow-md shadow-purple-500/20"
+                            ? "btn-gradient keep-white text-white shadow-lg shadow-purple-500/25"
                             : "border border-transparent hover:bg-purple-500/10 dark:hover:bg-white/[0.04]"
                         )}
                       >
                         <div className={cn(
                           "w-10 h-10 rounded-full flex items-center justify-center text-sm font-600 shrink-0 relative transition-all",
                           isSelected
-                            ? "bg-white/20 text-white ring-2 ring-white/30"
+                            ? "bg-white/20 text-white keep-white ring-2 ring-white/30"
                             : "bg-purple-100 text-purple-700 dark:bg-white/10 dark:text-white"
                         )}>
                           {contact.avatar ? (
@@ -1262,22 +1262,22 @@ export default function ChatPage() {
                           <div className="flex items-center justify-between gap-1 mb-0.5">
                             <p className={cn(
                               "text-sm font-600 truncate transition-colors",
-                              isSelected ? "text-white" : "text-slate-800 dark:text-white group-hover:text-purple-700 dark:group-hover:text-white"
+                              isSelected ? "text-white keep-white" : "text-[#0f172a] dark:text-white group-hover:text-purple-700 dark:group-hover:text-white"
                             )}>
                               {contact.name}
                             </p>
                             {timeStr && (
                               <span className={cn(
                                 "text-[10px] font-500 shrink-0 transition-colors",
-                                isSelected ? "text-white/80" : "text-slate-400 dark:text-white/40 group-hover:text-purple-600 dark:group-hover:text-white/60"
+                                isSelected ? "text-white/90 keep-white" : "text-[#64748b] dark:text-white/40 group-hover:text-purple-600 dark:group-hover:text-white/60"
                               )}>
                                 {timeStr}
                               </span>
                             )}
                           </div>
                           <p className={cn(
-                            "text-xs truncate transition-colors",
-                            isSelected ? "text-white/80" : "text-slate-500 dark:text-white/40 group-hover:text-purple-600/80 dark:group-hover:text-white/70"
+                            "text-xs truncate transition-colors flex items-center gap-1",
+                            isSelected ? "text-white/90 keep-white" : "text-[#64748b] dark:text-white/40 group-hover:text-purple-600/80 dark:group-hover:text-white/70"
                           )}>
                             {previewText}
                           </p>
