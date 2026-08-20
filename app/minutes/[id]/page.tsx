@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import {
   ChevronLeft, FileText, CheckCircle2, AlertTriangle,
   Save, Loader2, Send, Edit3, Gavel, Lightbulb, Target,
+  Calendar, MapPin, User, ShieldCheck, Clock, Sparkles
 } from "lucide-react";
 import AppShell from "@/components/layout/AppShell";
 import MinutesPDFDownload from "@/components/minutes/MinutesPDFDownload";
@@ -100,7 +101,7 @@ export default function MinutesDetailPage({
   if (loading) {
     return (
       <AppShell title="Loading Minutes...">
-        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-400" size={32} /></div>
+        <div className="flex justify-center py-20"><Loader2 className="animate-spin text-indigo-500" size={32} /></div>
       </AppShell>
     );
   }
@@ -109,8 +110,8 @@ export default function MinutesDetailPage({
     return (
       <AppShell title="Not Found">
         <div className="py-20 text-center">
-          <p className="text-white/50">{errorMsg || "Minutes not found or you lack permission."}</p>
-          <button onClick={() => router.push("/minutes")} className="mt-4 text-indigo-400 hover:text-indigo-300 text-sm">
+          <p className="text-slate-500 dark:text-white/50">{errorMsg || "Minutes not found or you lack permission."}</p>
+          <button onClick={() => router.push("/minutes")} className="mt-4 text-purple-600 dark:text-purple-400 hover:underline text-sm font-600">
             ← Back to Minutes
           </button>
         </div>
@@ -127,7 +128,7 @@ export default function MinutesDetailPage({
   const rawDate = meeting?.date ?? meeting?.scheduledAt;
   const meetingDateStr = rawDate
     ? new Date(rawDate).toLocaleDateString("en-US", {
-        year: "numeric", month: "long", day: "numeric",
+        weekday: "short", year: "numeric", month: "short", day: "numeric",
       })
     : "N/A";
 
@@ -145,29 +146,29 @@ export default function MinutesDetailPage({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <button
             onClick={() => router.push("/minutes")}
-            className="flex items-center gap-2 text-sm text-white/50 hover:text-white transition-colors self-start"
+            className="inline-flex items-center gap-1.5 text-xs font-600 text-slate-600 hover:text-slate-900 dark:text-white/60 dark:hover:text-white transition-colors self-start cursor-pointer"
           >
             <ChevronLeft size={16} /> Back to Minutes
           </button>
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             {(isDraftOrReview || isApproved || isPublished) && (
               <MinutesPDFDownload minutes={minutes} />
             )}
             {isDraftOrReview && !isEditing && canEdit && (
               <button
                 onClick={() => setIsEditing(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-600 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 text-xs font-600 text-slate-800 dark:text-white transition-all cursor-pointer shadow-xs"
               >
-                <Edit3 size={16} /> Edit Draft
+                <Edit3 size={14} /> Edit Draft
               </button>
             )}
             {isEditing && canEdit && (
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-600 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl btn-gradient keep-white text-xs font-600 transition-all disabled:opacity-60 cursor-pointer shadow-md shadow-purple-500/20"
               >
-                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
                 Save Changes
               </button>
             )}
@@ -175,121 +176,129 @@ export default function MinutesDetailPage({
               <button
                 onClick={handleApprove}
                 disabled={approving}
-                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-600 transition-colors disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-600 transition-all disabled:opacity-60 cursor-pointer shadow-md shadow-emerald-500/20"
               >
-                {approving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                {approving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
                 Approve Minutes
               </button>
             )}
             {isApproved && canApprove && (
               <button
                 onClick={() => setShowPublishModal(true)}
-                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-sm font-600 transition-colors"
+                className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white text-xs font-600 transition-all cursor-pointer shadow-md shadow-amber-500/20"
               >
-                <Send size={16} /> Publish &amp; Notify
+                <Send size={14} /> Publish &amp; Notify
               </button>
             )}
           </div>
         </div>
 
         {errorMsg && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-300">
-            <AlertTriangle size={16} className="shrink-0" />
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-50 dark:bg-red-500/10 border border-rose-200 dark:border-red-500/20 text-xs font-600 text-rose-700 dark:text-red-300">
+            <AlertTriangle size={16} className="shrink-0 text-rose-600 dark:text-red-400" />
             {errorMsg}
           </div>
         )}
 
         {/* Board Member Notice for Drafts */}
         {isBoardMember && !isPublished && (
-          <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
-            <FileText size={18} className="text-indigo-400 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20">
+            <FileText size={18} className="text-purple-600 dark:text-purple-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-600 text-indigo-400">Draft Pending Approval</p>
-              <p className="text-xs text-indigo-300/80 mt-1">
+              <p className="text-xs font-700 text-purple-900 dark:text-purple-300">Draft Pending Approval</p>
+              <p className="text-xs text-purple-700 dark:text-purple-300/80 mt-0.5">
                 These minutes have been drafted but are not yet officially approved by the Secretary. You will be notified when they are published.
               </p>
             </div>
           </div>
         )}
 
-        {/* AI Draft governance notice (Admins/Secretaries only) */}
+        {/* AI Draft governance notice */}
         {minutes.generatedByAI && !isPublished && !isBoardMember && (
-          <div className="flex items-start gap-3 p-4 rounded-xl" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
-            <AlertTriangle size={18} className="text-amber-400 mt-0.5 shrink-0" />
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20">
+            <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-600 text-amber-500">AI-Generated Draft</p>
-              <p className="text-xs text-amber-500/80 mt-1">
+              <p className="text-xs font-700 text-amber-900 dark:text-amber-300">AI-Generated Draft</p>
+              <p className="text-xs text-amber-800 dark:text-amber-300/80 mt-0.5">
                 These minutes were drafted by AI from the meeting transcript. Review for accuracy, edit if necessary, and approve before publishing.
               </p>
             </div>
           </div>
         )}
 
-        {/* ── Main Document ── */}
-        <div className="rounded-2xl border p-6 sm:p-8 space-y-10" style={{ background: "var(--bg-card)", borderColor: "var(--border-default)" }}>
+        {/* ── Main Document Card ── */}
+        <div className="rounded-2xl border border-slate-200/80 dark:border-white/[0.08] p-6 sm:p-8 space-y-8 bg-white dark:bg-white/[0.02] shadow-xs relative overflow-hidden">
+          
+          {/* Top Decorative Accent Line */}
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-indigo-500 to-fuchsia-500" />
 
-          {/* Header */}
-          <div className="border-b pb-6" style={{ borderColor: "var(--border-subtle)" }}>
-            <div className="flex items-center gap-3 mb-3 flex-wrap">
+          {/* Document Header */}
+          <div className="border-b border-slate-200/80 dark:border-white/[0.08] pb-6 space-y-4">
+            <div className="flex items-center gap-2.5 flex-wrap">
               <StatusPill status={minutes.status} />
               {minutes.generatedByAI && (
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-600 uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  AI Generated
+                <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-700 uppercase tracking-wider bg-indigo-100 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/20 dark:text-indigo-300 dark:border-indigo-500/30">
+                  <Sparkles size={11} /> AI Generated
                 </span>
               )}
-              <span className="text-xs text-white/30">ID: {minutes._id}</span>
+              <span className="text-[11px] font-500 text-slate-500 dark:text-white/40 ml-auto">ID: {minutes._id}</span>
             </div>
-            <h1 className="text-3xl font-700 text-white tracking-tight mb-5">
+
+            <h1 className="text-2xl sm:text-3xl font-700 text-slate-900 dark:text-white tracking-tight leading-tight">
               {meeting?.title || "Board Meeting"}
             </h1>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              <MetaField label="Date"        value={meetingDateStr} />
-              <MetaField label="Type"        value={meeting?.meetingType || "Board Meeting"} />
-              <MetaField label="Location"    value={meeting?.location || meeting?.onlineMeeting || "Virtual"} />
-              <MetaField label="Drafted By"  value={minutes.draftedBy?.name || "Unknown"} />
-              <MetaField label="Approved By" value={minutes.approvedBy?.name || "Pending"} />
+
+            {/* Metadata Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
+              <MetaCard icon={<Calendar size={14} className="text-purple-600 dark:text-purple-400" />} label="Date" value={meetingDateStr} />
+              <MetaCard icon={<Clock size={14} className="text-indigo-600 dark:text-indigo-400" />} label="Type" value={meeting?.meetingType || "Board Meeting"} />
+              <MetaCard icon={<MapPin size={14} className="text-blue-600 dark:text-blue-400" />} label="Location" value={meeting?.location || meeting?.onlineMeeting || "Virtual"} />
+              <MetaCard icon={<User size={14} className="text-emerald-600 dark:text-emerald-400" />} label="Drafted By" value={minutes.draftedBy?.name || "Unknown"} />
+              <MetaCard icon={<ShieldCheck size={14} className="text-fuchsia-600 dark:text-fuchsia-400" />} label="Approved By" value={minutes.approvedBy?.name || "Pending"} />
               {minutes.approvedAt && (
-                <MetaField label="Approved At" value={new Date(minutes.approvedAt).toLocaleDateString()} />
+                <MetaCard icon={<Clock size={14} className="text-slate-600 dark:text-white/50" />} label="Approved At" value={new Date(minutes.approvedAt).toLocaleDateString()} />
               )}
               {minutes.publishedAt && (
-                <MetaField label="Published"   value={new Date(minutes.publishedAt).toLocaleDateString()} />
+                <MetaCard icon={<Clock size={14} className="text-slate-600 dark:text-white/50" />} label="Published" value={new Date(minutes.publishedAt).toLocaleDateString()} />
               )}
             </div>
           </div>
 
           {/* Meeting Summary */}
-          <Section title="Meeting Summary" icon={<FileText size={18} className="text-indigo-400" />}>
+          <Section title="Meeting Summary" icon={<FileText size={16} />}>
             {isEditing ? (
               <textarea
-                className="w-full h-28 p-3 rounded-xl bg-white/5 border border-white/10 text-sm outline-none focus:border-indigo-500 resize-none"
+                className="w-full h-28 p-3 rounded-xl bg-slate-50 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 resize-none font-500"
                 value={editedData.meetingSummary || ""}
                 onChange={(e) => setEditedData({ ...editedData, meetingSummary: e.target.value })}
               />
             ) : (
-              <p className="text-sm leading-relaxed text-white/80">{minutes.meetingSummary || "No summary provided."}</p>
+              <p className="text-xs sm:text-sm leading-relaxed text-slate-700 dark:text-white/80 font-500">
+                {minutes.meetingSummary || "No summary provided."}
+              </p>
             )}
           </Section>
 
           {/* Attendance */}
-          <Section title="Attendance" icon={<CheckCircle2 size={18} className="text-emerald-400" />}>
-            <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border-subtle)" }}>
-              <table className="w-full text-sm text-left">
-                <thead className="bg-white/[0.02] border-b" style={{ borderColor: "var(--border-subtle)" }}>
+          <Section title="Attendance" icon={<CheckCircle2 size={16} />}>
+            <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] overflow-hidden shadow-2xs">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-100/90 dark:bg-white/[0.04] border-b border-slate-200/80 dark:border-white/[0.08]">
                   <tr>
-                    <th className="px-4 py-3 font-600 text-white/60">Name</th>
-                    <th className="px-4 py-3 font-600 text-white/60">Role</th>
-                    <th className="px-4 py-3 font-600 text-white/60">Status</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80">Name</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80">Role</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.06]">
+                <tbody className="divide-y divide-slate-200/60 dark:divide-white/[0.06] bg-white dark:bg-transparent">
                   {editedData.attendees?.map((a: any, i: number) => (
-                    <tr key={i} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-3 font-500 text-white">{a.name}</td>
-                      <td className="px-4 py-3 text-white/60">{a.role || "-"}</td>
+                    <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 font-600 text-slate-900 dark:text-white">{a.name}</td>
+                      <td className="px-4 py-3 font-500 text-slate-600 dark:text-white/60 capitalize">{a.role ? a.role.replace(/_/g, " ") : "-"}</td>
                       <td className="px-4 py-3">
                         {isEditing ? (
                           <select
-                            className="bg-transparent border border-white/20 rounded p-1 text-xs text-white"
+                            className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-white/20 rounded px-2 py-1 text-xs text-slate-900 dark:text-white"
                             value={a.attendanceStatus}
                             onChange={(e) => {
                               const arr = [...editedData.attendees];
@@ -302,12 +311,12 @@ export default function MinutesDetailPage({
                             <option value="Excused">Excused</option>
                           </select>
                         ) : (
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-600 uppercase ${
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-700 uppercase tracking-wide border ${
                             a.attendanceStatus === "Present"
-                              ? "bg-emerald-500/20 text-emerald-400"
+                              ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30"
                               : a.attendanceStatus === "Excused"
-                              ? "bg-amber-500/20 text-amber-400"
-                              : "bg-red-500/20 text-red-400"
+                              ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30"
+                              : "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30"
                           }`}>
                             {a.attendanceStatus}
                           </span>
@@ -316,7 +325,7 @@ export default function MinutesDetailPage({
                     </tr>
                   ))}
                   {(!editedData.attendees || editedData.attendees.length === 0) && (
-                    <tr><td colSpan={3} className="px-4 py-5 text-center text-white/40">No attendance data recorded.</td></tr>
+                    <tr><td colSpan={3} className="px-4 py-5 text-center text-slate-500 dark:text-white/40">No attendance data recorded.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -324,14 +333,14 @@ export default function MinutesDetailPage({
           </Section>
 
           {/* Agenda & Discussions */}
-          <Section title="Agenda &amp; Discussions" icon={<FileText size={18} className="text-blue-400" />}>
-            <div className="space-y-4">
+          <Section title="Agenda & Discussions" icon={<FileText size={16} />}>
+            <div className="space-y-3">
               {editedData.agendaItems?.map((item: any, i: number) => (
-                <div key={i} className="p-4 rounded-xl border bg-white/[0.02]" style={{ borderColor: "var(--border-subtle)" }}>
+                <div key={i} className="p-4 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02] space-y-2">
                   {isEditing ? (
                     <div className="space-y-3">
                       <input
-                        className="w-full p-2 bg-black/20 border border-white/10 rounded font-600 text-white text-sm outline-none focus:border-indigo-500"
+                        className="w-full p-2 bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded font-600 text-slate-900 dark:text-white text-xs outline-none focus:border-purple-500"
                         value={item.title}
                         onChange={(e) => {
                           const arr = [...editedData.agendaItems];
@@ -340,9 +349,9 @@ export default function MinutesDetailPage({
                         }}
                       />
                       <div>
-                        <label className="text-xs text-white/40 mb-1 block">Discussion</label>
+                        <label className="text-[11px] font-600 text-slate-600 dark:text-white/40 mb-1 block">Discussion</label>
                         <textarea
-                          className="w-full p-2 h-20 bg-black/20 border border-white/10 rounded text-sm text-white resize-none outline-none focus:border-indigo-500"
+                          className="w-full p-2 h-20 bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded text-xs text-slate-900 dark:text-white resize-none outline-none focus:border-purple-500"
                           value={item.discussionSummary}
                           onChange={(e) => {
                             const arr = [...editedData.agendaItems];
@@ -352,9 +361,9 @@ export default function MinutesDetailPage({
                         />
                       </div>
                       <div>
-                        <label className="text-xs text-white/40 mb-1 block">Decision</label>
+                        <label className="text-[11px] font-600 text-slate-600 dark:text-white/40 mb-1 block">Decision</label>
                         <input
-                          className="w-full p-2 bg-black/20 border border-white/10 rounded text-sm text-white outline-none focus:border-indigo-500"
+                          className="w-full p-2 bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
                           value={item.decision}
                           onChange={(e) => {
                             const arr = [...editedData.agendaItems];
@@ -366,39 +375,40 @@ export default function MinutesDetailPage({
                     </div>
                   ) : (
                     <>
-                      <h4 className="font-600 text-indigo-300 mb-2">{i + 1}. {item.title}</h4>
-                      <div className="pl-4 border-l-2 border-indigo-500/30 space-y-2">
-                        <p className="text-sm text-white/80">
-                          <strong className="text-white/50">Discussion:</strong>{" "}
+                      <h4 className="font-700 text-purple-700 dark:text-purple-300 text-sm">{i + 1}. {item.title}</h4>
+                      <div className="pl-3.5 border-l-2 border-purple-400/40 space-y-2 pt-1">
+                        <p className="text-xs text-slate-700 dark:text-white/80 leading-relaxed">
+                          <strong className="text-slate-900 dark:text-white/60 font-600">Discussion:</strong>{" "}
                           {item.discussionSummary || "None recorded."}
                         </p>
-                        <p className="text-sm text-white/80">
-                          <strong className="text-emerald-400/80">Decision:</strong>{" "}
-                          {item.decision || "No formal decision."}
-                        </p>
+                        {item.decision && (
+                          <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-xs font-600 text-emerald-800 dark:text-emerald-300">
+                            <strong>Decision:</strong> {item.decision}
+                          </div>
+                        )}
                       </div>
                     </>
                   )}
                 </div>
               ))}
               {(!editedData.agendaItems || editedData.agendaItems.length === 0) && (
-                <p className="text-sm text-white/40">No agenda discussions recorded.</p>
+                <p className="text-xs text-slate-500 dark:text-white/40">No agenda discussions recorded.</p>
               )}
             </div>
           </Section>
 
           {/* Key Decisions */}
           {(editedData.keyDecisions?.length > 0 || isEditing) && (
-            <Section title="Key Decisions" icon={<Lightbulb size={18} className="text-yellow-400" />}>
+            <Section title="Key Decisions" icon={<Lightbulb size={16} />}>
               <div className="space-y-2">
                 {editedData.keyDecisions?.map((decision: string, i: number) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.05]">
-                    <span className="w-6 h-6 rounded-full bg-yellow-500/20 text-yellow-400 text-xs font-700 flex items-center justify-center shrink-0 mt-0.5">
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-amber-50/60 dark:bg-amber-500/10 border border-amber-200/80 dark:border-amber-500/20">
+                    <span className="w-5 h-5 rounded-full bg-amber-500 text-white text-[11px] font-700 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
                       {i + 1}
                     </span>
                     {isEditing ? (
                       <input
-                        className="flex-1 p-1 bg-black/20 border border-white/10 rounded text-sm text-white outline-none focus:border-indigo-500"
+                        className="flex-1 p-1.5 bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
                         value={decision}
                         onChange={(e) => {
                           const arr = [...editedData.keyDecisions];
@@ -407,107 +417,36 @@ export default function MinutesDetailPage({
                         }}
                       />
                     ) : (
-                      <p className="text-sm text-white/80 flex-1">{decision}</p>
+                      <p className="text-xs font-600 text-amber-900 dark:text-amber-200 flex-1">{decision}</p>
                     )}
                   </div>
                 ))}
                 {(!editedData.keyDecisions || editedData.keyDecisions.length === 0) && (
-                  <p className="text-sm text-white/40">No key decisions recorded.</p>
-                )}
-              </div>
-            </Section>
-          )}
-
-          {/* Resolutions */}
-          {(editedData.resolutions?.length > 0 || isEditing) && (
-            <Section title="Resolutions" icon={<Gavel size={18} className="text-purple-400" />}>
-              <div className="space-y-3">
-                {editedData.resolutions?.map((res: any, i: number) => (
-                  <div key={i} className="p-4 rounded-xl border bg-white/[0.02]" style={{ borderColor: "var(--border-subtle)" }}>
-                    {isEditing ? (
-                      <div className="space-y-2">
-                        <input
-                          className="w-full p-2 bg-black/20 border border-white/10 rounded font-600 text-white text-sm outline-none focus:border-indigo-500"
-                          value={res.title}
-                          placeholder="Resolution title"
-                          onChange={(e) => {
-                            const arr = [...editedData.resolutions];
-                            arr[i] = { ...arr[i], title: e.target.value };
-                            setEditedData({ ...editedData, resolutions: arr });
-                          }}
-                        />
-                        <textarea
-                          className="w-full p-2 h-16 bg-black/20 border border-white/10 rounded text-sm text-white resize-none outline-none focus:border-indigo-500"
-                          value={res.description}
-                          placeholder="Description"
-                          onChange={(e) => {
-                            const arr = [...editedData.resolutions];
-                            arr[i] = { ...arr[i], description: e.target.value };
-                            setEditedData({ ...editedData, resolutions: arr });
-                          }}
-                        />
-                        <select
-                          className="bg-transparent border border-white/20 rounded p-1.5 text-xs text-white"
-                          value={res.status}
-                          onChange={(e) => {
-                            const arr = [...editedData.resolutions];
-                            arr[i] = { ...arr[i], status: e.target.value };
-                            setEditedData({ ...editedData, resolutions: arr });
-                          }}
-                        >
-                          <option value="Passed">Passed</option>
-                          <option value="Rejected">Rejected</option>
-                          <option value="Deferred">Deferred</option>
-                          <option value="Tabled">Tabled</option>
-                        </select>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <h4 className="font-600 text-purple-300">{res.title}</h4>
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-700 uppercase shrink-0 ${
-                            res.status === "Passed"
-                              ? "bg-emerald-500/20 text-emerald-400"
-                              : res.status === "Rejected"
-                              ? "bg-red-500/20 text-red-400"
-                              : "bg-amber-500/20 text-amber-400"
-                          }`}>
-                            {res.status}
-                          </span>
-                        </div>
-                        {res.description && (
-                          <p className="text-sm text-white/70 pl-0">{res.description}</p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
-                {(!editedData.resolutions || editedData.resolutions.length === 0) && (
-                  <p className="text-sm text-white/40">No resolutions recorded.</p>
+                  <p className="text-xs text-slate-500 dark:text-white/40">No key decisions recorded.</p>
                 )}
               </div>
             </Section>
           )}
 
           {/* Action Items */}
-          <Section title="Action Items" icon={<Target size={18} className="text-red-400" />}>
-            <div className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border-subtle)" }}>
-              <table className="w-full text-sm text-left">
-                <thead className="bg-white/[0.02] border-b" style={{ borderColor: "var(--border-subtle)" }}>
+          <Section title="Action Items" icon={<Target size={16} />}>
+            <div className="rounded-xl border border-slate-200/80 dark:border-white/[0.08] overflow-hidden shadow-2xs">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-100/90 dark:bg-white/[0.04] border-b border-slate-200/80 dark:border-white/[0.08]">
                   <tr>
-                    <th className="px-4 py-3 font-600 text-white/60 w-2/5">Task</th>
-                    <th className="px-4 py-3 font-600 text-white/60">Assigned To</th>
-                    <th className="px-4 py-3 font-600 text-white/60">Due Date</th>
-                    <th className="px-4 py-3 font-600 text-white/60">Priority</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80 w-2/5">Task</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80">Assigned To</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80">Due Date</th>
+                    <th className="px-4 py-3 font-700 text-slate-700 dark:text-white/80">Priority</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/[0.06]">
+                <tbody className="divide-y divide-slate-200/60 dark:divide-white/[0.06] bg-white dark:bg-transparent">
                   {editedData.actionItems?.map((a: any, i: number) => (
-                    <tr key={i} className="hover:bg-white/[0.01]">
-                      <td className="px-4 py-3 font-500 text-white">
+                    <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                      <td className="px-4 py-3 font-600 text-slate-900 dark:text-white">
                         {isEditing ? (
                           <input
-                            className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-sm text-white outline-none focus:border-indigo-500"
+                            className="w-full bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded px-2 py-1 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
                             value={a.task}
                             onChange={(e) => {
                               const arr = [...editedData.actionItems];
@@ -517,10 +456,10 @@ export default function MinutesDetailPage({
                           />
                         ) : a.task}
                       </td>
-                      <td className="px-4 py-3 text-white/60">
+                      <td className="px-4 py-3 font-500 text-slate-600 dark:text-white/70">
                         {isEditing ? (
                           <input
-                            className="w-full bg-black/20 border border-white/10 rounded px-2 py-1 text-sm text-white outline-none focus:border-indigo-500"
+                            className="w-full bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded px-2 py-1 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
                             value={a.assignedTo}
                             onChange={(e) => {
                               const arr = [...editedData.actionItems];
@@ -530,11 +469,11 @@ export default function MinutesDetailPage({
                           />
                         ) : (a.assignedTo || "-")}
                       </td>
-                      <td className="px-4 py-3 text-white/60">
+                      <td className="px-4 py-3 font-500 text-slate-600 dark:text-white/70">
                         {isEditing ? (
                           <input
                             type="date"
-                            className="bg-black/20 border border-white/10 rounded px-2 py-1 text-sm text-white outline-none focus:border-indigo-500"
+                            className="bg-white dark:bg-black/20 border border-slate-300 dark:border-white/10 rounded px-2 py-1 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
                             value={a.dueDate}
                             onChange={(e) => {
                               const arr = [...editedData.actionItems];
@@ -545,12 +484,12 @@ export default function MinutesDetailPage({
                         ) : (a.dueDate || "-")}
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-600 uppercase ${
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-700 uppercase tracking-wide border ${
                           a.priority === "High"
-                            ? "bg-red-500/20 text-red-400"
+                            ? "bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/30"
                             : a.priority === "Medium"
-                            ? "bg-amber-500/20 text-amber-400"
-                            : "bg-gray-500/20 text-gray-400"
+                            ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30"
+                            : "bg-slate-100 text-slate-700 border-slate-200 dark:bg-gray-500/20 dark:text-gray-300 dark:border-gray-500/30"
                         }`}>
                           {a.priority || "Medium"}
                         </span>
@@ -558,7 +497,7 @@ export default function MinutesDetailPage({
                     </tr>
                   ))}
                   {(!editedData.actionItems || editedData.actionItems.length === 0) && (
-                    <tr><td colSpan={4} className="px-4 py-5 text-center text-white/40">No action items assigned.</td></tr>
+                    <tr><td colSpan={4} className="px-4 py-5 text-center text-slate-500 dark:text-white/40">No action items assigned.</td></tr>
                   )}
                 </tbody>
               </table>
@@ -566,30 +505,35 @@ export default function MinutesDetailPage({
           </Section>
 
           {/* Next Meeting + Closing Remarks */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Section title="Next Meeting" icon={<FileText size={18} className="text-white/40" />}>
-              {isEditing ? (
-                <input
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500"
-                  value={editedData.nextMeeting || ""}
-                  onChange={(e) => setEditedData({ ...editedData, nextMeeting: e.target.value })}
-                  placeholder="Date or description of next meeting"
-                />
-              ) : (
-                <p className="text-sm text-white/80">{minutes.nextMeeting || "Not specified."}</p>
-              )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <Section title="Next Meeting" icon={<FileText size={16} />}>
+              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02]">
+                {isEditing ? (
+                  <input
+                    className="w-full bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500"
+                    value={editedData.nextMeeting || ""}
+                    onChange={(e) => setEditedData({ ...editedData, nextMeeting: e.target.value })}
+                    placeholder="Date or description of next meeting"
+                  />
+                ) : (
+                  <p className="text-xs font-500 text-slate-700 dark:text-white/80">{minutes.nextMeeting || "Not specified."}</p>
+                )}
+              </div>
             </Section>
-            <Section title="Closing Remarks" icon={<FileText size={18} className="text-white/40" />}>
-              {isEditing ? (
-                <textarea
-                  className="w-full h-20 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white resize-none outline-none focus:border-indigo-500"
-                  value={editedData.closingRemarks || ""}
-                  onChange={(e) => setEditedData({ ...editedData, closingRemarks: e.target.value })}
-                  placeholder="Closing remarks"
-                />
-              ) : (
-                <p className="text-sm text-white/80">{minutes.closingRemarks || "None."}</p>
-              )}
+
+            <Section title="Closing Remarks" icon={<FileText size={16} />}>
+              <div className="p-3.5 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/50 dark:bg-white/[0.02]">
+                {isEditing ? (
+                  <textarea
+                    className="w-full h-20 bg-white dark:bg-white/5 border border-slate-300 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-none outline-none focus:border-purple-500"
+                    value={editedData.closingRemarks || ""}
+                    onChange={(e) => setEditedData({ ...editedData, closingRemarks: e.target.value })}
+                    placeholder="Closing remarks"
+                  />
+                ) : (
+                  <p className="text-xs font-500 text-slate-700 dark:text-white/80">{minutes.closingRemarks || "None."}</p>
+                )}
+              </div>
             </Section>
           </div>
 
@@ -610,34 +554,41 @@ export default function MinutesDetailPage({
 
 function Section({ title, icon, children }: { title: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div>
-      <h3 className="text-base font-600 text-white mb-4 flex items-center gap-2">
-        {icon}
-        {title}
-      </h3>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2.5">
+        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-purple-100 text-purple-700 border border-purple-200 dark:bg-purple-500/20 dark:text-purple-300 dark:border-purple-500/30 shrink-0">
+          {icon}
+        </div>
+        <h3 className="text-base font-700 text-slate-900 dark:text-white tracking-tight">
+          {title}
+        </h3>
+      </div>
       {children}
     </div>
   );
 }
 
-function MetaField({ label, value }: { label: string; value: string }) {
+function MetaCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs text-white/40 mb-0.5">{label}</p>
-      <p className="text-sm font-500 text-white">{value}</p>
+    <div className="p-3 rounded-xl border border-slate-200/80 dark:border-white/[0.08] bg-slate-50/80 dark:bg-white/[0.02]">
+      <div className="flex items-center gap-1.5 mb-1">
+        {icon}
+        <p className="text-[11px] font-600 text-slate-500 dark:text-white/40 uppercase tracking-wider">{label}</p>
+      </div>
+      <p className="text-xs font-700 text-slate-900 dark:text-white truncate">{value}</p>
     </div>
   );
 }
 
 function StatusPill({ status }: { status: string }) {
   const colors: Record<string, string> = {
-    Draft:     "bg-gray-500/20 text-gray-400 border-gray-500/30",
-    Review:    "bg-amber-500/20 text-amber-400 border-amber-500/30",
-    Approved:  "bg-blue-500/20 text-blue-400 border-blue-500/30",
-    Published: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+    Draft:     "bg-slate-100 text-slate-800 border-slate-300 dark:bg-gray-500/20 dark:text-gray-300 dark:border-gray-500/30",
+    Review:    "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30",
+    Approved:  "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-500/20 dark:text-blue-300 dark:border-blue-500/30",
+    Published: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-500/20 dark:text-emerald-300 dark:border-emerald-500/30",
   };
   return (
-    <span className={`px-2.5 py-1 rounded-md text-xs font-700 uppercase border ${colors[status] || colors.Draft}`}>
+    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-700 uppercase tracking-wider border ${colors[status] || colors.Draft}`}>
       {status}
     </span>
   );

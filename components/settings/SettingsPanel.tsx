@@ -312,13 +312,6 @@ export default function SettingsPanel({ user }: { user: { name?: string | null; 
           <h1 className="text-xl font-700 text-white">Settings</h1>
           <p className="text-xs text-white/50 mt-0.5">Manage your account settings & preferences</p>
         </div>
-        <button
-          onClick={handleSave}
-          className="bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-600 shadow-md shadow-indigo-500/20 active:scale-[0.98] transition-all cursor-pointer"
-        >
-          <Save size={15} />
-          {saved ? "Saved!" : "Save Changes"}
-        </button>
       </div>
 
       {/* Main Layout */}

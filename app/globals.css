@@ -314,8 +314,26 @@ html[data-theme="light"] [class*="bg-white/"] {
 }
 
 html[data-theme="light"] [class*="bg-white/"]:hover {
-  background-color: #FDF2F8 !important;
-  border-color: #E2DFED !important;
+  background-color: rgba(124, 58, 237, 0.06) !important;
+  border-color: rgba(218, 224, 247, 0.8) !important;
+}
+
+/* ─── Sidebar Hover Color Override ─── */
+html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active):hover {
+  color: #6D28D9 !important;
+  background-color: rgba(124, 58, 237, 0.08) !important;
+  border: none !important;
+  border-color: transparent !important;
+}
+
+html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active) svg {
+  color: #585B68 !important;
+  stroke: #585B68 !important;
+}
+
+html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active):hover svg {
+  color: #6D28D9 !important;
+  stroke: #6D28D9 !important;
 }
 
 /* Sidebar & Top Nav Header Light Mode Soft Tint Background Override */
@@ -377,8 +395,8 @@ html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active) {
 }
 
 html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active):hover {
-  color: #7C3AED !important;
-  background-color: #FDF2F8 !important;
+  color: #6D28D9 !important;
+  background-color: rgba(124, 58, 237, 0.08) !important;
   border: none !important;
   border-color: transparent !important;
 }
@@ -389,8 +407,8 @@ html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active) svg {
 }
 
 html[data-theme="light"] .sidebar-nav-item:not(.sidebar-nav-active):hover svg {
-  color: #574ADE !important;
-  stroke: #574ADE !important;
+  color: #6D28D9 !important;
+  stroke: #6D28D9 !important;
 }
 
 /* Light mode hover state text contrast fix for items & buttons */
