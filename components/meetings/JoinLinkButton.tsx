@@ -1,6 +1,6 @@
 "use client";
 
-import { Link as LinkIcon } from "lucide-react";
+import { Video } from "lucide-react";
 
 export default function JoinLinkButton({ href }: { href: string }) {
   return (
@@ -9,10 +9,10 @@ export default function JoinLinkButton({ href }: { href: string }) {
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
-      className="inline-flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200"
+      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-600 btn-gradient keep-white shadow-xs hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer"
     >
-      <LinkIcon size={12} />
-      <span className="underline underline-offset-2">Join Link</span>
+      <Video size={13} />
+      <span>Join</span>
     </a>
   );
 }

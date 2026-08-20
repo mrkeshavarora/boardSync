@@ -21,7 +21,6 @@ export default function DeleteMeetingButton({
   if (!canDelete) return null;
 
   const handleDelete = async (e: React.MouseEvent) => {
-    // Prevent navigating to meeting room when clicking delete button
     e.preventDefault();
     e.stopPropagation();
 
@@ -53,10 +52,10 @@ export default function DeleteMeetingButton({
     <button
       onClick={handleDelete}
       disabled={isDeleting}
-      className="p-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 transition-colors inline-flex items-center justify-center disabled:opacity-50"
+      className="p-1.5 rounded-xl text-rose-600 dark:text-rose-400 bg-rose-100/80 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/20 hover:bg-rose-600 hover:text-white dark:hover:bg-rose-600 dark:hover:text-white transition-all inline-flex items-center justify-center disabled:opacity-50 shadow-xs cursor-pointer"
       title="Delete Meeting"
     >
-      {isDeleting ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+      {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
     </button>
   );
 }
