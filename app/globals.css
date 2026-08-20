@@ -318,16 +318,50 @@ html[data-theme="light"] [class*="bg-white/"]:hover {
   border-color: #E2DFED !important;
 }
 
-/* Sidebar Light Mode Overhaul */
-html[data-theme="light"] aside {
-  background-color: #FFFFFF !important;
-  border-right: 1px solid rgba(226, 223, 237, 0.7) !important;
-  box-shadow: 2px 0 20px rgba(72, 60, 120, 0.04) !important;
+/* Sidebar & Top Nav Header Light Mode Soft Tint Background Override */
+html[data-theme="light"] aside,
+html[data-theme="light"] header {
+  background: #F4F6FF !important;
+  background-color: #F4F6FF !important;
+  border-color: rgba(218, 224, 247, 0.8) !important;
+  box-shadow: 0 4px 20px rgba(72, 60, 120, 0.05) !important;
 }
 
-html[data-theme="light"] aside div[class*="border-b"] {
-  border-bottom-color: rgba(226, 223, 237, 0.6) !important;
+html[data-theme="light"] header {
+  border-bottom: 1px solid rgba(218, 224, 247, 0.8) !important;
 }
+
+html[data-theme="light"] aside {
+  border-right: 1px solid rgba(218, 224, 247, 0.8) !important;
+}
+
+html[data-theme="light"] aside div[class*="border-b"],
+html[data-theme="light"] header div[class*="border-b"] {
+  border-bottom-color: rgba(218, 224, 247, 0.8) !important;
+}
+
+html[data-theme="light"] aside span[class*="text-white"] {
+  color: #0F172A !important;
+}
+
+html[data-theme="light"] header h1,
+html[data-theme="light"] header .header-user-name {
+  color: #0F172A !important;
+}
+
+html[data-theme="light"] header .header-user-role {
+  color: #64748B !important;
+}
+
+html[data-theme="light"] header .header-chevron {
+  color: #64748B !important;
+}
+
+html[data-theme="light"] header button,
+html[data-theme="light"] header a {
+  border-color: rgba(218, 224, 247, 0.8) !important;
+}
+
 html[data-theme="light"] aside p[class*="tracking-widest"] {
   color: #7C7E8A !important;
 }
