@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DocumentChat from "@/components/documents/DocumentChat";
+import { isAllowedDocument } from "@/lib/documentValidation";
 
 interface IDocument {
   _id: string;
@@ -29,11 +30,15 @@ interface MeetingSummary {
 const fileTypeConfig: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
   "application/pdf": { icon: FileText, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
   "text/markdown": { icon: FileCode, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+  "text/x-markdown": { icon: FileCode, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
   "text/plain": { icon: FileText, color: "text-gray-400", bg: "bg-gray-500/10 border-gray-500/20" },
-  "image/png": { icon: ImageIcon, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-  "image/jpeg": { icon: ImageIcon, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-  "image/webp": { icon: ImageIcon, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+  "text/csv": { icon: FileSpreadsheet, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": { icon: FileSpreadsheet, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+  "application/vnd.ms-excel": { icon: FileSpreadsheet, color: "text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+  "application/msword": { icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": { icon: FileText, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+  "application/vnd.ms-powerpoint": { icon: FileText, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": { icon: FileText, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
 };
 
 function getFileTypeDetails(mimeType: string) {
@@ -125,13 +130,23 @@ export default function DocumentsManager() {
     e.preventDefault();
     setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      if (!isAllowedDocument(droppedFile.name, droppedFile.type)) {
+        alert("Only document files (PDF, Word, Excel, PowerPoint, Text, Markdown) are allowed. Images and videos are blocked.");
+        return;
+      }
+      setFile(droppedFile);
     }
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      if (!isAllowedDocument(selectedFile.name, selectedFile.type)) {
+        alert("Only document files (PDF, Word, Excel, PowerPoint, Text, Markdown) are allowed. Images and videos are blocked.");
+        return;
+      }
+      setFile(selectedFile);
     }
   };
 
@@ -251,6 +266,7 @@ export default function DocumentsManager() {
         <input
           id="file-upload-input"
           type="file"
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md"
           className="hidden"
           onChange={handleFileSelect}
         />
@@ -292,7 +308,7 @@ export default function DocumentsManager() {
         ) : (
           <div className="space-y-1 relative z-20 pointer-events-none">
             <p className="text-sm font-500 text-white">Drag & drop your file here, or <span className="text-indigo-400 font-600">Browse Files</span></p>
-            <p className="text-xs text-white/30">Supports PDFs, Spreadsheets, Markdown documents, and Images.</p>
+            <p className="text-xs text-white/33">Supports PDFs, Word, Spreadsheets, PowerPoint, Markdown, and Text documents.</p>
           </div>
         )}
       </div>

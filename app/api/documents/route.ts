@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import MeetingDocument from "@/models/Document";
 import { auth } from "@/lib/auth";
-
 import { getAccessibleMeetingIds, canAccessMeeting } from "@/lib/meetingAccess";
 import { UserRole } from "@/models/User";
 import mongoose from "mongoose";
+import { isAllowedDocument } from "@/lib/documentValidation";
 
 export async function GET(request: Request) {
   const session = await auth();
@@ -49,6 +49,13 @@ export async function POST(request: Request) {
 
   await connectDB();
   
+  if (!isAllowedDocument(body.fileName, body.fileType)) {
+    return NextResponse.json(
+      { error: "Forbidden — Only document files (PDF, Word, Excel, PowerPoint, Text, Markdown) are allowed. Images and videos are blocked." },
+      { status: 400 }
+    );
+  }
+
   const document = await MeetingDocument.create({
     ...body,
     uploadedBy: session.user.id,

@@ -5,6 +5,7 @@ import MeetingDocument from "@/models/Document";
 import { auth } from "@/lib/auth";
 import { canAccessMeeting } from "@/lib/meetingAccess";
 import { UserRole } from "@/models/User";
+import { isAllowedDocument } from "@/lib/documentValidation";
 
 cloudinary.config({
   cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
@@ -36,6 +37,13 @@ export async function POST(
     const file = formData.get("file") as File | null;
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (!isAllowedDocument(file.name, file.type)) {
+      return NextResponse.json(
+        { error: "Forbidden — Only document files (PDF, Word, Excel, PowerPoint, Text, Markdown) are allowed. Images and videos are blocked." },
+        { status: 400 }
+      );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
