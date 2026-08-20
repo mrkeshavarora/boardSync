@@ -216,6 +216,24 @@ export default function DocumentsManager() {
     window.open(viewerUrl, "_blank");
   }
 
+  async function handleDeleteDoc(id: string) {
+    if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/documents/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to delete document");
+      }
+      setSelectedDocIds((prev) => prev.filter((item) => item !== id));
+      await loadDocuments();
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to delete document");
+    }
+  }
+
   return (
     <div className="space-y-6">
       {cloudinaryConfigured === false && (
@@ -407,6 +425,16 @@ export default function DocumentsManager() {
                     >
                       <Download size={14} />
                     </a>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteDoc(doc._id);
+                      }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white/45 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                      title="Delete Document"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
               );

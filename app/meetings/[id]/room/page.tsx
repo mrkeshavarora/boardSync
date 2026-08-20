@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
   PhoneOff, Users, MessageSquare, ChevronLeft, ChevronRight, Loader2, Circle, Download, Sparkles,
-  PictureInPicture2, UserX, VolumeX, FileText, Send, X, Paperclip, UploadCloud, File, ExternalLink, Plus, Check, Eye
+  PictureInPicture2, UserX, VolumeX, FileText, Send, X, Paperclip, UploadCloud, File, ExternalLink, Plus, Check, Eye, Trash2
 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -190,6 +190,23 @@ export default function MeetingRoomPage() {
     } finally {
       setIsUploadingDoc(false);
       setUploadProgressText("");
+    }
+  };
+
+  const handleDeleteDoc = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this document? This action cannot be undone.")) return;
+    try {
+      const res = await fetch(`/api/documents/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to delete document");
+      }
+      setMeetingDocs((prev) => prev.filter((d) => d._id !== id));
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to delete document");
     }
   };
 
@@ -1957,6 +1974,16 @@ export default function MeetingRoomPage() {
                               >
                                 <Download size={13} />
                               </a>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteDoc(doc._id);
+                                }}
+                                className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-red-500/20 text-white/70 hover:text-red-400 transition-colors"
+                                title={`Delete ${doc.fileName}`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
                             </div>
                           )}
                         </div>
