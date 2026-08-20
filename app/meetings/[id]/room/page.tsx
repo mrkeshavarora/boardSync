@@ -14,6 +14,7 @@ import io from "socket.io-client";
 import LiveTranscriptPanel from "@/components/meetings/LiveTranscriptPanel";
 import GenerateMinutesModal from "@/components/minutes/GenerateMinutesModal";
 import DocumentChat from "@/components/documents/DocumentChat";
+import { isAllowedDocument } from "@/lib/documentValidation";
 
 const SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "http://localhost:4000";
 
@@ -122,6 +123,10 @@ export default function MeetingRoomPage() {
   // Document Upload Handler (Available to ANY meeting participant)
   const handleUploadDocument = async (file: File) => {
     if (!file || !meetingId) return;
+    if (!isAllowedDocument(file.name, file.type)) {
+      alert("Only document files (PDF, Word, Excel, PowerPoint, Text, Markdown) are allowed. Images and videos are blocked.");
+      return;
+    }
     setIsUploadingDoc(true);
     setUploadProgressText(`Uploading ${file.name}...`);
     try {
@@ -1697,6 +1702,7 @@ export default function MeetingRoomPage() {
                 <input
                   ref={chatFileInputRef}
                   type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
@@ -1858,6 +1864,7 @@ export default function MeetingRoomPage() {
                 <input
                   ref={docTabFileInputRef}
                   type="file"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md"
                   className="hidden"
                   onChange={(e) => {
                     const file = e.target.files?.[0];

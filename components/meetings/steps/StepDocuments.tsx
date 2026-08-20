@@ -2,6 +2,7 @@
 
 import { UploadCloud, File, X, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useRef, useState } from "react";
+import { isAllowedDocument } from "@/lib/documentValidation";
 
 type UploadStatus = "uploading" | "done" | "error";
 
@@ -87,7 +88,15 @@ export default function StepDocuments({
     if (!files || files.length === 0) return;
 
     const fileArray = Array.from(files);
-    const newDrafts: DocumentDraft[] = fileArray.map((file) => ({
+    const validFiles = fileArray.filter(file => isAllowedDocument(file.name, file.type));
+
+    if (validFiles.length < fileArray.length) {
+      alert("Some files were skipped. Only document files (PDF, Word, Excel, PowerPoint, Text, Markdown) are allowed. Images and videos are blocked.");
+    }
+
+    if (validFiles.length === 0) return;
+
+    const newDrafts: DocumentDraft[] = validFiles.map((file) => ({
       id: Math.random().toString(36).slice(2),
       name: file.name,
       size: formatSize(file.size),
@@ -101,7 +110,7 @@ export default function StepDocuments({
 
     // Upload concurrently
     await Promise.all(
-      fileArray.map((file, i) => {
+      validFiles.map((file, i) => {
         const draft = newDrafts[i];
         return uploadToCloudinary(file, (pct) => {
           patchDoc(draft.id, { progress: pct });
@@ -148,7 +157,7 @@ export default function StepDocuments({
         ref={fileInputRef}
         type="file"
         multiple
-        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.png,.jpg,.jpeg"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md"
         className="hidden"
         onChange={handleFileInput}
       />
@@ -171,7 +180,7 @@ export default function StepDocuments({
         <p className="text-sm font-600 text-white mb-1">
           {isDragging ? "Drop files here" : "Drag & drop, or click to browse"}
         </p>
-        <p className="text-xs text-white/35">PDF, DOCX, XLSX, PPTX, PNG, JPG · up to 50 MB each</p>
+        <p className="text-xs text-white/35">PDF, Word, Excel, PowerPoint, Text, Markdown · up to 50 MB each</p>
       </div>
 
       {/* Uploading indicator */}
