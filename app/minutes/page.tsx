@@ -2,9 +2,10 @@ import AppShell from "@/components/layout/AppShell";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { BookOpen, Search, FileText, CheckCircle2, Clock, Sparkles } from "lucide-react";
+import { BookOpen, Search, FileText, Sparkles } from "lucide-react";
 import connectDB from "@/lib/mongodb";
 import Minutes from "@/models/Minutes";
+import Meeting from "@/models/Meeting";
 import MeetingParticipant from "@/models/MeetingParticipant";
 import Link from "next/link";
 import { hasPermission } from "@/lib/permissions";
@@ -47,8 +48,6 @@ export default async function MinutesPage({
 
   const total = minutesList.length;
   const drafts = minutesList.filter((m) => m.status === "Draft").length;
-  const review = minutesList.filter((m) => m.status === "Review").length;
-  const published = minutesList.filter((m) => m.status === "Published").length;
 
   return (
     <AppShell title="Meeting Minutes">
@@ -61,7 +60,7 @@ export default async function MinutesPage({
             <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
               {!userIsAdmin
                 ? "Official records for meetings you attended."
-                : "Manage drafts, reviews, and published meeting records."}
+                : "Manage drafts and published meeting records."}
             </p>
           </div>
           <div className="relative w-full sm:w-64">
@@ -81,11 +80,9 @@ export default async function MinutesPage({
 
         {/* Stats (admins only) */}
         {userIsAdmin && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 lg:gap-6">
-            <StatCard title="Total Minutes" value={total}     icon={BookOpen}     color="text-indigo-400" bg="bg-indigo-500/10" border="border-indigo-500/20" />
-            <StatCard title="Drafts"        value={drafts}    icon={FileText}     color="text-gray-400"   bg="bg-gray-500/10"   border="border-gray-500/20" />
-            <StatCard title="In Review"     value={review}    icon={Clock}        color="text-amber-400"  bg="bg-amber-500/10"  border="border-amber-500/20" />
-            <StatCard title="Published"     value={published} icon={CheckCircle2} color="text-emerald-400" bg="bg-emerald-500/10" border="border-emerald-500/20" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 lg:gap-6">
+            <StatCard title="Total Minutes" value={total}  icon={BookOpen} color="text-indigo-400" bg="bg-indigo-500/10" border="border-indigo-500/20" />
+            <StatCard title="Drafts"        value={drafts} icon={FileText} color="text-gray-400"   bg="bg-gray-500/10"   border="border-gray-500/20" />
           </div>
         )}
 
@@ -131,7 +128,7 @@ export default async function MinutesPage({
                     <div>
                       <div className="flex items-center gap-3 flex-wrap">
                         <h3 className="font-600 text-white group-hover:text-indigo-400 transition-colors">
-                          {m.meetingId?.title || "Untitled Meeting"}
+                          {m.meetingId?.title || "Meeting"}
                         </h3>
                         <StatusBadge status={m.status} />
                         {m.generatedByAI && (

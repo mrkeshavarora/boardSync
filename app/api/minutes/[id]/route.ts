@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Minutes from "@/models/Minutes";
+import Meeting from "@/models/Meeting";
 import MeetingParticipant from "@/models/MeetingParticipant";
 import { auth } from "@/lib/auth";
 import { hasPermission } from "@/lib/permissions";
